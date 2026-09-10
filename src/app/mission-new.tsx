@@ -58,10 +58,14 @@ export default function MissionNewScreen() {
   const [busy, setBusy] = useState(false);
 
   const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
-  const assignee = child ?? me;
+  const parent = useMemo(() => members.find((member) => member.role === 'parent') ?? null, [members]);
   const category = node?.path_id ?? (typeof params.category === 'string' ? params.category : 'together');
+  const assignee = category === 'together'
+    ? (me?.role === 'child' ? parent ?? me : child ?? me)
+    : child ?? me;
   const meta = categoryMeta[category] ?? fallbackMeta;
   const xpReward = rewardForNode(node?.node_type);
+  const isTogether = category === 'together';
 
   useEffect(() => {
     const nodeId = typeof params.node === 'string' ? params.node : '';
@@ -117,10 +121,22 @@ export default function MissionNewScreen() {
       });
       if (error) throw error;
 
-      Alert.alert('Миссия создана', `${assignee.display_name} увидит её в разделе «Развитие».`);
+      Alert.alert(
+        'Миссия создана',
+        isTogether
+          ? `${me?.display_name ?? 'Ты'} и ${assignee.display_name} сможете отметить её выполненной.`
+          : `${assignee.display_name} увидит её в разделе «Развитие».`,
+      );
       router.back();
     } catch (caught) {
-      Alert.alert('Не удалось создать миссию', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
+      const message = caught instanceof Error ? caught.message : 'Попробуй ещё раз.';
+      if (message.includes('PREVIOUS_SKILL_NODE_REQUIRED')) {
+        Alert.alert('Сначала предыдущий шаг', 'Эта ступень откроется после завершения предыдущей.');
+      } else if (message.includes('ACTIVE_MISSION_EXISTS')) {
+        Alert.alert('Миссия уже есть', 'Для этой ступени уже запущена активная миссия.');
+      } else {
+        Alert.alert('Не удалось создать миссию', message);
+      }
     } finally {
       setBusy(false);
     }
@@ -135,8 +151,10 @@ export default function MissionNewScreen() {
               <Text style={styles.backText}>‹</Text>
             </Pressable>
             <View style={styles.headerText}>
-              <Text style={styles.title}>Новая миссия</Text>
-              <Text style={styles.subtitle}>Небольшой конкретный шаг вместо оценки или контроля.</Text>
+              <Text style={styles.title}>{isTogether ? 'Совместная миссия' : 'Новая миссия'}</Text>
+              <Text style={styles.subtitle}>
+                {isTogether ? 'Небольшое общее дело, в котором есть вклад обоих.' : 'Небольшой конкретный шаг вместо оценки или контроля.'}
+              </Text>
             </View>
           </View>
 
@@ -148,17 +166,17 @@ export default function MissionNewScreen() {
                 <Text style={styles.categoryIcon}>{meta.icon}</Text>
                 <View style={styles.categoryText}>
                   <Text style={styles.categoryLabel}>{meta.title}</Text>
-                  <Text style={styles.categoryHint}>{node ? `Ступень: ${node.title}` : 'Свободная миссия'}</Text>
+                  <Text style={styles.categoryHint}>{node ? `Ступень: ${node.title}` : isTogether ? 'Общая миссия' : 'Свободная миссия'}</Text>
                 </View>
                 <View style={styles.xpBadge}><Text style={styles.xpText}>+{xpReward} XP</Text></View>
               </View>
 
-              <AppCard title={`Для: ${assignee?.display_name ?? 'участника команды'}`}>
+              <AppCard title={isTogether ? `Напарник: ${assignee?.display_name ?? 'второй участник'}` : `Для: ${assignee?.display_name ?? 'участника команды'}`}>
                 <Text style={styles.label}>Название</Text>
                 <TextInput
                   value={title}
                   onChangeText={setTitle}
-                  placeholder="Например: Сам выберу цель недели"
+                  placeholder={isTogether ? 'Например: Сыграть партию и выбрать лучший ход' : 'Например: Сам выберу цель недели'}
                   placeholderTextColor={colors.muted}
                   style={styles.input}
                   maxLength={120}
@@ -168,7 +186,7 @@ export default function MissionNewScreen() {
                 <TextInput
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Коротко и без двусмысленности"
+                  placeholder={isTogether ? 'Что вы оба должны сделать?' : 'Коротко и без двусмысленности'}
                   placeholderTextColor={colors.muted}
                   style={[styles.input, styles.descriptionInput]}
                   multiline
@@ -194,11 +212,15 @@ export default function MissionNewScreen() {
                   onPress={() => void createMission()}
                   disabled={!assignee || busy}
                 >
-                  <Text style={styles.primaryText}>{busy ? 'Создаём…' : 'Запустить миссию'}</Text>
+                  <Text style={styles.primaryText}>{busy ? 'Создаём…' : isTogether ? 'Запустить нашу миссию' : 'Запустить миссию'}</Text>
                 </Pressable>
               </AppCard>
 
-              <Text style={styles.note}>После выполнения миссия попадёт в вашу Историю. Если она связана со ступенью развития, ступень закроется автоматически.</Text>
+              <Text style={styles.note}>
+                {isTogether
+                  ? 'Автор и второй участник смогут завершить миссию. Результат и XP попадут в общую Историю.'
+                  : 'После выполнения миссия попадёт в вашу Историю. Если она связана со ступенью развития, ступень закроется автоматически.'}
+              </Text>
             </>
           )}
         </ScrollView>

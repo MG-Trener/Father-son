@@ -162,16 +162,20 @@ export default function HomeScreen() {
 
     setActionBusy(true);
     try {
-      const { error } = await supabase.from('activity_events').insert({
-        family_id: family.id,
-        actor_user_id: session.user.id,
-        event_type: 'five_minutes_ping',
-        category: 'together',
-        payload: { intent: 'connect' },
+      const { error } = await supabase.rpc('send_connection_signal', {
+        p_family_id: family.id,
+        p_signal_type: 'five_minutes',
+        p_message: null,
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('SIGNAL_TOO_SOON')) {
+          Alert.alert('Сигнал уже отправлен', 'Не будем спамить. Подожди немного перед повторной отправкой.');
+          return;
+        }
+        throw error;
+      }
       setInteractions((value) => value + 1);
-      Alert.alert('Сигнал сохранён', 'Он уже появился в «Нашей истории». Push-уведомление подключим следующим слоем.');
+      Alert.alert('Отправлено', `${me?.role === 'parent' ? childName : parentName} увидит, что у тебя есть несколько минут на связь.`);
     } catch (caught) {
       Alert.alert('Не удалось отправить сигнал', caught instanceof Error ? caught.message : 'Попробуйте ещё раз.');
     } finally {
@@ -181,6 +185,9 @@ export default function HomeScreen() {
 
   const parentMood = moodPresentation(parent ? latestMoods[parent.user_id]?.mood : 'great');
   const childMood = moodPresentation(child ? latestMoods[child.user_id]?.mood : 'good');
+  const todayQuestion = me?.role === 'child'
+    ? 'Какой момент сегодня ты хотел бы показать папе?'
+    : 'Что сегодня ты хотел бы рассказать Артуру не как совет, а просто как историю?';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -240,9 +247,12 @@ export default function HomeScreen() {
         </Pressable>
 
         <AppCard title="Сегодня вместе" subtitle="Вопрос дня">
-          <Text style={styles.question}>Какой момент сегодня ты хотел бы показать папе?</Text>
-          <Pressable style={styles.voiceButton}>
-            <Text style={styles.voiceButtonText}>🎙 Рассказать голосом</Text>
+          <Text style={styles.question}>{todayQuestion}</Text>
+          <Pressable
+            style={styles.voiceButton}
+            onPress={() => router.push({ pathname: '/reflection-new', params: { prompt: todayQuestion } })}
+          >
+            <Text style={styles.voiceButtonText}>✍️ Ответить</Text>
           </Pressable>
         </AppCard>
 
@@ -267,7 +277,7 @@ export default function HomeScreen() {
           <View style={styles.statsRow}>
             <Text style={styles.stat}>❤️ {interactions} взаимодействий</Text>
             <Text style={styles.stat}>🎯 {completedMissions} миссий</Text>
-            <Text style={styles.stat}>📖 История начинается</Text>
+            <Text style={styles.stat}>📖 История продолжается</Text>
           </View>
         </AppCard>
       </ScrollView>

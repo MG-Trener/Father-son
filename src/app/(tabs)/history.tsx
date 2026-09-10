@@ -43,6 +43,23 @@ const eventView = (event: TimelineEvent, actorName: string) => {
       return { icon: '🤝', title: 'Команда в сборе', text: `${actorName} присоединился к «Папа & Я».` };
     case 'five_minutes_ping':
       return { icon: '💬', title: 'Есть 5 минут?', text: `${actorName} предложил немного побыть вместе.` };
+    case 'advice_requested': {
+      const message = payloadText(event.payload, 'message');
+      return {
+        icon: '🧭',
+        title: 'Нужен совет',
+        text: message ? `${actorName}: ${message}` : `${actorName} попросил немного помочь советом.`,
+      };
+    }
+    case 'reflection_added': {
+      const preview = payloadText(event.payload, 'preview');
+      const prompt = payloadText(event.payload, 'prompt');
+      return {
+        icon: '✍️',
+        title: prompt ? 'Ответ друг другу' : 'История дня',
+        text: preview ? `${actorName}: ${preview}` : `${actorName} сохранил новую историю для вашей команды.`,
+      };
+    }
     case 'meeting_created':
       return { icon: '📅', title: 'Запланирована встреча', text: title ? `${actorName} запланировал «${title}».` : `${actorName} добавил следующую встречу.` };
     case 'mission_created':
