@@ -15,6 +15,14 @@ type TimelineEvent = {
   payload: unknown;
 };
 
+const growthMeta: Record<string, { icon: string; title: string }> = {
+  school: { icon: '📚', title: 'Школа' },
+  football: { icon: '⚽', title: 'Футбол' },
+  chess: { icon: '♟', title: 'Шахматы' },
+  english: { icon: 'EN', title: 'English' },
+  leadership: { icon: '🧭', title: 'Лидерство' },
+};
+
 const payloadRecord = (payload: unknown): Record<string, unknown> => {
   if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
     return payload as Record<string, unknown>;
@@ -84,6 +92,16 @@ const eventView = (event: TimelineEvent, actorName: string) => {
         icon: '🎙',
         title: title || 'Голосовая история',
         text: `${actorName} сохранил голосовой момент${duration ? ` · ${duration}` : ''}.`,
+      };
+    }
+    case 'growth_entry_added': {
+      const category = event.category ? growthMeta[event.category] : null;
+      const entryType = payloadText(event.payload, 'entry_type');
+      const label = category?.title ?? 'Развитие';
+      return {
+        icon: category?.icon ?? '🌱',
+        title: title || label,
+        text: `${actorName} добавил запись в «${label}»${entryType ? ` · ${entryType}` : ''}.`,
       };
     }
     case 'meeting_created':
@@ -186,7 +204,7 @@ export default function HistoryScreen() {
           title={`${child?.display_name ?? 'Артур'}${childAge !== null ? ` · ${childAge} лет` : ''}`}
           subtitle="Первая глава · Исследователь"
         >
-          <Text style={styles.body}>Здесь постепенно соберутся разговоры, футбол, шахматы, English, лидерские поступки, встречи, миссии, голосовые истории и ваши заметки друг о друге.</Text>
+          <Text style={styles.body}>Здесь постепенно соберутся разговоры, футбол, школа, шахматы, English, лидерские поступки, встречи, миссии, голосовые истории и ваши заметки друг о друге.</Text>
         </AppCard>
 
         {loading ? (
