@@ -12,11 +12,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
-import { colors, radius } from '../theme';
+import { colors, gradients, radius, shadows } from '../theme';
 
 type SetupMode = 'create' | 'join';
 
@@ -102,31 +103,62 @@ export default function TeamSetupScreen() {
 
   if (createdInvite) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.hero}>
-            <Text style={styles.brand}>Папа & Я</Text>
-            <Text style={styles.kicker}>КОМАНДА СОЗДАНА</Text>
-            <Text style={styles.title}>Михаил + Артур</Text>
-            <Text style={styles.copy}>Открой приложение на телефоне Артура, создай ему отдельный аккаунт и введи этот код.</Text>
-          </View>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <LinearGradient colors={gradients.team} style={[styles.inviteHero, shadows.lift]}>
+            <View style={styles.orbLarge} />
+            <View style={styles.orbSmall} />
+            <Text style={styles.heroKicker}>КОМАНДА СОЗДАНА</Text>
+            <Text style={styles.heroBrand}>Папа & Я</Text>
+            <Text style={styles.heroTitle}>Остался один шаг — соединить два телефона.</Text>
 
-          <View style={styles.inviteCard}>
-            <Text style={styles.inviteLabel}>КОД ДЛЯ АРТУРА</Text>
+            <View style={styles.phoneRoute}>
+              <View style={styles.phoneCard}>
+                <View style={[styles.avatar, styles.avatarDad]}><Text style={styles.avatarText}>М</Text></View>
+                <Text style={styles.phoneName}>Михаил</Text>
+                <Text style={styles.phoneState}>готов</Text>
+              </View>
+              <View style={styles.routeWrap}>
+                <View style={styles.routeLine} />
+                <View style={styles.routeBadge}><Text style={styles.routeBadgeText}>↔</Text></View>
+                <View style={styles.routeLine} />
+              </View>
+              <View style={styles.phoneCard}>
+                <View style={[styles.avatar, styles.avatarSon]}><Text style={styles.avatarText}>А</Text></View>
+                <Text style={styles.phoneName}>Артур</Text>
+                <Text style={styles.phoneState}>ждём</Text>
+              </View>
+            </View>
+          </LinearGradient>
+
+          <View style={[styles.codeCard, shadows.soft]}>
+            <Text style={styles.codeKicker}>КОД ДЛЯ АРТУРА</Text>
             <Text selectable style={styles.inviteCode}>{createdInvite.invite_code}</Text>
-            <Text style={styles.inviteHint}>Одноразовый · действует 7 дней · в базе хранится только защищённый хэш</Text>
+            <View style={styles.codeDivider} />
+            <Text style={styles.codeHint}>Одноразовый · действует 7 дней</Text>
+            <Text style={styles.codeFine}>В базе хранится только защищённый хэш кода.</Text>
           </View>
 
-          <View style={styles.tipCard}>
-            <Text style={styles.tipTitle}>Как подключить второй телефон</Text>
-            <Text style={styles.tipLine}>1. Установить «Папа & Я» на телефон Артура.</Text>
-            <Text style={styles.tipLine}>2. Создать отдельный аккаунт Артура.</Text>
-            <Text style={styles.tipLine}>3. Выбрать «У меня есть код папы».</Text>
-            <Text style={styles.tipLine}>4. Ввести код выше — после этого оба телефона увидят одну команду.</Text>
+          <View style={styles.stepsCard}>
+            <Text style={styles.stepsTitle}>Подключаем Артура</Text>
+            {[
+              ['1', 'Установить «Папа & Я» на второй телефон.'],
+              ['2', 'Создать отдельный аккаунт Артура.'],
+              ['3', 'Выбрать роль «Я Артур».'],
+              ['4', 'Ввести код выше — оба телефона увидят одну команду.'],
+            ].map(([number, text]) => (
+              <View key={number} style={styles.stepRow}>
+                <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>{number}</Text></View>
+                <Text style={styles.stepText}>{text}</Text>
+              </View>
+            ))}
           </View>
 
           <Pressable style={styles.primary} onPress={() => router.replace('/(tabs)')}>
-            <Text style={styles.primaryText}>Перейти в приложение</Text>
+            <LinearGradient colors={gradients.connection} style={styles.primaryGradient}>
+              <Text style={styles.primaryTextDark}>Перейти в приложение</Text>
+              <Text style={styles.primaryArrow}>→</Text>
+            </LinearGradient>
           </Pressable>
         </ScrollView>
       </SafeAreaView>
@@ -135,82 +167,129 @@ export default function TeamSetupScreen() {
 
   if (family) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.centered}>
-          <Text style={styles.brand}>Папа & Я</Text>
-          <Text style={styles.title}>{family.name}</Text>
-          <Text style={styles.copy}>Этот аккаунт уже подключён к команде.</Text>
-          <Pressable style={styles.primaryWide} onPress={() => router.replace('/(tabs)')}>
-            <Text style={styles.primaryText}>Открыть приложение</Text>
-          </Pressable>
+          <LinearGradient colors={gradients.team} style={[styles.alreadyCard, shadows.lift]}>
+            <View style={styles.orbLarge} />
+            <Text style={styles.heroKicker}>КОМАНДА УЖЕ СВЯЗАНА</Text>
+            <Text style={styles.heroBrand}>Папа & Я</Text>
+            <Text style={styles.heroTitle}>{family.name}</Text>
+            <Text style={styles.alreadyCopy}>Этот аккаунт уже подключён к вашей общей истории.</Text>
+            <Pressable style={styles.alreadyButton} onPress={() => router.replace('/(tabs)')}>
+              <Text style={styles.alreadyButtonText}>Открыть приложение →</Text>
+            </Pressable>
+          </LinearGradient>
         </View>
       </SafeAreaView>
     );
   }
 
+  const isParent = mode === 'create';
+
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.hero}>
-            <Text style={styles.brand}>Папа & Я</Text>
-            <Text style={styles.title}>Создаём вашу команду</Text>
-            <Text style={styles.copy}>У Михаила и Артура будут отдельные аккаунты, но общее приватное пространство.</Text>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <LinearGradient colors={gradients.team} style={[styles.setupHero, shadows.lift]}>
+            <View style={styles.orbLarge} />
+            <View style={styles.orbSmall} />
+            <Text style={styles.heroKicker}>СОЗДАЁМ КОМАНДУ</Text>
+            <Text style={styles.heroBrand}>Папа & Я</Text>
+            <Text style={styles.heroTitle}>Два аккаунта. Одна общая история.</Text>
+            <Text style={styles.heroCopy}>Выбери, на чьём телефоне сейчас открыто приложение.</Text>
+          </LinearGradient>
+
+          <View style={styles.roleGrid}>
+            <Pressable style={[styles.roleCard, mode === 'create' && styles.roleCardSelected]} onPress={() => setMode('create')}>
+              <LinearGradient colors={mode === 'create' ? ['#194D5C', '#267281'] : ['#FFFDF8', '#F7F2E8']} style={styles.roleGradient}>
+                <View style={[styles.roleAvatar, styles.avatarDad]}><Text style={styles.roleAvatarText}>М</Text></View>
+                <Text style={[styles.roleKicker, mode === 'create' && styles.roleTextSelected]}>ПАПА</Text>
+                <Text style={[styles.roleTitle, mode === 'create' && styles.roleTextSelected]}>Я Михаил</Text>
+                <Text style={[styles.roleCopy, mode === 'create' && styles.roleCopySelected]}>Создаю нашу команду и приглашаю Артура.</Text>
+                {mode === 'create' ? <View style={styles.selectedBadge}><Text style={styles.selectedBadgeText}>✓ выбрано</Text></View> : null}
+              </LinearGradient>
+            </Pressable>
+
+            <Pressable style={[styles.roleCard, mode === 'join' && styles.roleCardSelectedSon]} onPress={() => setMode('join')}>
+              <LinearGradient colors={mode === 'join' ? ['#D97045', '#F0A24D'] : ['#FFFDF8', '#F7F2E8']} style={styles.roleGradient}>
+                <View style={[styles.roleAvatar, styles.avatarSon]}><Text style={styles.roleAvatarText}>А</Text></View>
+                <Text style={[styles.roleKicker, mode === 'join' && styles.roleTextSelected]}>СЫН</Text>
+                <Text style={[styles.roleTitle, mode === 'join' && styles.roleTextSelected]}>Я Артур</Text>
+                <Text style={[styles.roleCopy, mode === 'join' && styles.roleCopySelected]}>Получил код папы и присоединяюсь к нему.</Text>
+                {mode === 'join' ? <View style={styles.selectedBadgeLight}><Text style={styles.selectedBadgeTextDark}>✓ выбрано</Text></View> : null}
+              </LinearGradient>
+            </Pressable>
           </View>
 
-          <View style={styles.segment}>
-            <Pressable style={[styles.segmentButton, mode === 'create' && styles.segmentActive]} onPress={() => setMode('create')}>
-              <Text style={[styles.segmentText, mode === 'create' && styles.segmentTextActive]}>Я Михаил</Text>
-            </Pressable>
-            <Pressable style={[styles.segmentButton, mode === 'join' && styles.segmentActive]} onPress={() => setMode('join')}>
-              <Text style={[styles.segmentText, mode === 'join' && styles.segmentTextActive]}>Я Артур</Text>
-            </Pressable>
-          </View>
+          <View style={[styles.formCard, shadows.soft]}>
+            <View style={styles.formHeaderRow}>
+              <View style={[styles.formIcon, { backgroundColor: isParent ? colors.mint : '#FFF0D4' }]}>
+                <Text style={styles.formIconText}>{isParent ? '✦' : '⌁'}</Text>
+              </View>
+              <View style={styles.formHeaderText}>
+                <Text style={styles.cardTitle}>{isParent ? 'Создать команду' : 'Подключиться к папе'}</Text>
+                <Text style={styles.cardCopy}>
+                  {isParent
+                    ? 'После создания появится одноразовый код для телефона Артура.'
+                    : 'Введи код, который показан на телефоне Михаила.'}
+                </Text>
+              </View>
+            </View>
 
-          <View style={styles.card}>
-            {mode === 'create' ? (
-              <>
-                <Text style={styles.cardTitle}>Создать команду</Text>
-                <Text style={styles.cardCopy}>Михаил создаёт «Михаил + Артур» и получает одноразовый код для второго телефона.</Text>
-                <TextInput
-                  value={parentName}
-                  onChangeText={setParentName}
-                  placeholder="Имя папы"
-                  placeholderTextColor={colors.muted}
-                  style={styles.input}
-                  autoCapitalize="words"
-                />
-                <Pressable style={[styles.primary, busy && styles.disabled]} onPress={createTeam} disabled={busy}>
-                  {busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryText}>Создать и получить код</Text>}
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <Text style={styles.cardTitle}>Присоединиться к папе</Text>
-                <Text style={styles.cardCopy}>Артур вводит код, который показан на телефоне Михаила.</Text>
-                <TextInput
-                  value={childName}
-                  onChangeText={setChildName}
-                  placeholder="Имя сына"
-                  placeholderTextColor={colors.muted}
-                  style={styles.input}
-                  autoCapitalize="words"
-                />
+            <View style={styles.fieldWrap}>
+              <Text style={styles.fieldLabel}>{isParent ? 'Имя папы' : 'Имя сына'}</Text>
+              <TextInput
+                value={isParent ? parentName : childName}
+                onChangeText={isParent ? setParentName : setChildName}
+                placeholder={isParent ? 'Михаил' : 'Артур'}
+                placeholderTextColor={colors.mutedSoft}
+                style={styles.input}
+                autoCapitalize="words"
+              />
+            </View>
+
+            {!isParent ? (
+              <View style={styles.fieldWrap}>
+                <Text style={styles.fieldLabel}>Код от папы</Text>
                 <TextInput
                   value={inviteCode}
                   onChangeText={(value) => setInviteCode(value.toUpperCase())}
                   placeholder="XXXX-XXXX-XXXX"
-                  placeholderTextColor={colors.muted}
+                  placeholderTextColor={colors.mutedSoft}
                   style={[styles.input, styles.codeInput]}
                   autoCapitalize="characters"
                   autoCorrect={false}
                   maxLength={14}
                 />
-                <Pressable style={[styles.primary, busy && styles.disabled]} onPress={joinTeam} disabled={busy}>
-                  {busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryText}>Присоединиться к команде</Text>}
-                </Pressable>
-              </>
-            )}
+              </View>
+            ) : null}
+
+            <Pressable
+              style={[styles.primary, busy && styles.disabled]}
+              onPress={isParent ? createTeam : joinTeam}
+              disabled={busy}
+            >
+              <LinearGradient colors={isParent ? gradients.team : gradients.connection} style={styles.primaryGradient}>
+                {busy ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <>
+                    <Text style={isParent ? styles.primaryText : styles.primaryTextDark}>
+                      {isParent ? 'Создать команду и получить код' : 'Присоединиться к команде'}
+                    </Text>
+                    <Text style={isParent ? styles.primaryArrowLight : styles.primaryArrow}>→</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </Pressable>
+          </View>
+
+          <View style={styles.promiseCard}>
+            <Text style={styles.promiseIcon}>∞</Text>
+            <View style={styles.promiseTextWrap}>
+              <Text style={styles.promiseTitle}>Связь, а не контроль</Text>
+              <Text style={styles.promiseCopy}>Отдельные аккаунты, общие моменты. Без скрытого наблюдения и без оценки «хороший/плохой».</Text>
+            </View>
           </View>
 
           <Pressable onPress={exit}>
@@ -225,33 +304,82 @@ export default function TeamSetupScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.sand },
   keyboard: { flex: 1 },
-  content: { flexGrow: 1, padding: 22, justifyContent: 'center', gap: 18 },
-  centered: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  hero: { gap: 7 },
-  brand: { color: colors.navyDeep, fontSize: 36, fontWeight: '900', letterSpacing: -1 },
-  kicker: { color: colors.green, fontSize: 11, fontWeight: '900', letterSpacing: 1.4, marginTop: 8 },
-  title: { color: colors.text, fontSize: 24, fontWeight: '900' },
-  copy: { color: colors.muted, fontSize: 14, lineHeight: 21 },
-  segment: { flexDirection: 'row', backgroundColor: colors.paper, borderRadius: radius.md, padding: 4, borderWidth: 1, borderColor: colors.line },
-  segmentButton: { flex: 1, minHeight: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  segmentActive: { backgroundColor: colors.navy },
-  segmentText: { color: colors.muted, fontWeight: '800' },
-  segmentTextActive: { color: colors.white },
-  card: { backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 20, gap: 12 },
-  cardTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
-  cardCopy: { color: colors.muted, fontSize: 13, lineHeight: 19, marginBottom: 3 },
-  input: { height: 50, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 14, backgroundColor: colors.white, color: colors.text, fontSize: 15 },
-  codeInput: { textAlign: 'center', fontSize: 20, fontWeight: '900', letterSpacing: 2 },
-  primary: { minHeight: 50, borderRadius: radius.md, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  primaryWide: { minHeight: 50, minWidth: 230, borderRadius: radius.md, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginTop: 8 },
-  primaryText: { color: colors.white, fontSize: 15, fontWeight: '900' },
+  content: { flexGrow: 1, padding: 18, justifyContent: 'center', gap: 16 },
+  centered: { flex: 1, padding: 18, alignItems: 'center', justifyContent: 'center' },
+  setupHero: { minHeight: 205, borderRadius: radius.xl, padding: 22, justifyContent: 'flex-end', overflow: 'hidden' },
+  inviteHero: { minHeight: 330, borderRadius: radius.xl, padding: 22, overflow: 'hidden', justifyContent: 'space-between' },
+  alreadyCard: { width: '100%', borderRadius: radius.xl, padding: 26, minHeight: 330, justifyContent: 'center', overflow: 'hidden' },
+  orbLarge: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255,215,106,0.10)', top: -74, right: -45 },
+  orbSmall: { position: 'absolute', width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: 'rgba(255,255,255,0.10)', bottom: -18, left: -22 },
+  heroKicker: { color: colors.sun, fontSize: 9, fontWeight: '900', letterSpacing: 1.8 },
+  heroBrand: { color: colors.white, fontSize: 20, fontWeight: '900', marginTop: 4 },
+  heroTitle: { color: colors.white, fontSize: 27, lineHeight: 31, fontWeight: '900', letterSpacing: -0.7, marginTop: 14, maxWidth: '92%' },
+  heroCopy: { color: '#D7E6E8', fontSize: 12, lineHeight: 18, marginTop: 7, maxWidth: '92%' },
+  roleGrid: { flexDirection: 'row', gap: 10 },
+  roleCard: { flex: 1, minHeight: 190, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.lineWarm },
+  roleCardSelected: { borderColor: colors.tealBright, ...shadows.soft },
+  roleCardSelectedSon: { borderColor: colors.orange, ...shadows.soft },
+  roleGradient: { flex: 1, padding: 14, justifyContent: 'flex-end' },
+  roleAvatar: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  avatar: { width: 56, height: 56, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  avatarDad: { backgroundColor: colors.tealBright },
+  avatarSon: { backgroundColor: colors.orange },
+  avatarText: { color: colors.white, fontWeight: '900', fontSize: 21 },
+  roleAvatarText: { color: colors.white, fontSize: 18, fontWeight: '900' },
+  roleKicker: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },
+  roleTitle: { color: colors.navyDeep, fontSize: 17, fontWeight: '900', marginTop: 3 },
+  roleCopy: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 5 },
+  roleTextSelected: { color: colors.white },
+  roleCopySelected: { color: '#E2EDEE' },
+  selectedBadge: { alignSelf: 'flex-start', marginTop: 10, backgroundColor: 'rgba(255,255,255,0.13)', paddingHorizontal: 8, paddingVertical: 5, borderRadius: radius.pill },
+  selectedBadgeLight: { alignSelf: 'flex-start', marginTop: 10, backgroundColor: 'rgba(255,255,255,0.32)', paddingHorizontal: 8, paddingVertical: 5, borderRadius: radius.pill },
+  selectedBadgeText: { color: colors.white, fontSize: 8, fontWeight: '900' },
+  selectedBadgeTextDark: { color: colors.navyDeep, fontSize: 8, fontWeight: '900' },
+  formCard: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 18, gap: 15, borderWidth: 1, borderColor: colors.lineWarm },
+  formHeaderRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  formIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  formIconText: { color: colors.navyDeep, fontSize: 20, fontWeight: '900' },
+  formHeaderText: { flex: 1 },
+  cardTitle: { color: colors.navyDeep, fontSize: 20, fontWeight: '900' },
+  cardCopy: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 4 },
+  fieldWrap: { gap: 6 },
+  fieldLabel: { color: colors.text, fontSize: 11, fontWeight: '900', paddingLeft: 2 },
+  input: { height: 52, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 15, backgroundColor: colors.white, color: colors.text, fontSize: 15 },
+  codeInput: { textAlign: 'center', fontSize: 19, fontWeight: '900', letterSpacing: 2 },
+  primary: { borderRadius: radius.md, overflow: 'hidden' },
+  primaryGradient: { minHeight: 54, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  primaryText: { color: colors.white, fontSize: 13, fontWeight: '900' },
+  primaryTextDark: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' },
+  primaryArrow: { color: colors.navyDeep, fontSize: 20, fontWeight: '900' },
+  primaryArrowLight: { color: colors.white, fontSize: 20, fontWeight: '900' },
   disabled: { opacity: 0.55 },
-  exit: { color: colors.muted, textAlign: 'center', paddingVertical: 10, fontWeight: '700' },
-  inviteCard: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 24, alignItems: 'center', gap: 10 },
-  inviteLabel: { color: '#C9D7D7', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
-  inviteCode: { color: colors.white, fontSize: 31, fontWeight: '900', letterSpacing: 2 },
-  inviteHint: { color: '#D7E1E2', fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  tipCard: { backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 18, gap: 8 },
-  tipTitle: { color: colors.text, fontSize: 17, fontWeight: '900', marginBottom: 2 },
-  tipLine: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  promiseCard: { flexDirection: 'row', gap: 12, backgroundColor: '#EEF5F2', borderRadius: radius.lg, padding: 14, alignItems: 'center' },
+  promiseIcon: { color: colors.green, fontSize: 27, fontWeight: '900' },
+  promiseTextWrap: { flex: 1 },
+  promiseTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  promiseCopy: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 2 },
+  exit: { color: colors.muted, textAlign: 'center', paddingVertical: 8, fontWeight: '800', fontSize: 11 },
+  phoneRoute: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
+  phoneCard: { width: 76, alignItems: 'center' },
+  phoneName: { color: colors.white, fontSize: 11, fontWeight: '900', marginTop: 7 },
+  phoneState: { color: '#BFD3D7', fontSize: 9, marginTop: 2 },
+  routeWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6 },
+  routeLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.24)' },
+  routeBadge: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,215,106,0.14)', borderWidth: 1, borderColor: 'rgba(255,215,106,0.28)', alignItems: 'center', justifyContent: 'center' },
+  routeBadgeText: { color: colors.sun, fontSize: 17, fontWeight: '900' },
+  codeCard: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 22, alignItems: 'center', borderWidth: 1, borderColor: colors.lineWarm },
+  codeKicker: { color: colors.teal, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  inviteCode: { color: colors.navyDeep, fontSize: 30, fontWeight: '900', letterSpacing: 2.2, marginTop: 10 },
+  codeDivider: { width: 48, height: 3, borderRadius: 2, backgroundColor: colors.amber, marginVertical: 13 },
+  codeHint: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  codeFine: { color: colors.muted, fontSize: 9, marginTop: 3 },
+  stepsCard: { backgroundColor: colors.sandWarm, borderRadius: radius.xl, padding: 18, gap: 12 },
+  stepsTitle: { color: colors.navyDeep, fontSize: 17, fontWeight: '900', marginBottom: 2 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepBadge: { width: 28, height: 28, borderRadius: 10, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  stepBadgeText: { color: colors.teal, fontSize: 11, fontWeight: '900' },
+  stepText: { flex: 1, color: colors.muted, fontSize: 11, lineHeight: 16 },
+  alreadyCopy: { color: '#D7E6E8', fontSize: 12, lineHeight: 18, marginTop: 8 },
+  alreadyButton: { marginTop: 24, alignSelf: 'flex-start', backgroundColor: colors.sun, paddingHorizontal: 16, paddingVertical: 12, borderRadius: radius.md },
+  alreadyButtonText: { color: colors.navyDeep, fontSize: 12, fontWeight: '900' },
 });
