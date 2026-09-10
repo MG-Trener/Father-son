@@ -83,8 +83,21 @@ export default function ReflectionNewScreen() {
             <Text style={styles.prompt}>{prompt}</Text>
           </AppCard>
 
+          <View style={styles.voiceCard}>
+            <View style={styles.voiceCopy}>
+              <Text style={styles.voiceTitle}>🎙 Сказать голосом</Text>
+              <Text style={styles.voiceText}>Запиши историю или ответ так, как рассказал бы друг другу при встрече.</Text>
+            </View>
+            <Pressable
+              style={styles.voiceButton}
+              onPress={() => router.push({ pathname: '/voice-story-new', params: { prompt } })}
+            >
+              <Text style={styles.voiceButtonText}>Записать</Text>
+            </Pressable>
+          </View>
+
           <View style={styles.editorCard}>
-            <Text style={styles.label}>{isStory ? 'Твоя история' : 'Твой ответ'}</Text>
+            <Text style={styles.label}>{isStory ? 'Или напиши историю' : 'Или напиши ответ'}</Text>
             <TextInput
               value={body}
               onChangeText={setBody}
@@ -94,7 +107,7 @@ export default function ReflectionNewScreen() {
               multiline
               textAlignVertical="top"
               maxLength={4000}
-              autoFocus
+              autoFocus={false}
             />
             <View style={styles.counterRow}>
               <Text style={styles.privateNote}>🔒 Видят только участники вашей команды</Text>
@@ -105,7 +118,7 @@ export default function ReflectionNewScreen() {
             </Pressable>
           </View>
 
-          <Text style={styles.footer}>Позже сюда добавим голосовую запись. Текстовая история уже сохраняется в Supabase и попадает в общую летопись.</Text>
+          <Text style={styles.footer}>Текст и голос остаются внутри вашей приватной семейной истории.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -123,6 +136,12 @@ const styles = StyleSheet.create({
   title: { color: colors.navyDeep, fontSize: 27, fontWeight: '900' },
   subtitle: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 2 },
   prompt: { color: colors.text, fontSize: 17, lineHeight: 24, fontWeight: '800' },
+  voiceCard: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  voiceCopy: { flex: 1 },
+  voiceTitle: { color: colors.white, fontSize: 15, fontWeight: '900' },
+  voiceText: { color: '#CFDADB', fontSize: 12, lineHeight: 17, marginTop: 3 },
+  voiceButton: { minHeight: 40, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
+  voiceButtonText: { color: colors.navyDeep, fontSize: 12, fontWeight: '900' },
   editorCard: { backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 16, gap: 10 },
   label: { color: colors.text, fontSize: 13, fontWeight: '900' },
   input: { minHeight: 220, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 14, backgroundColor: colors.white, color: colors.text, fontSize: 15, lineHeight: 22 },
