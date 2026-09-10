@@ -110,6 +110,45 @@ export function FamilyProvider({ children }: PropsWithChildren) {
     void refresh();
   }, [authLoading, refresh]);
 
+  const signalFamilyDataChanged = useCallback(() => {
+    setFamily((current) => (current ? { ...current } : current));
+  }, []);
+
+  const familyId = family?.id ?? null;
+  const userId = session?.user.id ?? null;
+
+  useEffect(() => {
+    if (!supabase || !familyId || !userId) return undefined;
+
+    const channel = supabase
+      .channel(`family-live-${familyId}-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'activity_events',
+          filter: `family_id=eq.${familyId}`,
+        },
+        signalFamilyDataChanged,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'missions',
+          filter: `family_id=eq.${familyId}`,
+        },
+        signalFamilyDataChanged,
+      )
+      .subscribe();
+
+    return () => {
+      void supabase?.removeChannel(channel);
+    };
+  }, [familyId, signalFamilyDataChanged, userId]);
+
   const value = useMemo<FamilyContextValue>(
     () => ({ family, me, members, loading, error, refresh }),
     [family, me, members, loading, error, refresh],
