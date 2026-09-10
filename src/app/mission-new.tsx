@@ -27,13 +27,17 @@ type SkillNode = {
   node_type: string;
 };
 
-const categoryMeta: Record<string, { icon: string; title: string }> = {
+type CategoryMeta = { icon: string; title: string };
+
+const fallbackMeta: CategoryMeta = { icon: '❤️', title: 'Папа & Я' };
+
+const categoryMeta: Record<string, CategoryMeta> = {
   school: { icon: '📚', title: 'Школа' },
   football: { icon: '⚽', title: 'Футбол' },
   chess: { icon: '♟', title: 'Шахматы' },
   english: { icon: 'EN', title: 'English' },
   leadership: { icon: '🧭', title: 'Лидерство' },
-  together: { icon: '❤️', title: 'Папа & Я' },
+  together: fallbackMeta,
 };
 
 const rewardForNode = (nodeType?: string) => {
@@ -56,7 +60,7 @@ export default function MissionNewScreen() {
   const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
   const assignee = child ?? me;
   const category = node?.path_id ?? (typeof params.category === 'string' ? params.category : 'together');
-  const meta = categoryMeta[category] ?? categoryMeta.together;
+  const meta = categoryMeta[category] ?? fallbackMeta;
   const xpReward = rewardForNode(node?.node_type);
 
   useEffect(() => {
