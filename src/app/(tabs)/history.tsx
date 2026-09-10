@@ -51,6 +51,16 @@ const eventView = (event: TimelineEvent, actorName: string) => {
         text: message ? `${actorName}: ${message}` : `${actorName} попросил немного помочь советом.`,
       };
     }
+    case 'connection_response': {
+      const response = payloadText(event.payload, 'response');
+      return {
+        icon: response === 'here' ? '🤝' : '🕒',
+        title: response === 'here' ? 'Я рядом' : 'Чуть позже',
+        text: response === 'here'
+          ? `${actorName} ответил, что сейчас на связи.`
+          : `${actorName} увидел сигнал и ответит чуть позже.`,
+      };
+    }
     case 'reflection_added': {
       const preview = payloadText(event.payload, 'preview');
       const prompt = payloadText(event.payload, 'prompt');

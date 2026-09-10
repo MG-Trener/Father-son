@@ -106,6 +106,25 @@ export default function TogetherScreen() {
     ? `${members[0]?.display_name ?? 'Михаил'} + ${members[1]?.display_name ?? 'Артур'}`
     : family?.name ?? 'Папа & Я';
 
+  const respondedSignalIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const event of recentEvents) {
+      if (event.event_type !== 'connection_response') continue;
+      const signalId = payloadText(event.payload, 'signal_event_id');
+      if (signalId) ids.add(signalId);
+    }
+    return ids;
+  }, [recentEvents]);
+
+  const pendingSignal = useMemo(
+    () => recentEvents.find((event) => (
+      (event.event_type === 'five_minutes_ping' || event.event_type === 'advice_requested')
+      && event.actor_user_id !== me?.user_id
+      && !respondedSignalIds.has(event.id)
+    )) ?? null,
+    [recentEvents, me, respondedSignalIds],
+  );
+
   const load = useCallback(async () => {
     if (!supabase || !family) {
       setLoading(false);
@@ -126,9 +145,9 @@ export default function TogetherScreen() {
         .from('activity_events')
         .select('id,actor_user_id,event_type,occurred_at,payload')
         .eq('family_id', family.id)
-        .in('event_type', ['five_minutes_ping', 'advice_requested', 'reflection_added'])
+        .in('event_type', ['five_minutes_ping', 'advice_requested', 'reflection_added', 'connection_response'])
         .order('occurred_at', { ascending: false })
-        .limit(5),
+        .limit(20),
     ]);
 
     if (!missionResult.error) setMission((missionResult.data as TogetherMission | null) ?? null);
@@ -177,6 +196,27 @@ export default function TogetherScreen() {
     }
   };
 
+  const respondToSignal = async (response: 'here' | 'later') => {
+    if (!supabase || !pendingSignal || busy) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc('respond_connection_signal', {
+        p_signal_event_id: pendingSignal.id,
+        p_response: response,
+      });
+      if (error) throw error;
+      await load();
+      Alert.alert(
+        response === 'here' ? 'Ответ отправлен' : 'Хорошо',
+        response === 'here' ? 'Второй участник увидит: «Я рядом».': 'Второй участник увидит, что ты ответишь чуть позже.',
+      );
+    } catch (caught) {
+      Alert.alert('Не удалось ответить', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const drawQuestion = () => {
     const alternatives = questionDeck.filter((item) => item !== question);
     const pool = alternatives.length ? alternatives : questionDeck;
@@ -215,9 +255,18 @@ export default function TogetherScreen() {
       const message = payloadText(event.payload, 'message');
       return `${actor}: нужен совет${message ? ` · ${message}` : ''}`;
     }
+    if (event.event_type === 'connection_response') {
+      const response = payloadText(event.payload, 'response');
+      return `${actor}: ${response === 'here' ? 'я рядом' : 'отвечу чуть позже'}`;
+    }
     const preview = payloadText(event.payload, 'preview');
     return `${actor} сохранил историю${preview ? ` · ${preview}` : ''}`;
   };
+
+  const pendingActor = pendingSignal?.actor_user_id ? names.get(pendingSignal.actor_user_id) ?? 'Второй участник' : 'Второй участник';
+  const pendingMessage = pendingSignal?.event_type === 'advice_requested'
+    ? payloadText(pendingSignal.payload, 'message')
+    : null;
 
   if (loading) {
     return (
@@ -236,6 +285,24 @@ export default function TogetherScreen() {
       >
         <Text style={styles.title}>Вместе</Text>
         <Text style={styles.subtitle}>Поводы быть ближе, даже когда вы в разных местах.</Text>
+
+        {pendingSignal ? (
+          <View style={styles.incomingCard}>
+            <Text style={styles.incomingEyebrow}>ВХОДЯЩИЙ СИГНАЛ</Text>
+            <Text style={styles.incomingTitle}>
+              {pendingSignal.event_type === 'five_minutes_ping' ? `${pendingActor}: есть 5 минут?` : `${pendingActor}: мне нужен совет`}
+            </Text>
+            {pendingMessage ? <Text style={styles.incomingMessage}>{pendingMessage}</Text> : null}
+            <View style={styles.incomingActions}>
+              <Pressable style={styles.hereButton} disabled={busy} onPress={() => void respondToSignal('here')}>
+                <Text style={styles.hereText}>Я рядом</Text>
+              </Pressable>
+              <Pressable style={styles.laterButton} disabled={busy} onPress={() => void respondToSignal('later')}>
+                <Text style={styles.laterText}>Чуть позже</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         <Pressable style={styles.action} disabled={busy} onPress={() => void sendSignal('five_minutes')}>
           <Text style={styles.actionIcon}>⏱</Text>
@@ -361,7 +428,7 @@ export default function TogetherScreen() {
         {recentEvents.length ? (
           <AppCard title="Последние сигналы" subtitle="Коротко, без ощущения контроля">
             <View style={styles.recentList}>
-              {recentEvents.map((event) => (
+              {recentEvents.slice(0, 6).map((event) => (
                 <View key={event.id} style={styles.recentRow}>
                   <Text style={styles.recentTime}>{timeLabel(event.occurred_at)}</Text>
                   <Text style={styles.recentText}>{eventSummary(event)}</Text>
@@ -381,6 +448,15 @@ const styles = StyleSheet.create({
   content: { padding: 18, paddingBottom: 32, gap: 14 },
   title: { color: colors.navyDeep, fontSize: 30, fontWeight: '900' },
   subtitle: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: -7, marginBottom: 4 },
+  incomingCard: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 18, gap: 8 },
+  incomingEyebrow: { color: '#C9D7D7', fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
+  incomingTitle: { color: colors.white, fontSize: 21, lineHeight: 27, fontWeight: '900' },
+  incomingMessage: { color: '#E7EEEE', fontSize: 13, lineHeight: 19 },
+  incomingActions: { flexDirection: 'row', gap: 9, marginTop: 4 },
+  hereButton: { flex: 1, minHeight: 43, borderRadius: radius.md, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
+  hereText: { color: colors.navyDeep, fontWeight: '900', fontSize: 13 },
+  laterButton: { flex: 1, minHeight: 43, borderRadius: radius.md, borderWidth: 1, borderColor: '#6E8587', alignItems: 'center', justifyContent: 'center' },
+  laterText: { color: colors.white, fontWeight: '900', fontSize: 13 },
   action: { backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 16, flexDirection: 'row', alignItems: 'center' },
   actionIcon: { fontSize: 25, width: 43 },
   actionText: { flex: 1 },
