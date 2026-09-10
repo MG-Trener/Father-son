@@ -1,11 +1,11 @@
 import { Redirect, Tabs } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View, type ColorValue } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { colors } from '../../theme';
 
-const TabEmoji = ({ symbol, color }: { symbol: string; color: string }) => (
+const TabEmoji = ({ symbol, color }: { symbol: string; color: ColorValue }) => (
   <Text style={{ fontSize: 18, color }}>{symbol}</Text>
 );
 
