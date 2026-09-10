@@ -47,15 +47,37 @@ export function PushNotificationsBridge() {
     const client = supabase;
     if (!client || !session || !family) return;
 
+    const userId = session.user.id;
+    const familyId = family.id;
+    const retrySince = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+    void client
+      .from('activity_events')
+      .select('id,event_type')
+      .eq('family_id', familyId)
+      .eq('actor_user_id', userId)
+      .in('event_type', Array.from(pushEventTypes))
+      .gte('occurred_at', retrySince)
+      .order('occurred_at', { ascending: false })
+      .limit(10)
+      .then(({ data, error }) => {
+        if (error) return;
+        for (const event of data ?? []) {
+          if (typeof event.id === 'string') {
+            void notifyFamilyEvent(event.id);
+          }
+        }
+      });
+
     const channel = client
-      .channel(`push-outbox-${family.id}-${session.user.id}`)
+      .channel(`push-outbox-${familyId}-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'activity_events',
-          filter: `family_id=eq.${family.id}`,
+          filter: `family_id=eq.${familyId}`,
         },
         (payload) => {
           const row = payload.new as {
@@ -66,7 +88,7 @@ export function PushNotificationsBridge() {
 
           if (
             typeof row.id === 'string'
-            && row.actor_user_id === session.user.id
+            && row.actor_user_id === userId
             && typeof row.event_type === 'string'
             && pushEventTypes.has(row.event_type)
           ) {
