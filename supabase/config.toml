@@ -1,0 +1,4 @@
+project_id = "father-son"
+
+[functions.send-family-push]
+verify_jwt = true
