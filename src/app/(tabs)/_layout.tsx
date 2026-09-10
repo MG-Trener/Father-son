@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useFamily } from '../../context/FamilyContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { colors } from '../../theme';
 
@@ -9,9 +10,10 @@ const TabEmoji = ({ symbol, color }: { symbol: string; color: string }) => (
 );
 
 export default function TabsLayout() {
-  const { session, loading } = useAuth();
+  const { session, loading: authLoading } = useAuth();
+  const { family, loading: familyLoading } = useFamily();
 
-  if (loading) {
+  if (authLoading || (session && familyLoading)) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={colors.navy} />
@@ -21,6 +23,10 @@ export default function TabsLayout() {
 
   if (isSupabaseConfigured && !session) {
     return <Redirect href="/sign-in" />;
+  }
+
+  if (isSupabaseConfigured && session && !family) {
+    return <Redirect href="/team-setup" />;
   }
 
   return (
