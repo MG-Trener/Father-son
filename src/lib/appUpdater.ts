@@ -12,6 +12,10 @@ export type AppRelease = {
   title: string | null;
   notes: string | null;
   download_url: string | null;
+  storage_bucket: string | null;
+  storage_path: string | null;
+  sha256: string | null;
+  size_bytes: number | null;
   published_at: string;
 };
 
@@ -25,6 +29,9 @@ export type UpdateStatus = {
 
 const currentVersion = Application.nativeApplicationVersion ?? '0.0.0';
 const currentCode = Number(Application.nativeBuildVersion ?? 0) || 0;
+
+const stringOrNull = (value: unknown) => typeof value === 'string' && value.length > 0 ? value : null;
+const positiveNumberOrNull = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 
 export async function checkForAppUpdate(): Promise<UpdateStatus> {
   const fallback: UpdateStatus = {
@@ -53,9 +60,13 @@ export async function checkForAppUpdate(): Promise<UpdateStatus> {
     version_name: row.version_name,
     version_code: row.version_code,
     minimum_supported_code: typeof row.minimum_supported_code === 'number' ? row.minimum_supported_code : 1,
-    title: typeof row.title === 'string' ? row.title : null,
-    notes: typeof row.notes === 'string' ? row.notes : null,
-    download_url: typeof row.download_url === 'string' ? row.download_url : null,
+    title: stringOrNull(row.title),
+    notes: stringOrNull(row.notes),
+    download_url: stringOrNull(row.download_url),
+    storage_bucket: stringOrNull(row.storage_bucket),
+    storage_path: stringOrNull(row.storage_path),
+    sha256: stringOrNull(row.sha256),
+    size_bytes: positiveNumberOrNull(row.size_bytes),
     published_at: typeof row.published_at === 'string' ? row.published_at : new Date().toISOString(),
   };
 
@@ -68,9 +79,27 @@ export async function checkForAppUpdate(): Promise<UpdateStatus> {
   };
 }
 
+async function resolveReleaseDownloadUrl(release: AppRelease) {
+  if (release.download_url) return release.download_url;
+  if (!supabase || !release.storage_bucket || !release.storage_path) {
+    throw new Error('APK_URL_NOT_PUBLISHED');
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) throw new Error('APK_AUTH_REQUIRED');
+
+  const { data, error } = await supabase.storage
+    .from(release.storage_bucket)
+    .createSignedUrl(release.storage_path, 10 * 60);
+
+  if (error || !data?.signedUrl) throw new Error('APK_SIGNED_URL_FAILED');
+  return data.signedUrl;
+}
+
 export async function installReleaseApk(release: AppRelease) {
   if (Platform.OS !== 'android') throw new Error('APK_INSTALL_ANDROID_ONLY');
-  if (!release.download_url) throw new Error('APK_URL_NOT_PUBLISHED');
+
+  const downloadUrl = await resolveReleaseDownloadUrl(release);
 
   const sideLoadingEnabled = await Device.isSideLoadingEnabledAsync();
   if (!sideLoadingEnabled) {
@@ -85,8 +114,9 @@ export async function installReleaseApk(release: AppRelease) {
   const directory = new Directory(Paths.cache, 'papa-i-ya-updates');
   if (!directory.exists) directory.create();
 
-  const downloaded = await File.downloadFileAsync(release.download_url, directory);
+  const downloaded = await File.downloadFileAsync(downloadUrl, directory);
   if (!downloaded.exists || downloaded.size <= 0) throw new Error('APK_DOWNLOAD_FAILED');
+  if (release.size_bytes && downloaded.size !== release.size_bytes) throw new Error('APK_SIZE_MISMATCH');
 
   await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
     data: downloaded.contentUri,
