@@ -2,7 +2,7 @@ name: Validate Android
 
 on:
   push:
-    branches: [apk-foundation]
+    branches: [main, apk-foundation]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -79,6 +79,88 @@ jobs:
           chmod +x gradlew
           set -o pipefail
           ./gradlew :app:assembleRelease --no-daemon --max-workers=2 --stacktrace --console=plain 2>&1 | tee ../gradle-build.log
+
+      - name: Prepare release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          VERSION_CODE="$(node -p "require('./app.json').expo.android.versionCode")"
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          SIZE_BYTES="$(stat -c%s "$APK")"
+          STORAGE_PATH="android/${VERSION_CODE}/papa-i-ya-${VERSION}.apk"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=$SIZE_BYTES" >> "$GITHUB_OUTPUT"
+          echo "storage_path=$STORAGE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Publish APK to private Supabase Storage
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          SUPABASE_RELEASE_SECRET_KEY: ${{ secrets.SUPABASE_RELEASE_SECRET_KEY }}
+          VERSION: ${{ steps.release_meta.outputs.version }}
+          VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
+          SHA256: ${{ steps.release_meta.outputs.sha256 }}
+          SIZE_BYTES: ${{ steps.release_meta.outputs.size_bytes }}
+          STORAGE_PATH: ${{ steps.release_meta.outputs.storage_path }}
+        shell: bash
+        run: |
+          if [ -z "$SUPABASE_RELEASE_SECRET_KEY" ]; then
+            echo "SUPABASE_RELEASE_SECRET_KEY is not configured; keeping GitHub artifact only."
+            exit 0
+          fi
+
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          BUILD_TOOLS_VERSION="$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner"
+          CERT_INFO="$($APKSIGNER verify --print-certs "$APK")"
+          echo "$CERT_INFO"
+          if echo "$CERT_INFO" | grep -qi 'Android Debug'; then
+            echo "APK is still debug-signed. Refusing to publish it as an application update."
+            exit 0
+          fi
+
+          BASE_URL="$EXPO_PUBLIC_SUPABASE_URL"
+
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            "$BASE_URL/storage/v1/object/app-releases/$STORAGE_PATH" \
+            --header "Authorization: Bearer $SUPABASE_RELEASE_SECRET_KEY" \
+            --header "apikey: $SUPABASE_RELEASE_SECRET_KEY" \
+            --header "Content-Type: application/vnd.android.package-archive" \
+            --header "x-upsert: true" \
+            --data-binary "@$APK"
+
+          RELEASE_JSON="$(node -e '
+            const row = {
+              platform: "android",
+              channel: "preview",
+              version_name: process.env.VERSION,
+              version_code: Number(process.env.VERSION_CODE),
+              minimum_supported_code: 1,
+              title: `Папа & Я ${process.env.VERSION}`,
+              notes: "Автоматическая Android-сборка из main.",
+              download_url: null,
+              storage_bucket: "app-releases",
+              storage_path: process.env.STORAGE_PATH,
+              sha256: process.env.SHA256,
+              size_bytes: Number(process.env.SIZE_BYTES),
+              is_enabled: true,
+              published_at: new Date().toISOString(),
+            };
+            process.stdout.write(JSON.stringify(row));
+          ')"
+
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            "$BASE_URL/rest/v1/app_releases?on_conflict=platform,channel,version_code" \
+            --header "Authorization: Bearer $SUPABASE_RELEASE_SECRET_KEY" \
+            --header "apikey: $SUPABASE_RELEASE_SECRET_KEY" \
+            --header "Content-Type: application/json" \
+            --header "Prefer: resolution=merge-duplicates,return=minimal" \
+            --data "$RELEASE_JSON"
 
       - name: Upload Gradle log
         if: always()
