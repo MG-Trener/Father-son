@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { PushNotificationsBridge } from '../components/PushNotificationsBridge';
 import { AuthProvider } from '../context/AuthContext';
 import { FamilyProvider } from '../context/FamilyContext';
@@ -8,7 +8,7 @@ import { colors } from '../theme';
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <AuthProvider>
         <FamilyProvider>
           <PushNotificationsBridge />
