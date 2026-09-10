@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { AppCard } from '../../components/AppCard';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
+import { notifyFamilyEvent } from '../../lib/pushNotifications';
 import { supabase } from '../../lib/supabase';
 import { colors, radius } from '../../theme';
 
@@ -57,9 +58,19 @@ const questionDeck = [
   'Если бы можно было задать мне любой вопрос и получить точный ответ, что бы ты спросил?',
 ];
 
+const payloadRecord = (payload: unknown): Record<string, unknown> => (
+  payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? payload as Record<string, unknown>
+    : {}
+);
+
 const payloadText = (payload: unknown, key: string) => {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
-  const value = (payload as Record<string, unknown>)[key];
+  const value = payloadRecord(payload)[key];
+  return typeof value === 'string' ? value : null;
+};
+
+const rpcEventId = (data: unknown) => {
+  const value = payloadRecord(data).event_id;
   return typeof value === 'string' ? value : null;
 };
 
@@ -145,7 +156,7 @@ export default function TogetherScreen() {
         .from('activity_events')
         .select('id,actor_user_id,event_type,occurred_at,payload')
         .eq('family_id', family.id)
-        .in('event_type', ['five_minutes_ping', 'advice_requested', 'reflection_added', 'connection_response'])
+        .in('event_type', ['five_minutes_ping', 'advice_requested', 'reflection_added', 'connection_response', 'voice_story_added'])
         .order('occurred_at', { ascending: false })
         .limit(20),
     ]);
@@ -169,7 +180,7 @@ export default function TogetherScreen() {
     if (!supabase || !family || !session || busy) return;
     setBusy(true);
     try {
-      const { error } = await supabase.rpc('send_connection_signal', {
+      const { data, error } = await supabase.rpc('send_connection_signal', {
         p_family_id: family.id,
         p_signal_type: signalType,
         p_message: message?.trim() || null,
@@ -181,6 +192,8 @@ export default function TogetherScreen() {
         }
         throw error;
       }
+      const eventId = rpcEventId(data);
+      if (eventId) void notifyFamilyEvent(eventId);
       await load();
       if (signalType === 'five_minutes') {
         Alert.alert('Отправлено', `${other?.display_name ?? 'Второй участник'} увидит, что у тебя есть несколько минут на связь.`);
@@ -200,11 +213,13 @@ export default function TogetherScreen() {
     if (!supabase || !pendingSignal || busy) return;
     setBusy(true);
     try {
-      const { error } = await supabase.rpc('respond_connection_signal', {
+      const { data, error } = await supabase.rpc('respond_connection_signal', {
         p_signal_event_id: pendingSignal.id,
         p_response: response,
       });
       if (error) throw error;
+      const eventId = rpcEventId(data);
+      if (eventId) void notifyFamilyEvent(eventId);
       await load();
       Alert.alert(
         response === 'here' ? 'Ответ отправлен' : 'Хорошо',
@@ -258,6 +273,10 @@ export default function TogetherScreen() {
     if (event.event_type === 'connection_response') {
       const response = payloadText(event.payload, 'response');
       return `${actor}: ${response === 'here' ? 'я рядом' : 'отвечу чуть позже'}`;
+    }
+    if (event.event_type === 'voice_story_added') {
+      const title = payloadText(event.payload, 'title');
+      return `${actor} оставил голосовую историю${title ? ` · ${title}` : ''}`;
     }
     const preview = payloadText(event.payload, 'preview');
     return `${actor} сохранил историю${preview ? ` · ${preview}` : ''}`;
@@ -362,6 +381,15 @@ export default function TogetherScreen() {
           <View style={styles.actionText}>
             <Text style={styles.actionTitle}>История дня</Text>
             <Text style={styles.actionDetail}>Сохранить момент, мысль или маленькую историю друг для друга</Text>
+          </View>
+          <Text style={styles.arrow}>›</Text>
+        </Pressable>
+
+        <Pressable style={styles.action} onPress={() => router.push('/voice-story-new')}>
+          <Text style={styles.actionIcon}>🎙</Text>
+          <View style={styles.actionText}>
+            <Text style={styles.actionTitle}>Голосовая история</Text>
+            <Text style={styles.actionDetail}>Записать голосом момент, который останется в вашей общей летописи</Text>
           </View>
           <Text style={styles.arrow}>›</Text>
         </Pressable>
