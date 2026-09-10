@@ -12,11 +12,15 @@ const pushEventTypes = new Set([
   'connection_response',
 ]);
 
-const openNotification = (response: Notifications.NotificationResponse | null) => {
-  const url = response?.notification.request.content.data?.url;
+const openNotification = async (response: Notifications.NotificationResponse | null) => {
+  if (!response) return;
+
+  const url = response.notification.request.content.data?.url;
   if (url === '/together') {
     router.push('/together');
   }
+
+  await Notifications.clearLastNotificationResponseAsync();
 };
 
 export function PushNotificationsBridge() {
@@ -29,9 +33,13 @@ export function PushNotificationsBridge() {
   }, [family?.id, session?.user.id]);
 
   useEffect(() => {
-    void Notifications.getLastNotificationResponseAsync().then(openNotification);
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      void openNotification(response);
+    });
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(openNotification);
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      void openNotification(response);
+    });
     return () => subscription.remove();
   }, []);
 
