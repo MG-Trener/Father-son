@@ -148,10 +148,14 @@ export default function MissionNewScreen() {
       router.back();
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Попробуй ещё раз.';
-      if (message.includes('PREVIOUS_SKILL_NODE_REQUIRED')) {
+      if (message.includes('PREVIOUS_SKILL_STEP_REQUIRED') || message.includes('PREVIOUS_SKILL_NODE_REQUIRED')) {
         Alert.alert('Сначала предыдущий шаг', 'Эта ступень откроется после завершения предыдущей.');
-      } else if (message.includes('ACTIVE_MISSION_EXISTS')) {
+      } else if (message.includes('ACTIVE_MISSION_ALREADY_EXISTS') || message.includes('ACTIVE_MISSION_EXISTS')) {
         Alert.alert('Миссия уже есть', 'Для этой ступени уже запущена активная миссия.');
+      } else if (message.includes('SKILL_STEP_ALREADY_COMPLETED')) {
+        Alert.alert('Ступень уже пройдена', 'Эта ступень уже отмечена выполненной. Выбери следующий шаг развития.');
+      } else if (message.includes('INVALID_DUE_AT')) {
+        Alert.alert('Проверь срок', 'Дата завершения миссии должна быть в будущем.');
       } else {
         Alert.alert('Не удалось создать миссию', message);
       }
