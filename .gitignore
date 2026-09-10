@@ -9,4 +9,8 @@ web-build/
 *.p12
 *.key
 *.mobileprovision
+firebase-adminsdk-*.json
+*-firebase-adminsdk-*.json
+service-account*.json
+google-service-account*.json
 .DS_Store
