@@ -80,7 +80,7 @@ type CategoryMeta = {
   detail: string;
 };
 
-const meta: Record<string, CategoryMeta> = {
+const meta: Record<string, CategoryMeta> & { school: CategoryMeta } = {
   school: { icon: '✎', fallbackTitle: 'Школа', accent: '#DCE7F6', strong: colors.blue, text: '#27465F', detail: 'Цели · помощь · победы' },
   football: { icon: '⚽', fallbackTitle: 'Футбол', accent: '#DCEFE4', strong: colors.green, text: '#2C5942', detail: 'Техника · команда · характер' },
   chess: { icon: '♞', fallbackTitle: 'Шахматы', accent: '#E7E2F6', strong: colors.purple, text: '#4C456B', detail: 'Партии · анализ · стратегия' },
