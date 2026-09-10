@@ -36,9 +36,10 @@ export function PushNotificationsBridge() {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !session || !family) return;
+    const client = supabase;
+    if (!client || !session || !family) return;
 
-    const channel = supabase
+    const channel = client
       .channel(`push-outbox-${family.id}-${session.user.id}`)
       .on(
         'postgres_changes',
@@ -68,7 +69,7 @@ export function PushNotificationsBridge() {
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void client.removeChannel(channel);
     };
   }, [family?.id, session?.user.id]);
 
