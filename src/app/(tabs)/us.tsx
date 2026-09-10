@@ -118,7 +118,7 @@ export default function UsScreen() {
             ['🧭', 'Компас', 'Серьёзное самостоятельное решение', '#F7DDD5'],
             ['❤️', 'Наш день', 'Момент Михаила и Артура', '#FFF0CF'],
           ].map(([icon, title, text, background]) => (
-            <View key={title} style={[styles.artifactCard, { backgroundColor }, shadows.soft]}><Text style={styles.artifactIcon}>{icon}</Text><Text style={styles.artifactTitle}>{title}</Text><Text style={styles.artifactText}>{text}</Text></View>
+            <View key={title} style={[styles.artifactCard, { backgroundColor: background }, shadows.soft]}><Text style={styles.artifactIcon}>{icon}</Text><Text style={styles.artifactTitle}>{title}</Text><Text style={styles.artifactText}>{text}</Text></View>
           ))}
         </View>
 
