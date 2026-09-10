@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { unregisterAllPushDevices } from '../lib/pushDevices';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 type AuthContextValue = {
@@ -52,9 +53,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
       session,
       loading,
       signOut: async () => {
-        if (supabase) {
-          await supabase.auth.signOut();
+        if (!supabase) return;
+
+        if (session) {
+          await unregisterAllPushDevices();
         }
+        await supabase.auth.signOut();
       },
     }),
     [session, loading],
