@@ -120,6 +120,10 @@ export function FamilyProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!supabase || !familyId || !userId) return undefined;
 
+    const onFamilyChange = () => {
+      signalFamilyDataChanged();
+    };
+
     const channel = supabase
       .channel(`family-live-${familyId}-${userId}`)
       .on(
@@ -130,7 +134,7 @@ export function FamilyProvider({ children }: PropsWithChildren) {
           table: 'activity_events',
           filter: `family_id=eq.${familyId}`,
         },
-        signalFamilyDataChanged,
+        onFamilyChange,
       )
       .on(
         'postgres_changes',
@@ -140,7 +144,37 @@ export function FamilyProvider({ children }: PropsWithChildren) {
           table: 'missions',
           filter: `family_id=eq.${familyId}`,
         },
-        signalFamilyDataChanged,
+        onFamilyChange,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'moods',
+          filter: `family_id=eq.${familyId}`,
+        },
+        onFamilyChange,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'meetings',
+          filter: `family_id=eq.${familyId}`,
+        },
+        onFamilyChange,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'meeting_ideas',
+          filter: `family_id=eq.${familyId}`,
+        },
+        onFamilyChange,
       )
       .subscribe();
 
