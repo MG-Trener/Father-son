@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { AppCard } from '../../components/AppCard';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
@@ -31,6 +32,34 @@ type MoodRow = {
 
 type LatestMoodMap = Record<string, MoodRow>;
 
+type UpcomingMeeting = {
+  id: string;
+  meeting_date: string;
+  title: string;
+};
+
+const todayIso = () => {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+};
+
+const daysUntil = (dateValue: string) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const meeting = new Date(`${dateValue}T00:00:00`);
+  return Math.max(0, Math.round((meeting.getTime() - today.getTime()) / 86_400_000));
+};
+
+const countdownText = (meeting: UpcomingMeeting | null) => {
+  if (!meeting) return 'Дата не выбрана';
+  const days = daysUntil(meeting.meeting_date);
+  if (days === 0) return 'Сегодня';
+  if (days === 1) return 'Завтра';
+  if (days >= 2 && days <= 4) return `${days} дня`;
+  return `${days} дней`;
+};
+
 const moodPresentation = (mood?: string) => {
   const item = moodChoices.find((choice) => choice.key === mood);
   return item ?? { key: 'none', emoji: '○', label: 'Не отмечено' };
@@ -42,6 +71,7 @@ export default function HomeScreen() {
   const [latestMoods, setLatestMoods] = useState<LatestMoodMap>({});
   const [interactions, setInteractions] = useState(0);
   const [completedMissions, setCompletedMissions] = useState(0);
+  const [nextMeeting, setNextMeeting] = useState<UpcomingMeeting | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
   const parent = useMemo(
@@ -61,7 +91,7 @@ export default function HomeScreen() {
   const loadHomeData = useCallback(async () => {
     if (!supabase || !family) return;
 
-    const [moodsResult, interactionsResult, missionsResult] = await Promise.all([
+    const [moodsResult, interactionsResult, missionsResult, meetingResult] = await Promise.all([
       supabase
         .from('moods')
         .select('user_id,mood,created_at')
@@ -78,6 +108,15 @@ export default function HomeScreen() {
         .select('id', { count: 'exact', head: true })
         .eq('family_id', family.id)
         .eq('status', 'completed'),
+      supabase
+        .from('meetings')
+        .select('id,meeting_date,title')
+        .eq('family_id', family.id)
+        .eq('status', 'planned')
+        .gte('meeting_date', todayIso())
+        .order('meeting_date', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     if (!moodsResult.error) {
@@ -89,6 +128,7 @@ export default function HomeScreen() {
     }
     if (!interactionsResult.error) setInteractions(interactionsResult.count ?? 0);
     if (!missionsResult.error) setCompletedMissions(missionsResult.count ?? 0);
+    if (!meetingResult.error) setNextMeeting((meetingResult.data as UpcomingMeeting | null) ?? null);
   }, [family]);
 
   useEffect(() => {
@@ -131,7 +171,7 @@ export default function HomeScreen() {
       });
       if (error) throw error;
       setInteractions((value) => value + 1);
-      Alert.alert('Сигнал отправлен в команду', 'Событие уже сохранено. Push-уведомление подключим следующим слоем.');
+      Alert.alert('Сигнал сохранён', 'Он уже появился в «Нашей истории». Push-уведомление подключим следующим слоем.');
     } catch (caught) {
       Alert.alert('Не удалось отправить сигнал', caught instanceof Error ? caught.message : 'Попробуйте ещё раз.');
     } finally {
@@ -188,11 +228,11 @@ export default function HomeScreen() {
           </AppCard>
         ) : null}
 
-        <View style={styles.meetingCard}>
-          <Text style={styles.meetingLabel}>ДО СЛЕДУЮЩЕЙ ВСТРЕЧИ</Text>
-          <Text style={styles.meetingValue}>12 дней</Text>
-          <Text style={styles.meetingHint}>Следующим этапом подключим реальную дату и совместные планы →</Text>
-        </View>
+        <Pressable style={styles.meetingCard} onPress={() => router.push('/meeting-plan')}>
+          <Text style={styles.meetingLabel}>{nextMeeting ? 'ДО СЛЕДУЮЩЕЙ ВСТРЕЧИ' : 'СЛЕДУЮЩАЯ ВСТРЕЧА'}</Text>
+          <Text style={styles.meetingValue}>{countdownText(nextMeeting)}</Text>
+          <Text style={styles.meetingHint}>{nextMeeting ? `${nextMeeting.title} · посмотреть идеи →` : 'Выбрать дату и придумать, что сделаем вместе →'}</Text>
+        </Pressable>
 
         <Pressable style={[styles.fiveButton, actionBusy && styles.disabled]} onPress={() => void sendFiveMinutes()} disabled={actionBusy}>
           <Text style={styles.fiveTitle}>Есть 5 минут?</Text>
@@ -254,7 +294,7 @@ const styles = StyleSheet.create({
   moodLabelActive: { color: colors.green },
   meetingCard: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 22 },
   meetingLabel: { color: '#C9D7D7', fontSize: 11, fontWeight: '800', letterSpacing: 1.1 },
-  meetingValue: { color: colors.white, fontSize: 38, fontWeight: '900', marginTop: 5 },
+  meetingValue: { color: colors.white, fontSize: 36, fontWeight: '900', marginTop: 5 },
   meetingHint: { color: '#E7EEEE', fontSize: 13, marginTop: 7, lineHeight: 19 },
   fiveButton: { backgroundColor: colors.amber, borderRadius: radius.lg, padding: 20 },
   fiveTitle: { color: colors.navyDeep, fontSize: 22, fontWeight: '900' },
