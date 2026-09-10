@@ -282,7 +282,7 @@ export default function DevelopmentScreen() {
 
             <View style={styles.moduleGrid}>
               {growthCategoryIds.map((categoryId) => {
-                const category = meta[categoryId];
+                const category = meta[categoryId] ?? { icon: '✦', fallbackTitle: categoryId, accent: colors.sand };
                 const count = growthCounts.get(categoryId) ?? 0;
                 return (
                   <Pressable
