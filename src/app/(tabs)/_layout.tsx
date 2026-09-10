@@ -1,5 +1,6 @@
 import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View, type ColorValue } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -12,10 +13,12 @@ const TabEmoji = ({ symbol, color }: { symbol: string; color: ColorValue }) => (
 export default function TabsLayout() {
   const { session, loading: authLoading } = useAuth();
   const { family, loading: familyLoading } = useFamily();
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 8);
 
   if (authLoading || (session && familyLoading)) {
     return (
-      <View style={styles.loading}>
+      <View style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <ActivityIndicator size="large" color={colors.navy} />
       </View>
     );
@@ -35,12 +38,16 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.navy,
         tabBarInactiveTintColor: colors.muted,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
-          height: 72,
+          height: 62 + bottomInset,
           paddingTop: 8,
-          paddingBottom: 10,
+          paddingBottom: bottomInset,
           backgroundColor: colors.paper,
           borderTopColor: colors.line,
+        },
+        tabBarItemStyle: {
+          paddingBottom: 2,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
       }}
