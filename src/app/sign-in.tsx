@@ -40,7 +40,7 @@ export default function SignInScreen() {
           password,
         });
         if (error) throw error;
-        router.replace('/(tabs)');
+        router.replace('/');
         return;
       }
 
@@ -56,7 +56,7 @@ export default function SignInScreen() {
       if (error) throw error;
 
       if (data.session) {
-        router.replace('/(tabs)');
+        router.replace('/');
       } else {
         Alert.alert('Почти готово', 'Проверьте почту и подтвердите регистрацию, затем войдите.');
         setMode('signin');
