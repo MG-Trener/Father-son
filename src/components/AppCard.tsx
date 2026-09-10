@@ -1,16 +1,18 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius } from '../theme';
+import { colors, radius, shadows } from '../theme';
 
 type Props = PropsWithChildren<{
   title?: string;
   subtitle?: string;
   right?: ReactNode;
+  accent?: string;
 }>;
 
-export function AppCard({ title, subtitle, right, children }: Props) {
+export function AppCard({ title, subtitle, right, accent, children }: Props) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, shadows.soft]}>
+      {accent ? <View style={[styles.accent, { backgroundColor: accent }]} /> : null}
       {(title || right) && (
         <View style={styles.header}>
           <View style={styles.headerText}>
@@ -31,16 +33,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: 18,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: colors.lineWarm,
     gap: 12,
+    overflow: 'hidden',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
+  accent: { position: 'absolute', left: 0, top: 18, bottom: 18, width: 4, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   headerText: { flex: 1 },
-  title: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  subtitle: { marginTop: 3, color: colors.muted, fontSize: 13, lineHeight: 18 },
+  title: { color: colors.text, fontSize: 18, fontWeight: '900', letterSpacing: -0.25 },
+  subtitle: { marginTop: 4, color: colors.muted, fontSize: 12, lineHeight: 18 },
 });
