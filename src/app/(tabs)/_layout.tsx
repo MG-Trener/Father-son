@@ -1,13 +1,29 @@
 import { Redirect, Tabs } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View, type ColorValue } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
-import { colors } from '../../theme';
+import { colors, radius, shadows } from '../../theme';
 
-const TabEmoji = ({ symbol, color }: { symbol: string; color: ColorValue }) => (
-  <Text style={{ fontSize: 18, color }}>{symbol}</Text>
+type TabGlyphProps = {
+  symbol: string;
+  focused: boolean;
+  accent?: string;
+  prominent?: boolean;
+};
+
+const TabGlyph = ({ symbol, focused, accent = colors.navy, prominent = false }: TabGlyphProps) => (
+  <View
+    style={[
+      styles.glyph,
+      prominent && styles.glyphProminent,
+      focused && { backgroundColor: accent, borderColor: accent },
+      focused && styles.glyphFocused,
+    ]}
+  >
+    <Text style={[styles.glyphText, prominent && styles.glyphTextProminent, focused && styles.glyphTextFocused]}>{symbol}</Text>
+  </View>
 );
 
 export default function TabsLayout() {
@@ -24,67 +40,61 @@ export default function TabsLayout() {
     );
   }
 
-  if (isSupabaseConfigured && !session) {
-    return <Redirect href="/sign-in" />;
-  }
-
-  if (isSupabaseConfigured && session && !family) {
-    return <Redirect href="/team-setup" />;
-  }
+  if (isSupabaseConfigured && !session) return <Redirect href="/sign-in" />;
+  if (isSupabaseConfigured && session && !family) return <Redirect href="/team-setup" />;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.navy,
-        tabBarInactiveTintColor: colors.muted,
+        tabBarActiveTintColor: colors.navyDeep,
+        tabBarInactiveTintColor: colors.mutedSoft,
         tabBarHideOnKeyboard: true,
-        tabBarStyle: {
-          height: 62 + bottomInset,
-          paddingTop: 8,
-          paddingBottom: bottomInset,
-          backgroundColor: colors.paper,
-          borderTopColor: colors.line,
-        },
-        tabBarItemStyle: {
-          paddingBottom: 2,
-        },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarStyle: [
+          styles.tabBar,
+          shadows.soft,
+          {
+            height: 70 + bottomInset,
+            paddingBottom: bottomInset,
+          },
+        ],
+        tabBarItemStyle: styles.tabBarItem,
+        tabBarLabelStyle: styles.tabLabel,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Главная',
-          tabBarIcon: ({ color }) => <TabEmoji symbol="⌂" color={color} />,
+          tabBarIcon: ({ focused }) => <TabGlyph symbol="⌂" focused={focused} accent={colors.navy} />,
         }}
       />
       <Tabs.Screen
         name="development"
         options={{
           title: 'Развитие',
-          tabBarIcon: ({ color }) => <TabEmoji symbol="◈" color={color} />,
+          tabBarIcon: ({ focused }) => <TabGlyph symbol="◇" focused={focused} accent={colors.purple} />,
         }}
       />
       <Tabs.Screen
         name="together"
         options={{
           title: 'Вместе',
-          tabBarIcon: ({ color }) => <TabEmoji symbol="✦" color={color} />,
+          tabBarIcon: ({ focused }) => <TabGlyph symbol="✦" focused={focused} accent={colors.orange} prominent />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'История',
-          tabBarIcon: ({ color }) => <TabEmoji symbol="▤" color={color} />,
+          tabBarIcon: ({ focused }) => <TabGlyph symbol="≋" focused={focused} accent={colors.blue} />,
         }}
       />
       <Tabs.Screen
         name="us"
         options={{
           title: 'Мы',
-          tabBarIcon: ({ color }) => <TabEmoji symbol="●" color={color} />,
+          tabBarIcon: ({ focused }) => <TabGlyph symbol="●" focused={focused} accent={colors.green} />,
         }}
       />
     </Tabs>
@@ -92,10 +102,30 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sand },
+  tabBar: {
+    paddingTop: 8,
+    backgroundColor: colors.paper,
+    borderTopWidth: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'visible',
+  },
+  tabBarItem: { paddingTop: 1 },
+  tabLabel: { fontSize: 9, fontWeight: '900', marginTop: 1 },
+  glyph: {
+    width: 39,
+    height: 32,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.line,
     backgroundColor: colors.sand,
   },
+  glyphProminent: { width: 47, height: 38, marginTop: -5 },
+  glyphFocused: { transform: [{ translateY: -2 }] },
+  glyphText: { color: colors.muted, fontSize: 17, fontWeight: '900' },
+  glyphTextProminent: { fontSize: 20 },
+  glyphTextFocused: { color: colors.white },
 });
