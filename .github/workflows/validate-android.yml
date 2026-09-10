@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+env:
+  EXPO_PUBLIC_SUPABASE_URL: https://kyptvbnnyqlmwkiobtvq.supabase.co
+  EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_7d-vT92P448Prlv7DURaIw_r8127lra
+
 jobs:
   validate:
     runs-on: ubuntu-latest
