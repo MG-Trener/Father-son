@@ -1,0 +1,98 @@
+name: Validate Android
+
+on:
+  push:
+    branches: [apk-foundation]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPO_PUBLIC_SUPABASE_URL: https://kyptvbnnyqlmwkiobtvq.supabase.co
+  EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_7d-vT92P448Prlv7DURaIw_r8127lra
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: TypeScript
+        run: npm run typecheck
+
+  preview-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: validate
+    env:
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --non-interactive
+
+      - name: Runner capacity
+        run: |
+          echo "CPU: $(nproc)"
+          free -h
+          df -h .
+
+      - name: Build standalone preview APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=2 --stacktrace --console=plain 2>&1 | tee ../gradle-build.log
+
+      - name: Upload Gradle log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: papa-i-ya-gradle-log
+          path: gradle-build.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: papa-i-ya-preview
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14

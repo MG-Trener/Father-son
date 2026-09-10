@@ -1,0 +1,9 @@
+project_id = "father-son"
+
+[functions.send-family-push]
+verify_jwt = true
+
+[storage.buckets.voice-stories]
+public = false
+file_size_limit = "25MiB"
+allowed_mime_types = ["audio/mp4", "audio/m4a", "audio/x-m4a", "audio/aac"]

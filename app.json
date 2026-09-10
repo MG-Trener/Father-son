@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Папа & Я",
+    "slug": "papa-i-ya",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "scheme": "papaiya",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.mgtrener.fatherson",
+      "versionCode": 3,
+      "permissions": [
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#F4F1E8"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "connection"
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Разрешить приложению «Папа & Я» записывать голосовые истории.",
+          "recordAudioAndroid": true,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

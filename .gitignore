@@ -1,0 +1,16 @@
+node_modules/
+.expo/
+dist/
+web-build/
+.env
+.env.*.local
+*.jks
+*.keystore
+*.p12
+*.key
+*.mobileprovision
+firebase-adminsdk-*.json
+*-firebase-adminsdk-*.json
+service-account*.json
+google-service-account*.json
+.DS_Store
