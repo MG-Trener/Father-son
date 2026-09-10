@@ -1,5 +1,6 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, shadows } from '../theme';
 
 type Props = PropsWithChildren<{
@@ -10,8 +11,29 @@ type Props = PropsWithChildren<{
 }>;
 
 export function AppCard({ title, subtitle, right, accent, children }: Props) {
+  const reveal = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(reveal, {
+      toValue: 1,
+      duration: 320,
+      useNativeDriver: true,
+    }).start();
+  }, [reveal]);
+
   return (
-    <View style={[styles.card, shadows.soft]}>
+    <Animated.View
+      style={[
+        styles.card,
+        shadows.soft,
+        {
+          opacity: reveal,
+          transform: [{
+            translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }),
+          }],
+        },
+      ]}
+    >
       {accent ? <View style={[styles.accent, { backgroundColor: accent }]} /> : null}
       {(title || right) && (
         <View style={styles.header}>
@@ -23,7 +45,7 @@ export function AppCard({ title, subtitle, right, accent, children }: Props) {
         </View>
       )}
       {children}
-    </View>
+    </Animated.View>
   );
 }
 
