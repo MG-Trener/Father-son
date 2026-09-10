@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { AppUpdateGate } from '../components/AppUpdateGate';
 import { PushNotificationsBridge } from '../components/PushNotificationsBridge';
 import { AuthProvider } from '../context/AuthContext';
 import { FamilyProvider } from '../context/FamilyContext';
@@ -12,6 +13,7 @@ export default function RootLayout() {
       <AuthProvider>
         <FamilyProvider>
           <PushNotificationsBridge />
+          <AppUpdateGate />
           <StatusBar style="dark" />
           <Stack
             screenOptions={{
