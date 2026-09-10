@@ -10,6 +10,7 @@ const pushEventTypes = new Set([
   'five_minutes_ping',
   'advice_requested',
   'connection_response',
+  'voice_story_added',
 ]);
 
 const openNotification = async (response: Notifications.NotificationResponse | null) => {
