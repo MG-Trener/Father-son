@@ -15,7 +15,27 @@ type TimelineEvent = {
   payload: unknown;
 };
 
+const payloadRecord = (payload: unknown): Record<string, unknown> => {
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    return payload as Record<string, unknown>;
+  }
+  return {};
+};
+
+const payloadText = (payload: unknown, key: string) => {
+  const value = payloadRecord(payload)[key];
+  return typeof value === 'string' ? value : null;
+};
+
+const payloadNumber = (payload: unknown, key: string) => {
+  const value = payloadRecord(payload)[key];
+  return typeof value === 'number' ? value : null;
+};
+
 const eventView = (event: TimelineEvent, actorName: string) => {
+  const title = payloadText(event.payload, 'title');
+  const xp = payloadNumber(event.payload, 'xp_reward');
+
   switch (event.event_type) {
     case 'family_created':
       return { icon: '❤️', title: 'Команда создана', text: `${actorName} открыл вашу общую историю.` };
@@ -24,9 +44,17 @@ const eventView = (event: TimelineEvent, actorName: string) => {
     case 'five_minutes_ping':
       return { icon: '💬', title: 'Есть 5 минут?', text: `${actorName} предложил немного побыть вместе.` };
     case 'meeting_created':
-      return { icon: '📅', title: 'Запланирована встреча', text: `${actorName} добавил следующую встречу.` };
+      return { icon: '📅', title: 'Запланирована встреча', text: title ? `${actorName} запланировал «${title}».` : `${actorName} добавил следующую встречу.` };
+    case 'mission_created':
+      return { icon: '🎯', title: 'Новая миссия', text: title ? `${actorName} запустил миссию «${title}».` : `${actorName} добавил новую миссию.` };
     case 'mission_completed':
-      return { icon: '🎯', title: 'Миссия выполнена', text: `${actorName} добавил ещё один шаг в историю команды.` };
+      return {
+        icon: '✅',
+        title: title ? `Миссия: ${title}` : 'Миссия выполнена',
+        text: `${actorName} завершил шаг${xp !== null ? ` и заработал +${xp} XP` : ''}.`,
+      };
+    case 'achievement_awarded':
+      return { icon: '🏅', title: 'Новое достижение', text: title ? `Открыто достижение «${title}».` : 'Открыто новое достижение.' };
     case 'recognition_added':
       return { icon: '🧭', title: 'Важный поступок', text: `${actorName} сохранил момент, который стоит помнить.` };
     default:
@@ -52,6 +80,16 @@ const formatDate = (value: string) => {
   });
 };
 
+const ageFromBirthDate = (birthDate: string | null) => {
+  if (!birthDate) return null;
+  const birth = new Date(`${birthDate}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age -= 1;
+  return age;
+};
+
 export default function HistoryScreen() {
   const { family, members } = useFamily();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -63,6 +101,7 @@ export default function HistoryScreen() {
     [members],
   );
   const child = useMemo(() => members.find((member) => member.role === 'child'), [members]);
+  const childAge = ageFromBirthDate(child?.birth_date ?? null);
 
   const loadEvents = useCallback(async () => {
     if (!supabase || !family) {
@@ -75,7 +114,7 @@ export default function HistoryScreen() {
       .select('id,actor_user_id,event_type,category,occurred_at,payload')
       .eq('family_id', family.id)
       .order('occurred_at', { ascending: false })
-      .limit(60);
+      .limit(80);
 
     if (!error) setEvents((data ?? []) as TimelineEvent[]);
     setLoading(false);
@@ -100,8 +139,11 @@ export default function HistoryScreen() {
         <Text style={styles.title}>Наша история</Text>
         <Text style={styles.subtitle}>Не лента контроля, а летопись моментов, которые вы захотите помнить.</Text>
 
-        <AppCard title={`${child?.display_name ?? 'Артур'} · 11 лет`} subtitle="Первая глава · Исследователь">
-          <Text style={styles.body}>Здесь постепенно соберутся разговоры, футбол, шахматы, English, лидерские поступки, встречи и ваши заметки друг о друге.</Text>
+        <AppCard
+          title={`${child?.display_name ?? 'Артур'}${childAge !== null ? ` · ${childAge} лет` : ''}`}
+          subtitle="Первая глава · Исследователь"
+        >
+          <Text style={styles.body}>Здесь постепенно соберутся разговоры, футбол, шахматы, English, лидерские поступки, встречи, миссии и ваши заметки друг о друге.</Text>
         </AppCard>
 
         {loading ? (
