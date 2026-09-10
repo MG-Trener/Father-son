@@ -10,11 +10,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { AppCard } from '../../components/AppCard';
 import { useFamily } from '../../context/FamilyContext';
 import { supabase } from '../../lib/supabase';
-import { colors, radius } from '../../theme';
+import { colors, gradients, radius, shadows } from '../../theme';
 
 type SkillPath = {
   id: string;
@@ -75,19 +75,23 @@ type CategoryMeta = {
   icon: string;
   fallbackTitle: string;
   accent: string;
+  strong: string;
+  text: string;
+  detail: string;
 };
 
 const meta: Record<string, CategoryMeta> = {
-  school: { icon: '📚', fallbackTitle: 'Школа', accent: '#DCE7F6' },
-  football: { icon: '⚽', fallbackTitle: 'Футбол', accent: '#DCECE3' },
-  chess: { icon: '♟', fallbackTitle: 'Шахматы', accent: '#E5E0F2' },
-  english: { icon: 'EN', fallbackTitle: 'English', accent: '#FFF0CF' },
-  leadership: { icon: '🧭', fallbackTitle: 'Лидерство', accent: '#F5DED7' },
-  together: { icon: '❤️', fallbackTitle: 'Папа & Я', accent: '#F3E2DF' },
+  school: { icon: '✎', fallbackTitle: 'Школа', accent: '#DCE7F6', strong: colors.blue, text: '#27465F', detail: 'Цели · помощь · победы' },
+  football: { icon: '⚽', fallbackTitle: 'Футбол', accent: '#DCEFE4', strong: colors.green, text: '#2C5942', detail: 'Техника · команда · характер' },
+  chess: { icon: '♞', fallbackTitle: 'Шахматы', accent: '#E7E2F6', strong: colors.purple, text: '#4C456B', detail: 'Партии · анализ · стратегия' },
+  english: { icon: 'EN', fallbackTitle: 'English', accent: '#FFF0CF', strong: colors.amber, text: '#74511B', detail: 'Голос · речь · смелость' },
+  leadership: { icon: '⌁', fallbackTitle: 'Лидерство', accent: '#F7DDD5', strong: colors.coral, text: '#70443A', detail: 'Выбор · инициатива · уважение' },
+  together: { icon: '♥', fallbackTitle: 'Папа & Я', accent: '#F3E2DF', strong: colors.coral, text: '#70443A', detail: 'Связь · доверие · история' },
 };
 
 const growthCategoryIds = ['school', 'football', 'chess', 'english', 'leadership'] as const;
 const growthCategories = new Set<string>(growthCategoryIds);
+const ageYears = [11, 12, 13, 14, 15, 16, 17, 18];
 
 const prettyDate = (value: string | null) => {
   if (!value) return 'без срока';
@@ -104,6 +108,16 @@ const ageFromBirthDate = (birthDate: string | null) => {
     || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate());
   if (beforeBirthday) age -= 1;
   return age;
+};
+
+const phaseForAge = (age: number | null) => {
+  if (age === null || age <= 12) return 'Исследователь';
+  if (age === 13) return 'Следопыт';
+  if (age === 14) return 'Стратег';
+  if (age === 15) return 'Капитан';
+  if (age === 16) return 'Первопроходец';
+  if (age === 17) return 'Наставник';
+  return 'Свой путь';
 };
 
 export default function DevelopmentScreen() {
@@ -229,6 +243,7 @@ export default function DevelopmentScreen() {
   );
 
   const age = ageFromBirthDate(target?.birth_date ?? null);
+  const currentPhase = phaseForAge(age);
 
   const completeMission = async (mission: Mission) => {
     if (!supabase || busyMissionId) return;
@@ -254,65 +269,96 @@ export default function DevelopmentScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.navy} />}
       >
-        <Text style={styles.title}>Развитие</Text>
-        <Text style={styles.subtitle}>Не оценки, а путь. Прогресс не уменьшается из-за пауз.</Text>
-
         {loading ? (
           <ActivityIndicator size="large" color={colors.navy} style={styles.loader} />
         ) : (
           <>
-            <View style={styles.hero}>
-              <View style={styles.heroTextBlock}>
-                <Text style={styles.heroKicker}>ПУТЬ</Text>
-                <Text style={styles.heroTitle}>{target?.display_name ?? 'Артур'}{age !== null ? ` · ${age}` : ''}</Text>
-                <Text style={styles.heroText}>{completedMissionCount} миссий · {xpTotal} XP · {growthRows.length} записей</Text>
+            <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}>
+              <View style={styles.heroSun} />
+              <View style={styles.heroOrbit} />
+              <Text style={styles.heroKicker}>КАРТА РОСТА · 11–18</Text>
+              <Text style={styles.heroTitle}>{target?.display_name ?? 'Артур'}</Text>
+              <Text style={styles.heroPhase}>{age !== null ? `${age} лет · ` : ''}{currentPhase}</Text>
+              <Text style={styles.heroText}>Не оценки и не гонка. Здесь остаются реальные шаги, попытки, открытия и моменты взросления.</Text>
+              <View style={styles.heroStats}>
+                <View style={styles.heroStat}><Text style={styles.heroStatValue}>{completedMissionCount}</Text><Text style={styles.heroStatLabel}>миссий</Text></View>
+                <View style={styles.heroStatDivider} />
+                <View style={styles.heroStat}><Text style={styles.heroStatValue}>{xpTotal}</Text><Text style={styles.heroStatLabel}>XP команды</Text></View>
+                <View style={styles.heroStatDivider} />
+                <View style={styles.heroStat}><Text style={styles.heroStatValue}>{awards.length}</Text><Text style={styles.heroStatLabel}>вех</Text></View>
               </View>
-              <View style={styles.heroBadge}>
-                <Text style={styles.heroBadgeValue}>{awards.length}</Text>
-                <Text style={styles.heroBadgeLabel}>достиж.</Text>
+              <View style={styles.ageRail}>
+                {ageYears.map((year, index) => {
+                  const active = age === year || (age === null && index === 0);
+                  const passed = age !== null && year < age;
+                  return (
+                    <View key={year} style={styles.agePart}>
+                      <View style={[styles.ageNode, passed && styles.ageNodePassed, active && styles.ageNodeActive]}>
+                        <Text style={[styles.ageText, (passed || active) && styles.ageTextBright]}>{year}</Text>
+                      </View>
+                      {index < ageYears.length - 1 ? <View style={[styles.ageLine, passed && styles.ageLinePassed]} /> : null}
+                    </View>
+                  );
+                })}
               </View>
-            </View>
+            </LinearGradient>
 
-            <View>
-              <Text style={styles.sectionTitle}>Журналы</Text>
-              <Text style={styles.sectionSubtitle}>Пять разных сторон взросления. Можно сохранять как успехи, так и сложные моменты.</Text>
+            <View style={styles.sectionHead}>
+              <View>
+                <Text style={styles.sectionKicker}>ПЯТЬ НАПРАВЛЕНИЙ</Text>
+                <Text style={styles.sectionTitle}>Миры Артура</Text>
+              </View>
+              <Text style={styles.sectionNote}>{growthRows.length} записей</Text>
             </View>
 
             <View style={styles.moduleGrid}>
-              {growthCategoryIds.map((categoryId) => {
-                const category = meta[categoryId] ?? { icon: '✦', fallbackTitle: categoryId, accent: colors.sand };
+              {growthCategoryIds.map((categoryId, index) => {
+                const category = meta[categoryId] ?? meta.school;
                 const count = growthCounts.get(categoryId) ?? 0;
+                const wide = index === 0 || index === 3;
                 return (
                   <Pressable
                     key={categoryId}
-                    style={[styles.moduleCard, { backgroundColor: category.accent }]}
+                    style={[styles.moduleCard, wide && styles.moduleCardWide, { backgroundColor: category.accent }, shadows.soft]}
                     onPress={() => router.push({ pathname: '/growth-journal', params: { category: categoryId } })}
                   >
-                    <Text style={styles.moduleIcon}>{category.icon}</Text>
-                    <Text style={styles.moduleTitle}>{category.fallbackTitle}</Text>
-                    <Text style={styles.moduleCount}>{count ? `${count} записей` : 'начать журнал'}</Text>
+                    <View style={[styles.moduleIconBox, { backgroundColor: category.strong }]}>
+                      <Text style={styles.moduleIcon}>{category.icon}</Text>
+                    </View>
+                    <View style={styles.moduleDecor} />
+                    <Text style={[styles.moduleTitle, { color: category.text }]}>{category.fallbackTitle}</Text>
+                    <Text style={[styles.moduleDetail, { color: category.text }]}>{category.detail}</Text>
+                    <View style={styles.moduleFooter}>
+                      <Text style={[styles.moduleCount, { color: category.text }]}>{count ? `${count} записей` : 'Начать журнал'}</Text>
+                      <Text style={[styles.moduleArrow, { color: category.strong }]}>↗</Text>
+                    </View>
                   </Pressable>
                 );
               })}
             </View>
 
-            <AppCard
-              title="Активные миссии"
-              subtitle={activeMissions.length ? 'Небольшие шаги, которые сейчас в работе' : 'Пока активных миссий нет'}
-            >
-              {activeMissions.length ? activeMissions.map((mission) => {
-                const category = meta[mission.category] ?? { icon: '✦', fallbackTitle: mission.category, accent: colors.sand };
+            <View style={[styles.missionPanel, shadows.soft]}>
+              <View style={styles.missionPanelHead}>
+                <View>
+                  <Text style={styles.sectionKicker}>СЕЙЧАС В РАБОТЕ</Text>
+                  <Text style={styles.sectionTitle}>Активные миссии</Text>
+                </View>
+                <View style={styles.missionCountBubble}><Text style={styles.missionCountText}>{activeMissions.length}</Text></View>
+              </View>
+              {activeMissions.length ? activeMissions.slice(0, 5).map((mission) => {
+                const category = meta[mission.category] ?? meta.school;
                 return (
                   <View key={mission.id} style={styles.missionRow}>
-                    <View style={styles.missionIcon}><Text style={styles.missionIconText}>{category.icon}</Text></View>
+                    <View style={[styles.missionIcon, { backgroundColor: category.accent }]}><Text style={[styles.missionIconText, { color: category.text }]}>{category.icon}</Text></View>
                     <View style={styles.missionText}>
                       <Text style={styles.missionTitle}>{mission.title}</Text>
-                      <Text style={styles.missionMeta}>{category.fallbackTitle} · до {prettyDate(mission.due_at)} · +{mission.xp_reward} XP</Text>
+                      <Text style={styles.missionMeta}>{category.fallbackTitle} · {prettyDate(mission.due_at)} · +{mission.xp_reward} XP</Text>
                     </View>
                     <Pressable
-                      style={[styles.doneButton, busyMissionId === mission.id && styles.disabled]}
+                      style={[styles.doneButton, { backgroundColor: category.strong }, busyMissionId === mission.id && styles.disabled]}
                       disabled={busyMissionId !== null}
                       onPress={() => void completeMission(mission)}
                     >
@@ -321,54 +367,68 @@ export default function DevelopmentScreen() {
                   </View>
                 );
               }) : (
-                <Text style={styles.body}>Выбери следующий шаг в любом направлении и преврати его в конкретную миссию.</Text>
+                <View style={styles.emptyMission}>
+                  <Text style={styles.emptyMissionIcon}>◎</Text>
+                  <View style={styles.emptyMissionText}><Text style={styles.emptyMissionTitle}>Можно выбрать следующий шаг</Text><Text style={styles.emptyMissionDetail}>Открой любой путь ниже и преврати ближайшую ступень в небольшую реальную миссию.</Text></View>
+                </View>
               )}
-            </AppCard>
+            </View>
 
-            <View>
-              <Text style={styles.sectionTitle}>Многолетние пути</Text>
-              <Text style={styles.sectionSubtitle}>Ступени рассчитаны на годы. Журнал хранит реальные моменты, а миссии помогают сделать следующий шаг.</Text>
+            <View style={styles.sectionHead}>
+              <View>
+                <Text style={styles.sectionKicker}>ДОЛГИЙ МАРШРУТ</Text>
+                <Text style={styles.sectionTitle}>Многолетние пути</Text>
+              </View>
             </View>
 
             {pathViews.map((path) => {
-              const category = meta[path.id] ?? { icon: '✦', fallbackTitle: path.title, accent: colors.sand };
+              const category = meta[path.id] ?? meta.school;
               const ratio = path.nodes.length ? Math.round((path.completed / path.nodes.length) * 100) : 0;
               return (
-                <View key={path.id} style={styles.pathCard}>
-                  <View style={styles.pathHeader}>
-                    <View style={[styles.pathIcon, { backgroundColor: category.accent }]}>
-                      <Text style={styles.icon}>{category.icon}</Text>
+                <View key={path.id} style={[styles.pathCard, { backgroundColor: category.accent }, shadows.soft]}>
+                  <View style={styles.pathTop}>
+                    <View style={[styles.pathIcon, { backgroundColor: category.strong }]}><Text style={styles.pathIconText}>{category.icon}</Text></View>
+                    <View style={styles.pathHeading}>
+                      <Text style={[styles.pathTitle, { color: category.text }]}>{path.title}</Text>
+                      <Text style={[styles.pathStage, { color: category.text }]}>{path.completed} из {path.nodes.length} ступеней</Text>
                     </View>
-                    <View style={styles.pathText}>
-                      <Text style={styles.pathTitle}>{path.title}</Text>
-                      <Text style={styles.stage}>{path.completed} из {path.nodes.length} ступеней · {ratio}%</Text>
-                    </View>
+                    <Text style={[styles.pathRatio, { color: category.text }]}>{ratio}%</Text>
                   </View>
 
-                  <View style={styles.track}><View style={[styles.fill, { width: `${ratio}%` }]} /></View>
+                  <View style={styles.pathTrack}><View style={[styles.pathFill, { width: `${ratio}%`, backgroundColor: category.strong }]} /></View>
+
+                  <View style={styles.pathDots}>
+                    {path.nodes.map((node, index) => {
+                      const done = completedNodes.has(node.id);
+                      const next = path.nextNode?.id === node.id;
+                      return (
+                        <View key={node.id} style={styles.pathDotPart}>
+                          <View style={[styles.pathDot, done && { backgroundColor: category.strong }, next && { borderColor: category.strong, borderWidth: 2 }]} />
+                          {index < path.nodes.length - 1 ? <View style={styles.pathDotLine} /> : null}
+                        </View>
+                      );
+                    })}
+                  </View>
 
                   {growthCategories.has(path.id) ? (
-                    <Pressable
-                      style={styles.journalButton}
-                      onPress={() => router.push({ pathname: '/growth-journal', params: { category: path.id } })}
-                    >
-                      <Text style={styles.journalButtonText}>Открыть журнал · {growthCounts.get(path.id) ?? 0}</Text>
-                      <Text style={styles.journalArrow}>›</Text>
+                    <Pressable style={styles.journalButton} onPress={() => router.push({ pathname: '/growth-journal', params: { category: path.id } })}>
+                      <Text style={[styles.journalButtonText, { color: category.text }]}>Журнал · {growthCounts.get(path.id) ?? 0}</Text>
+                      <Text style={[styles.journalArrow, { color: category.strong }]}>↗</Text>
                     </Pressable>
                   ) : null}
 
                   {path.nextNode ? (
                     <View style={styles.nextBox}>
-                      <Text style={styles.nextLabel}>СЛЕДУЮЩИЙ ШАГ</Text>
-                      <Text style={styles.nextTitle}>{path.nextNode.title}</Text>
+                      <Text style={styles.nextLabel}>СЛЕДУЮЩАЯ СТУПЕНЬ</Text>
+                      <Text style={[styles.nextTitle, { color: category.text }]}>{path.nextNode.title}</Text>
                       <Text style={styles.next}>{path.nextNode.description}</Text>
                       <Pressable
-                        style={[styles.missionButton, path.hasMissionForNext && styles.missionButtonMuted]}
+                        style={[styles.missionButton, { backgroundColor: category.strong }, path.hasMissionForNext && styles.missionButtonMuted]}
                         disabled={path.hasMissionForNext}
                         onPress={() => router.push({ pathname: '/mission-new', params: { category: path.id, node: path.nextNode?.id ?? '' } })}
                       >
                         <Text style={[styles.missionButtonText, path.hasMissionForNext && styles.missionButtonTextMuted]}>
-                          {path.hasMissionForNext ? 'Миссия уже запущена' : 'Создать миссию'}
+                          {path.hasMissionForNext ? 'Уже в работе' : 'Сделать миссией →'}
                         </Text>
                       </Pressable>
                     </View>
@@ -379,13 +439,17 @@ export default function DevelopmentScreen() {
               );
             })}
 
-            <AppCard title="Достижения" subtitle="Они остаются навсегда и привязаны к реальным действиям">
-              {awards.length ? awards.slice(0, 6).map((award) => {
+            <LinearGradient colors={['#2C405B', '#162A3A']} style={[styles.awardsPanel, shadows.lift]}>
+              <View style={styles.awardGlow} />
+              <Text style={styles.awardsKicker}>АРТЕФАКТЫ РОСТА</Text>
+              <Text style={styles.awardsTitle}>Достижения, которые остаются</Text>
+              <Text style={styles.awardsSubtitle}>Не значки за клики, а следы реальных действий и важных моментов.</Text>
+              {awards.length ? awards.slice(0, 6).map((award, index) => {
                 const definition = awardDefinitions.get(award.definition_id);
                 if (!definition) return null;
                 return (
                   <View key={award.id} style={styles.awardRow}>
-                    <Text style={styles.awardIcon}>🏅</Text>
+                    <View style={styles.awardMedal}><Text style={styles.awardMedalText}>{index + 1}</Text></View>
                     <View style={styles.awardText}>
                       <Text style={styles.awardTitle}>{definition.title}</Text>
                       <Text style={styles.awardDescription}>{definition.description}</Text>
@@ -393,9 +457,9 @@ export default function DevelopmentScreen() {
                   </View>
                 );
               }) : (
-                <Text style={styles.body}>Первое достижение откроется после первой выполненной миссии.</Text>
+                <View style={styles.awardEmpty}><Text style={styles.awardEmptyIcon}>✦</Text><Text style={styles.awardEmptyText}>Первый артефакт появится после первой значимой вехи.</Text></View>
               )}
-            </AppCard>
+            </LinearGradient>
           </>
         )}
       </ScrollView>
@@ -405,60 +469,21 @@ export default function DevelopmentScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.sand },
-  content: { padding: 18, paddingBottom: 34, gap: 14 },
-  title: { color: colors.navyDeep, fontSize: 30, fontWeight: '900' },
-  subtitle: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: -7, marginBottom: 4 },
-  loader: { marginTop: 60 },
-  hero: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
-  heroTextBlock: { flex: 1 },
-  heroKicker: { color: '#C9D7D7', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  heroTitle: { color: colors.white, fontSize: 25, fontWeight: '900', marginTop: 3 },
-  heroText: { color: '#E7EEEE', fontSize: 12, marginTop: 4 },
-  heroBadge: { minWidth: 68, height: 68, borderRadius: 34, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
-  heroBadgeValue: { color: colors.navyDeep, fontSize: 22, fontWeight: '900' },
-  heroBadgeLabel: { color: colors.navyDeep, fontSize: 9, fontWeight: '900' },
-  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
-  sectionSubtitle: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
-  moduleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  moduleCard: { width: '31.5%', minHeight: 108, borderRadius: radius.lg, padding: 12, justifyContent: 'flex-end' },
-  moduleIcon: { color: colors.navyDeep, fontSize: 24, fontWeight: '900', marginBottom: 10 },
-  moduleTitle: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' },
-  moduleCount: { color: colors.muted, fontSize: 9, fontWeight: '800', marginTop: 3 },
-  body: { color: colors.text, fontSize: 14, lineHeight: 21 },
-  missionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
-  missionIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.sand, alignItems: 'center', justifyContent: 'center' },
-  missionIconText: { fontSize: 17, fontWeight: '900', color: colors.navy },
-  missionText: { flex: 1 },
-  missionTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
-  missionMeta: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  doneButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.green, alignItems: 'center', justifyContent: 'center' },
-  doneButtonText: { color: colors.white, fontSize: 18, fontWeight: '900' },
-  disabled: { opacity: 0.45 },
-  pathCard: { backgroundColor: colors.paper, borderRadius: radius.lg, padding: 16, borderWidth: 1, borderColor: colors.line, gap: 12 },
-  pathHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  pathIcon: { width: 43, height: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  icon: { fontSize: 21, fontWeight: '900', color: colors.navy },
-  pathText: { flex: 1 },
-  pathTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
-  stage: { color: colors.green, marginTop: 2, fontSize: 12, fontWeight: '800' },
-  track: { height: 7, borderRadius: radius.pill, backgroundColor: colors.line, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: colors.green, borderRadius: radius.pill },
-  journalButton: { minHeight: 42, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  journalButtonText: { color: colors.navy, fontSize: 12, fontWeight: '900' },
-  journalArrow: { color: colors.muted, fontSize: 22 },
-  nextBox: { backgroundColor: colors.sand, borderRadius: radius.md, padding: 13 },
-  nextLabel: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.9 },
-  nextTitle: { color: colors.text, fontSize: 15, fontWeight: '900', marginTop: 4 },
-  next: { color: colors.muted, marginTop: 4, fontSize: 12, lineHeight: 17 },
-  missionButton: { alignSelf: 'flex-start', backgroundColor: colors.navy, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 9, marginTop: 10 },
-  missionButtonMuted: { backgroundColor: colors.line },
-  missionButtonText: { color: colors.white, fontSize: 11, fontWeight: '900' },
-  missionButtonTextMuted: { color: colors.muted },
-  completePath: { backgroundColor: '#DCECE3', borderRadius: radius.md, padding: 12 },
-  completePathText: { color: colors.green, fontSize: 12, fontWeight: '900' },
-  awardRow: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
-  awardIcon: { fontSize: 24 },
-  awardText: { flex: 1 },
-  awardTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
-  awardDescription: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
+  content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 38, gap: 18 },
+  loader: { marginTop: 80 },
+  hero: { minHeight: 390, borderRadius: radius.xl, padding: 22, overflow: 'hidden' },
+  heroSun: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: 'rgba(255,210,94,0.10)', right: -72, top: -70 },
+  heroOrbit: { position: 'absolute', width: 250, height: 110, borderRadius: 130, borderWidth: 2, borderColor: 'rgba(255,255,255,0.09)', right: -55, top: 52, transform: [{ rotate: '-19deg' }] },
+  heroKicker: { color: '#BBD1D2', fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
+  heroTitle: { color: colors.white, fontSize: 36, fontWeight: '900', letterSpacing: -1.1, marginTop: 7 },
+  heroPhase: { color: colors.sun, fontSize: 12, fontWeight: '900', marginTop: 3 },
+  heroText: { color: '#D5E3E3', maxWidth: '78%', fontSize: 11, lineHeight: 17, marginTop: 13 },
+  heroStats: { minHeight: 72, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: radius.lg, marginTop: 22, paddingHorizontal: 10 },
+  heroStat: { flex: 1, alignItems: 'center' }, heroStatValue: { color: colors.white, fontSize: 20, fontWeight: '900' }, heroStatLabel: { color: '#BFD0D1', fontSize: 8, fontWeight: '800', marginTop: 2 }, heroStatDivider: { width: 1, height: 31, backgroundColor: 'rgba(255,255,255,0.12)' },
+  ageRail: { flexDirection: 'row', alignItems: 'center', marginTop: 26 }, agePart: { flex: 1, flexDirection: 'row', alignItems: 'center' }, ageNode: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' }, ageNodePassed: { backgroundColor: colors.teal }, ageNodeActive: { backgroundColor: colors.amber, borderColor: colors.sun }, ageText: { color: '#94A8AA', fontSize: 8, fontWeight: '900' }, ageTextBright: { color: colors.white }, ageLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.12)' }, ageLinePassed: { backgroundColor: colors.teal },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 3, marginTop: 3 }, sectionKicker: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.12 }, sectionTitle: { color: colors.navyDeep, fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginTop: 3 }, sectionNote: { color: colors.muted, fontSize: 9, fontWeight: '800', paddingBottom: 4 },
+  moduleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, moduleCard: { width: '48.4%', minHeight: 170, borderRadius: radius.xl, padding: 16, overflow: 'hidden' }, moduleCardWide: { width: '100%', minHeight: 150 }, moduleIconBox: { width: 45, height: 45, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }, moduleIcon: { color: colors.white, fontSize: 17, fontWeight: '900' }, moduleDecor: { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 14, borderColor: 'rgba(255,255,255,0.22)', right: -25, top: -20 }, moduleTitle: { fontSize: 18, fontWeight: '900', marginTop: 16 }, moduleDetail: { fontSize: 9, fontWeight: '700', opacity: 0.68, marginTop: 3 }, moduleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 16 }, moduleCount: { fontSize: 9, fontWeight: '900', opacity: 0.78 }, moduleArrow: { fontSize: 19, fontWeight: '900' },
+  missionPanel: { backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 18 }, missionPanelHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }, missionCountBubble: { minWidth: 36, height: 36, borderRadius: 18, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center' }, missionCountText: { color: '#76511C', fontSize: 14, fontWeight: '900' }, missionRow: { minHeight: 67, flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.lineWarm }, missionIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, missionIconText: { fontSize: 15, fontWeight: '900' }, missionText: { flex: 1 }, missionTitle: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' }, missionMeta: { color: colors.muted, fontSize: 9, marginTop: 3 }, doneButton: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, doneButtonText: { color: colors.white, fontSize: 16, fontWeight: '900' }, disabled: { opacity: 0.45 }, emptyMission: { flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: colors.sandWarm, borderRadius: radius.lg, padding: 15, marginTop: 5 }, emptyMissionIcon: { color: colors.teal, fontSize: 25, fontWeight: '900' }, emptyMissionText: { flex: 1 }, emptyMissionTitle: { color: colors.navyDeep, fontSize: 12, fontWeight: '900' }, emptyMissionDetail: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 3 },
+  pathCard: { borderRadius: radius.xl, padding: 18, overflow: 'hidden' }, pathTop: { flexDirection: 'row', alignItems: 'center', gap: 11 }, pathIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center' }, pathIconText: { color: colors.white, fontSize: 18, fontWeight: '900' }, pathHeading: { flex: 1 }, pathTitle: { fontSize: 19, fontWeight: '900' }, pathStage: { fontSize: 9, fontWeight: '800', opacity: 0.68, marginTop: 2 }, pathRatio: { fontSize: 19, fontWeight: '900' }, pathTrack: { height: 6, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.56)', overflow: 'hidden', marginTop: 17 }, pathFill: { height: '100%', borderRadius: radius.pill }, pathDots: { flexDirection: 'row', alignItems: 'center', marginTop: 11, marginBottom: 4 }, pathDotPart: { flex: 1, flexDirection: 'row', alignItems: 'center' }, pathDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.78)' }, pathDotLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.65)' }, journalButton: { minHeight: 43, borderRadius: radius.md, marginTop: 11, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.60)' }, journalButtonText: { fontSize: 10, fontWeight: '900' }, journalArrow: { fontSize: 17, fontWeight: '900' }, nextBox: { backgroundColor: 'rgba(255,255,255,0.62)', borderRadius: radius.lg, padding: 14, marginTop: 10 }, nextLabel: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 0.9 }, nextTitle: { fontSize: 14, fontWeight: '900', marginTop: 4 }, next: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 3 }, missionButton: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 9, marginTop: 11 }, missionButtonMuted: { backgroundColor: colors.line }, missionButtonText: { color: colors.white, fontSize: 9, fontWeight: '900' }, missionButtonTextMuted: { color: colors.muted }, completePath: { backgroundColor: 'rgba(255,255,255,0.64)', borderRadius: radius.lg, padding: 13, marginTop: 10 }, completePathText: { color: colors.green, fontSize: 10, fontWeight: '900' },
+  awardsPanel: { borderRadius: radius.xl, padding: 20, overflow: 'hidden' }, awardGlow: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,211,95,0.08)', right: -45, top: -65 }, awardsKicker: { color: '#9FB5C2', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 }, awardsTitle: { color: colors.white, fontSize: 23, lineHeight: 27, fontWeight: '900', marginTop: 5, maxWidth: '78%' }, awardsSubtitle: { color: '#B8C8CF', fontSize: 9, lineHeight: 14, marginTop: 6, marginBottom: 10, maxWidth: '82%' }, awardRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)' }, awardMedal: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' }, awardMedalText: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' }, awardText: { flex: 1 }, awardTitle: { color: colors.white, fontSize: 12, fontWeight: '900' }, awardDescription: { color: '#AFC1C9', fontSize: 9, lineHeight: 13, marginTop: 2 }, awardEmpty: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: radius.lg, padding: 14 }, awardEmptyIcon: { color: colors.sun, fontSize: 22 }, awardEmptyText: { flex: 1, color: '#C0D0D5', fontSize: 10, lineHeight: 15, fontWeight: '700' },
 });
