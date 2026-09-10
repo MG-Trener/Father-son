@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Папа & Я",
+    "slug": "papa-i-ya",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "papaiya",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.mgtrener.fatherson",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#F4F1E8"
+      }
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
