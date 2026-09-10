@@ -66,14 +66,28 @@ type AwardDefinition = {
   tier: number;
 };
 
-const meta: Record<string, { icon: string; fallbackTitle: string }> = {
-  school: { icon: '📚', fallbackTitle: 'Школа' },
-  football: { icon: '⚽', fallbackTitle: 'Футбол' },
-  chess: { icon: '♟', fallbackTitle: 'Шахматы' },
-  english: { icon: 'EN', fallbackTitle: 'English' },
-  leadership: { icon: '🧭', fallbackTitle: 'Лидерство' },
-  together: { icon: '❤️', fallbackTitle: 'Папа & Я' },
+type GrowthRow = {
+  id: string;
+  category: string;
 };
+
+type CategoryMeta = {
+  icon: string;
+  fallbackTitle: string;
+  accent: string;
+};
+
+const meta: Record<string, CategoryMeta> = {
+  school: { icon: '📚', fallbackTitle: 'Школа', accent: '#DCE7F6' },
+  football: { icon: '⚽', fallbackTitle: 'Футбол', accent: '#DCECE3' },
+  chess: { icon: '♟', fallbackTitle: 'Шахматы', accent: '#E5E0F2' },
+  english: { icon: 'EN', fallbackTitle: 'English', accent: '#FFF0CF' },
+  leadership: { icon: '🧭', fallbackTitle: 'Лидерство', accent: '#F5DED7' },
+  together: { icon: '❤️', fallbackTitle: 'Папа & Я', accent: '#F3E2DF' },
+};
+
+const growthCategoryIds = ['school', 'football', 'chess', 'english', 'leadership'] as const;
+const growthCategories = new Set<string>(growthCategoryIds);
 
 const prettyDate = (value: string | null) => {
   if (!value) return 'без срока';
@@ -102,6 +116,7 @@ export default function DevelopmentScreen() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [awards, setAwards] = useState<Award[]>([]);
   const [definitions, setDefinitions] = useState<AwardDefinition[]>([]);
+  const [growthRows, setGrowthRows] = useState<GrowthRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyMissionId, setBusyMissionId] = useState<string | null>(null);
@@ -113,13 +128,22 @@ export default function DevelopmentScreen() {
     }
 
     setLoading(true);
-    const [pathsResult, nodesResult, progressResult, missionsResult, awardsResult, definitionsResult] = await Promise.all([
+    const [
+      pathsResult,
+      nodesResult,
+      progressResult,
+      missionsResult,
+      awardsResult,
+      definitionsResult,
+      growthResult,
+    ] = await Promise.all([
       supabase.from('skill_paths').select('id,title,description,sort_order').order('sort_order'),
       supabase.from('skill_nodes').select('id,path_id,title,description,stage_order,node_type').eq('hidden', false).order('stage_order'),
       supabase.from('skill_progress').select('node_id,status').eq('family_id', family.id).eq('user_id', target.user_id),
       supabase.from('missions').select('id,category,title,description,assigned_to,due_at,status,xp_reward,skill_node_id,completed_at,created_at').eq('family_id', family.id).order('created_at', { ascending: false }).limit(80),
       supabase.from('achievement_awards').select('id,definition_id,recipient_user_id,awarded_at').eq('family_id', family.id).eq('recipient_user_id', target.user_id).order('awarded_at', { ascending: false }).limit(30),
       supabase.from('achievement_definitions').select('id,title,description,category,tier').eq('hidden', false),
+      supabase.from('growth_entries').select('id,category').eq('family_id', family.id).eq('user_id', target.user_id).limit(500),
     ]);
 
     const firstError = pathsResult.error
@@ -127,7 +151,8 @@ export default function DevelopmentScreen() {
       ?? progressResult.error
       ?? missionsResult.error
       ?? awardsResult.error
-      ?? definitionsResult.error;
+      ?? definitionsResult.error
+      ?? growthResult.error;
 
     if (firstError) {
       Alert.alert('Не удалось загрузить развитие', firstError.message);
@@ -138,6 +163,7 @@ export default function DevelopmentScreen() {
       setMissions((missionsResult.data ?? []) as Mission[]);
       setAwards((awardsResult.data ?? []) as Award[]);
       setDefinitions((definitionsResult.data ?? []) as AwardDefinition[]);
+      setGrowthRows((growthResult.data ?? []) as GrowthRow[]);
     }
     setLoading(false);
   }, [family, target]);
@@ -173,12 +199,22 @@ export default function DevelopmentScreen() {
   );
 
   const xpTotal = useMemo(
-    () => targetMissions.filter((mission) => mission.status === 'completed').reduce((sum, mission) => sum + mission.xp_reward, 0),
+    () => targetMissions
+      .filter((mission) => mission.status === 'completed')
+      .reduce((sum, mission) => sum + mission.xp_reward, 0),
     [targetMissions],
   );
 
+  const growthCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of growthRows) counts.set(row.category, (counts.get(row.category) ?? 0) + 1);
+    return counts;
+  }, [growthRows]);
+
   const pathViews = useMemo(() => paths.map((path) => {
-    const pathNodes = nodes.filter((node) => node.path_id === path.id).sort((a, b) => a.stage_order - b.stage_order);
+    const pathNodes = nodes
+      .filter((node) => node.path_id === path.id)
+      .sort((a, b) => a.stage_order - b.stage_order);
     const completed = pathNodes.filter((node) => completedNodes.has(node.id)).length;
     const nextNode = pathNodes.find((node) => !completedNodes.has(node.id)) ?? null;
     const hasMissionForNext = nextNode
@@ -228,10 +264,10 @@ export default function DevelopmentScreen() {
         ) : (
           <>
             <View style={styles.hero}>
-              <View>
+              <View style={styles.heroTextBlock}>
                 <Text style={styles.heroKicker}>ПУТЬ</Text>
                 <Text style={styles.heroTitle}>{target?.display_name ?? 'Артур'}{age !== null ? ` · ${age}` : ''}</Text>
-                <Text style={styles.heroText}>{completedMissionCount} миссий выполнено · {xpTotal} XP</Text>
+                <Text style={styles.heroText}>{completedMissionCount} миссий · {xpTotal} XP · {growthRows.length} записей</Text>
               </View>
               <View style={styles.heroBadge}>
                 <Text style={styles.heroBadgeValue}>{awards.length}</Text>
@@ -239,9 +275,35 @@ export default function DevelopmentScreen() {
               </View>
             </View>
 
-            <AppCard title="Активные миссии" subtitle={activeMissions.length ? 'Небольшие шаги, которые сейчас в работе' : 'Пока активных миссий нет'}>
+            <View>
+              <Text style={styles.sectionTitle}>Журналы</Text>
+              <Text style={styles.sectionSubtitle}>Пять разных сторон взросления. Можно сохранять как успехи, так и сложные моменты.</Text>
+            </View>
+
+            <View style={styles.moduleGrid}>
+              {growthCategoryIds.map((categoryId) => {
+                const category = meta[categoryId];
+                const count = growthCounts.get(categoryId) ?? 0;
+                return (
+                  <Pressable
+                    key={categoryId}
+                    style={[styles.moduleCard, { backgroundColor: category.accent }]}
+                    onPress={() => router.push({ pathname: '/growth-journal', params: { category: categoryId } })}
+                  >
+                    <Text style={styles.moduleIcon}>{category.icon}</Text>
+                    <Text style={styles.moduleTitle}>{category.fallbackTitle}</Text>
+                    <Text style={styles.moduleCount}>{count ? `${count} записей` : 'начать журнал'}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <AppCard
+              title="Активные миссии"
+              subtitle={activeMissions.length ? 'Небольшие шаги, которые сейчас в работе' : 'Пока активных миссий нет'}
+            >
               {activeMissions.length ? activeMissions.map((mission) => {
-                const category = meta[mission.category] ?? { icon: '✦', fallbackTitle: mission.category };
+                const category = meta[mission.category] ?? { icon: '✦', fallbackTitle: mission.category, accent: colors.sand };
                 return (
                   <View key={mission.id} style={styles.missionRow}>
                     <View style={styles.missionIcon}><Text style={styles.missionIconText}>{category.icon}</Text></View>
@@ -264,17 +326,19 @@ export default function DevelopmentScreen() {
             </AppCard>
 
             <View>
-              <Text style={styles.sectionTitle}>Направления</Text>
-              <Text style={styles.sectionSubtitle}>Каждое рассчитано на несколько лет, а не на быстрый «процент выполнения».</Text>
+              <Text style={styles.sectionTitle}>Многолетние пути</Text>
+              <Text style={styles.sectionSubtitle}>Ступени рассчитаны на годы. Журнал хранит реальные моменты, а миссии помогают сделать следующий шаг.</Text>
             </View>
 
             {pathViews.map((path) => {
-              const category = meta[path.id] ?? { icon: '✦', fallbackTitle: path.title };
+              const category = meta[path.id] ?? { icon: '✦', fallbackTitle: path.title, accent: colors.sand };
               const ratio = path.nodes.length ? Math.round((path.completed / path.nodes.length) * 100) : 0;
               return (
                 <View key={path.id} style={styles.pathCard}>
                   <View style={styles.pathHeader}>
-                    <View style={styles.pathIcon}><Text style={styles.icon}>{category.icon}</Text></View>
+                    <View style={[styles.pathIcon, { backgroundColor: category.accent }]}>
+                      <Text style={styles.icon}>{category.icon}</Text>
+                    </View>
                     <View style={styles.pathText}>
                       <Text style={styles.pathTitle}>{path.title}</Text>
                       <Text style={styles.stage}>{path.completed} из {path.nodes.length} ступеней · {ratio}%</Text>
@@ -282,6 +346,16 @@ export default function DevelopmentScreen() {
                   </View>
 
                   <View style={styles.track}><View style={[styles.fill, { width: `${ratio}%` }]} /></View>
+
+                  {growthCategories.has(path.id) ? (
+                    <Pressable
+                      style={styles.journalButton}
+                      onPress={() => router.push({ pathname: '/growth-journal', params: { category: path.id } })}
+                    >
+                      <Text style={styles.journalButtonText}>Открыть журнал · {growthCounts.get(path.id) ?? 0}</Text>
+                      <Text style={styles.journalArrow}>›</Text>
+                    </Pressable>
+                  ) : null}
 
                   {path.nextNode ? (
                     <View style={styles.nextBox}>
@@ -336,12 +410,20 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: -7, marginBottom: 4 },
   loader: { marginTop: 60 },
   hero: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
+  heroTextBlock: { flex: 1 },
   heroKicker: { color: '#C9D7D7', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   heroTitle: { color: colors.white, fontSize: 25, fontWeight: '900', marginTop: 3 },
   heroText: { color: '#E7EEEE', fontSize: 12, marginTop: 4 },
   heroBadge: { minWidth: 68, height: 68, borderRadius: 34, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
   heroBadgeValue: { color: colors.navyDeep, fontSize: 22, fontWeight: '900' },
   heroBadgeLabel: { color: colors.navyDeep, fontSize: 9, fontWeight: '900' },
+  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  sectionSubtitle: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
+  moduleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  moduleCard: { width: '31.5%', minHeight: 108, borderRadius: radius.lg, padding: 12, justifyContent: 'flex-end' },
+  moduleIcon: { color: colors.navyDeep, fontSize: 24, fontWeight: '900', marginBottom: 10 },
+  moduleTitle: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' },
+  moduleCount: { color: colors.muted, fontSize: 9, fontWeight: '800', marginTop: 3 },
   body: { color: colors.text, fontSize: 14, lineHeight: 21 },
   missionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
   missionIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.sand, alignItems: 'center', justifyContent: 'center' },
@@ -352,17 +434,18 @@ const styles = StyleSheet.create({
   doneButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.green, alignItems: 'center', justifyContent: 'center' },
   doneButtonText: { color: colors.white, fontSize: 18, fontWeight: '900' },
   disabled: { opacity: 0.45 },
-  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
-  sectionSubtitle: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
   pathCard: { backgroundColor: colors.paper, borderRadius: radius.lg, padding: 16, borderWidth: 1, borderColor: colors.line, gap: 12 },
   pathHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  pathIcon: { width: 43, height: 43, borderRadius: 14, backgroundColor: colors.sand, alignItems: 'center', justifyContent: 'center' },
+  pathIcon: { width: 43, height: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   icon: { fontSize: 21, fontWeight: '900', color: colors.navy },
   pathText: { flex: 1 },
   pathTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
   stage: { color: colors.green, marginTop: 2, fontSize: 12, fontWeight: '800' },
   track: { height: 7, borderRadius: radius.pill, backgroundColor: colors.line, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: colors.green, borderRadius: radius.pill },
+  journalButton: { minHeight: 42, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  journalButtonText: { color: colors.navy, fontSize: 12, fontWeight: '900' },
+  journalArrow: { color: colors.muted, fontSize: 22 },
   nextBox: { backgroundColor: colors.sand, borderRadius: radius.md, padding: 13 },
   nextLabel: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.9 },
   nextTitle: { color: colors.text, fontSize: 15, fontWeight: '900', marginTop: 4 },
