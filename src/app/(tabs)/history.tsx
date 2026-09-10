@@ -1,37 +1,136 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppCard } from '../../components/AppCard';
+import { useFamily } from '../../context/FamilyContext';
+import { supabase } from '../../lib/supabase';
 import { colors } from '../../theme';
 
-const timeline = [
-  ['Сегодня', '🧭', 'Начало пути', 'Создан будущий цифровой штаб Михаила и Артура.'],
-  ['Следующая веха', '♟', 'Первая партия', 'Сохранится дата, результат и лучший момент партии.'],
-  ['Следующая веха', '🇬🇧', 'Первая минута', 'Голосовое Артура на английском длиной 60 секунд.'],
-];
+type TimelineEvent = {
+  id: string;
+  actor_user_id: string | null;
+  event_type: string;
+  category: string | null;
+  occurred_at: string;
+  payload: unknown;
+};
+
+const eventView = (event: TimelineEvent, actorName: string) => {
+  switch (event.event_type) {
+    case 'family_created':
+      return { icon: '❤️', title: 'Команда создана', text: `${actorName} открыл вашу общую историю.` };
+    case 'family_joined':
+      return { icon: '🤝', title: 'Команда в сборе', text: `${actorName} присоединился к «Папа & Я».` };
+    case 'five_minutes_ping':
+      return { icon: '💬', title: 'Есть 5 минут?', text: `${actorName} предложил немного побыть вместе.` };
+    case 'meeting_created':
+      return { icon: '📅', title: 'Запланирована встреча', text: `${actorName} добавил следующую встречу.` };
+    case 'mission_completed':
+      return { icon: '🎯', title: 'Миссия выполнена', text: `${actorName} добавил ещё один шаг в историю команды.` };
+    case 'recognition_added':
+      return { icon: '🧭', title: 'Важный поступок', text: `${actorName} сохранил момент, который стоит помнить.` };
+    default:
+      return { icon: '✦', title: 'Момент команды', text: `${actorName} добавил новое событие.` };
+  }
+};
+
+const formatDate = (value: string) => {
+  const date = new Date(value);
+  const now = new Date();
+  const sameDay = date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+
+  if (sameDay) {
+    return `Сегодня · ${date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  return date.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  });
+};
 
 export default function HistoryScreen() {
+  const { family, members } = useFamily();
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [loading, setLoading] = useState(Boolean(supabase && family));
+  const [refreshing, setRefreshing] = useState(false);
+
+  const names = useMemo(
+    () => new Map(members.map((member) => [member.user_id, member.display_name])),
+    [members],
+  );
+  const child = useMemo(() => members.find((member) => member.role === 'child'), [members]);
+
+  const loadEvents = useCallback(async () => {
+    if (!supabase || !family) {
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('activity_events')
+      .select('id,actor_user_id,event_type,category,occurred_at,payload')
+      .eq('family_id', family.id)
+      .order('occurred_at', { ascending: false })
+      .limit(60);
+
+    if (!error) setEvents((data ?? []) as TimelineEvent[]);
+    setLoading(false);
+  }, [family]);
+
+  useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadEvents();
+    setRefreshing(false);
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.navy} />}
+      >
         <Text style={styles.title}>Наша история</Text>
-        <Text style={styles.subtitle}>Не лента активности, а летопись важных моментов.</Text>
+        <Text style={styles.subtitle}>Не лента контроля, а летопись моментов, которые вы захотите помнить.</Text>
 
-        <AppCard title="Артур · 11 лет" subtitle="Сезон 2026–2027 · Исследователь">
-          <Text style={styles.body}>В конце возрастного года здесь появится книга: главная победа, сложный момент, футбол, шахматы, English, лидерство и то, что вы заметили друг в друге.</Text>
+        <AppCard title={`${child?.display_name ?? 'Артур'} · 11 лет`} subtitle="Первая глава · Исследователь">
+          <Text style={styles.body}>Здесь постепенно соберутся разговоры, футбол, шахматы, English, лидерские поступки, встречи и ваши заметки друг о друге.</Text>
         </AppCard>
 
-        <View style={styles.timeline}>
-          {timeline.map(([date, icon, title, text], index) => (
-            <View key={`${title}-${index}`} style={styles.event}>
-              <View style={styles.rail}><View style={styles.dot} />{index < timeline.length - 1 ? <View style={styles.line} /> : null}</View>
-              <View style={styles.eventContent}>
-                <Text style={styles.date}>{date}</Text>
-                <Text style={styles.eventTitle}>{icon} {title}</Text>
-                <Text style={styles.eventText}>{text}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+        {loading ? (
+          <ActivityIndicator size="large" color={colors.navy} style={styles.loader} />
+        ) : events.length ? (
+          <View style={styles.timeline}>
+            {events.map((event, index) => {
+              const actorName = event.actor_user_id ? names.get(event.actor_user_id) ?? 'Кто-то из команды' : 'Команда';
+              const view = eventView(event, actorName);
+              return (
+                <View key={event.id} style={styles.event}>
+                  <View style={styles.rail}>
+                    <View style={styles.dot} />
+                    {index < events.length - 1 ? <View style={styles.line} /> : null}
+                  </View>
+                  <View style={styles.eventContent}>
+                    <Text style={styles.date}>{formatDate(event.occurred_at)}</Text>
+                    <Text style={styles.eventTitle}>{view.icon} {view.title}</Text>
+                    <Text style={styles.eventText}>{view.text}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <AppCard title="История начинается сейчас">
+            <Text style={styles.body}>Первое сохранённое действие появится здесь автоматически.</Text>
+          </AppCard>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -43,12 +142,13 @@ const styles = StyleSheet.create({
   title: { color: colors.navyDeep, fontSize: 30, fontWeight: '900' },
   subtitle: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: -9 },
   body: { color: colors.text, fontSize: 14, lineHeight: 21 },
+  loader: { marginVertical: 28 },
   timeline: { marginTop: 3 },
-  event: { flexDirection: 'row', minHeight: 112 },
+  event: { flexDirection: 'row', minHeight: 104 },
   rail: { width: 28, alignItems: 'center' },
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.amber, marginTop: 6 },
   line: { width: 2, flex: 1, backgroundColor: colors.line, marginVertical: 4 },
-  eventContent: { flex: 1, paddingLeft: 8, paddingBottom: 22 },
+  eventContent: { flex: 1, paddingLeft: 8, paddingBottom: 20 },
   date: { color: colors.muted, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   eventTitle: { color: colors.text, fontSize: 17, fontWeight: '900', marginTop: 3 },
   eventText: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 5 },
