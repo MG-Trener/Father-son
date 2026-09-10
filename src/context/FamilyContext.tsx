@@ -118,13 +118,14 @@ export function FamilyProvider({ children }: PropsWithChildren) {
   const userId = session?.user.id ?? null;
 
   useEffect(() => {
-    if (!supabase || !familyId || !userId) return undefined;
+    const client = supabase;
+    if (!client || !familyId || !userId) return undefined;
 
     const onFamilyChange = () => {
       signalFamilyDataChanged();
     };
 
-    const channel = supabase
+    const channel = client
       .channel(`family-live-${familyId}-${userId}`)
       .on(
         'postgres_changes',
@@ -176,10 +177,20 @@ export function FamilyProvider({ children }: PropsWithChildren) {
         },
         onFamilyChange,
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'growth_entries',
+          filter: `family_id=eq.${familyId}`,
+        },
+        onFamilyChange,
+      )
       .subscribe();
 
     return () => {
-      void supabase?.removeChannel(channel);
+      void client.removeChannel(channel);
     };
   }, [familyId, signalFamilyDataChanged, userId]);
 
