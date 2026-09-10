@@ -22,6 +22,7 @@ const supportedEventTypes = new Set([
   'five_minutes_ping',
   'advice_requested',
   'connection_response',
+  'voice_story_added',
 ])
 
 const payloadText = (payload: Record<string, unknown> | null, key: string) => {
@@ -44,6 +45,15 @@ const notificationCopy = (event: EventRow, actorName: string) => {
       title: `${actorName}: мне нужен совет`,
       body: message || 'Есть тема, которую хочется обсудить вместе.',
       type: 'connection_signal',
+    }
+  }
+
+  if (event.event_type === 'voice_story_added') {
+    const title = payloadText(event.payload, 'title')
+    return {
+      title: `${actorName} оставил голосовую историю`,
+      body: title || 'Новый голосовой момент появился в вашей общей истории.',
+      type: 'voice_story',
     }
   }
 
