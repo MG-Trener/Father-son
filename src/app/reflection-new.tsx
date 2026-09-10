@@ -11,12 +11,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { AppCard } from '../components/AppCard';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
-import { colors, radius } from '../theme';
+import { colors, gradients, radius, shadows } from '../theme';
 
 export default function ReflectionNewScreen() {
   const params = useLocalSearchParams<{ prompt?: string; mode?: string }>();
@@ -68,57 +68,97 @@ export default function ReflectionNewScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={styles.topBar}>
             <Pressable onPress={() => router.back()} style={styles.backButton}>
               <Text style={styles.backText}>‹</Text>
             </Pressable>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>{isStory ? 'История дня' : 'Ответ друг другу'}</Text>
-              <Text style={styles.subtitle}>Не отчёт. Просто момент, который хочется оставить между вами.</Text>
-            </View>
+            <Text style={styles.topTitle}>{isStory ? 'История дня' : 'Ответ друг другу'}</Text>
           </View>
 
-          <AppCard title={isStory ? 'Что запомним сегодня?' : 'Вопрос'}>
-            <Text style={styles.prompt}>{prompt}</Text>
-          </AppCard>
-
-          <View style={styles.voiceCard}>
-            <View style={styles.voiceCopy}>
-              <Text style={styles.voiceTitle}>🎙 Сказать голосом</Text>
-              <Text style={styles.voiceText}>Запиши историю или ответ так, как рассказал бы друг другу при встрече.</Text>
+          <LinearGradient colors={gradients.story} style={[styles.hero, shadows.lift]}>
+            <View style={styles.heroOrb} />
+            <View style={styles.heroRing} />
+            <View style={styles.memoryBadge}>
+              <Text style={styles.memoryIcon}>{isStory ? '✦' : '∞'}</Text>
             </View>
-            <Pressable
-              style={styles.voiceButton}
-              onPress={() => router.push({ pathname: '/voice-story-new', params: { prompt } })}
-            >
-              <Text style={styles.voiceButtonText}>Записать</Text>
-            </Pressable>
+            <Text style={styles.heroKicker}>{isStory ? 'СОХРАНИТЬ МОМЕНТ' : 'МЕЖДУ НАМИ'}</Text>
+            <Text style={styles.heroTitle}>{prompt}</Text>
+            <Text style={styles.heroCopy}>Не отчёт и не обязанность. Просто одна мысль, которую будет интересно услышать или перечитать позже.</Text>
+          </LinearGradient>
+
+          <View style={styles.choiceLabelRow}>
+            <Text style={styles.choiceLabel}>КАК СОХРАНИМ?</Text>
+            <View style={styles.choiceLine} />
           </View>
 
-          <View style={styles.editorCard}>
-            <Text style={styles.label}>{isStory ? 'Или напиши историю' : 'Или напиши ответ'}</Text>
+          <Pressable
+            style={[styles.voiceCard, shadows.soft]}
+            onPress={() => router.push({ pathname: '/voice-story-new', params: { prompt } })}
+          >
+            <LinearGradient colors={gradients.team} style={styles.voiceGradient}>
+              <View style={styles.voiceVisual}>
+                <View style={styles.micCircle}><Text style={styles.micIcon}>●</Text></View>
+                <View style={styles.waveform}>
+                  {[14, 26, 38, 22, 46, 30, 18, 36, 24].map((height, index) => (
+                    <View key={`${height}-${index}`} style={[styles.waveBar, { height }]} />
+                  ))}
+                </View>
+              </View>
+              <View style={styles.voiceCopy}>
+                <Text style={styles.voiceKicker}>ГОЛОСОМ</Text>
+                <Text style={styles.voiceTitle}>Рассказать как есть</Text>
+                <Text style={styles.voiceText}>Интонация, смех, паузы — всё то, что текст не сохранит.</Text>
+              </View>
+              <View style={styles.voiceArrow}><Text style={styles.voiceArrowText}>→</Text></View>
+            </LinearGradient>
+          </Pressable>
+
+          <View style={[styles.editorCard, shadows.soft]}>
+            <View style={styles.editorHeader}>
+              <View style={styles.editorIcon}><Text style={styles.editorIconText}>✎</Text></View>
+              <View style={styles.editorHeaderText}>
+                <Text style={styles.editorKicker}>ТЕКСТОМ</Text>
+                <Text style={styles.editorTitle}>{isStory ? 'Написать историю' : 'Оставить ответ'}</Text>
+              </View>
+            </View>
+
             <TextInput
               value={body}
               onChangeText={setBody}
               placeholder={isStory ? 'Например: сегодня случилась одна смешная вещь…' : 'Напиши так, как сказал бы вслух…'}
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={colors.mutedSoft}
               style={styles.input}
               multiline
               textAlignVertical="top"
               maxLength={4000}
               autoFocus={false}
             />
+
             <View style={styles.counterRow}>
-              <Text style={styles.privateNote}>🔒 Видят только участники вашей команды</Text>
+              <View style={styles.privateRow}>
+                <View style={styles.lockDot}><Text style={styles.lockText}>⌁</Text></View>
+                <Text style={styles.privateNote}>Только ваша команда</Text>
+              </View>
               <Text style={styles.counter}>{body.length}/4000</Text>
             </View>
+
             <Pressable style={[styles.primary, busy && styles.disabled]} disabled={busy} onPress={() => void save()}>
-              <Text style={styles.primaryText}>{busy ? 'Сохраняем…' : isStory ? 'Сохранить историю' : 'Сохранить ответ'}</Text>
+              <LinearGradient colors={gradients.connection} style={styles.primaryGradient}>
+                <Text style={styles.primaryText}>{busy ? 'Сохраняем…' : isStory ? 'Сохранить этот момент' : 'Сохранить ответ'}</Text>
+                {!busy ? <Text style={styles.primaryArrow}>→</Text> : null}
+              </LinearGradient>
             </Pressable>
           </View>
 
-          <Text style={styles.footer}>Текст и голос остаются внутри вашей приватной семейной истории.</Text>
+          <View style={styles.timelineHint}>
+            <View style={styles.timelineDot} />
+            <View style={styles.timelineLine} />
+            <View style={styles.timelineStar}><Text style={styles.timelineStarText}>✦</Text></View>
+            <View style={styles.timelineLine} />
+            <View style={styles.timelineDotFuture} />
+          </View>
+          <Text style={styles.footer}>Сегодняшний момент станет одной точкой на вашей общей дороге 11 → 18 и дальше.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -129,27 +169,58 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.sand },
   keyboard: { flex: 1 },
   content: { padding: 18, paddingBottom: 34, gap: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   backButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  backText: { color: colors.navy, fontSize: 31, lineHeight: 33, marginTop: -2 },
-  headerText: { flex: 1 },
-  title: { color: colors.navyDeep, fontSize: 27, fontWeight: '900' },
-  subtitle: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 2 },
-  prompt: { color: colors.text, fontSize: 17, lineHeight: 24, fontWeight: '800' },
-  voiceCard: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  voiceCopy: { flex: 1 },
-  voiceTitle: { color: colors.white, fontSize: 15, fontWeight: '900' },
-  voiceText: { color: '#CFDADB', fontSize: 12, lineHeight: 17, marginTop: 3 },
-  voiceButton: { minHeight: 40, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
-  voiceButtonText: { color: colors.navyDeep, fontSize: 12, fontWeight: '900' },
-  editorCard: { backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 16, gap: 10 },
-  label: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  input: { minHeight: 220, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 14, backgroundColor: colors.white, color: colors.text, fontSize: 15, lineHeight: 22 },
+  backText: { color: colors.navyDeep, fontSize: 31, lineHeight: 33, marginTop: -3 },
+  topTitle: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
+  hero: { minHeight: 285, borderRadius: radius.xl, padding: 22, overflow: 'hidden', justifyContent: 'flex-end' },
+  heroOrb: { position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(255,255,255,0.10)', top: -62, right: -46 },
+  heroRing: { position: 'absolute', width: 105, height: 105, borderRadius: 53, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)', top: 38, right: 34 },
+  memoryBadge: { width: 54, height: 54, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
+  memoryIcon: { color: colors.white, fontSize: 25, fontWeight: '900' },
+  heroKicker: { color: '#F4EEFF', fontSize: 9, fontWeight: '900', letterSpacing: 1.7 },
+  heroTitle: { color: colors.white, fontSize: 25, lineHeight: 30, fontWeight: '900', letterSpacing: -0.5, marginTop: 5, maxWidth: '93%' },
+  heroCopy: { color: '#F0ECF8', fontSize: 11, lineHeight: 17, marginTop: 8, maxWidth: '94%' },
+  choiceLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  choiceLabel: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  choiceLine: { flex: 1, height: 1, backgroundColor: colors.lineWarm },
+  voiceCard: { borderRadius: radius.xl, overflow: 'hidden' },
+  voiceGradient: { minHeight: 180, padding: 18, overflow: 'hidden' },
+  voiceVisual: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
+  micCircle: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center', borderWidth: 5, borderColor: 'rgba(255,255,255,0.10)' },
+  micIcon: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
+  waveform: { flex: 1, height: 52, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  waveBar: { width: 4, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.70)' },
+  voiceCopy: { maxWidth: '80%' },
+  voiceKicker: { color: colors.sun, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+  voiceTitle: { color: colors.white, fontSize: 20, fontWeight: '900', marginTop: 3 },
+  voiceText: { color: '#D7E6E8', fontSize: 10, lineHeight: 15, marginTop: 4 },
+  voiceArrow: { position: 'absolute', right: 18, bottom: 18, width: 38, height: 38, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  voiceArrowText: { color: colors.white, fontSize: 20, fontWeight: '900' },
+  editorCard: { backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 18, gap: 13 },
+  editorHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  editorIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center' },
+  editorIconText: { color: colors.purple, fontSize: 18, fontWeight: '900' },
+  editorHeaderText: { flex: 1 },
+  editorKicker: { color: colors.purple, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
+  editorTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 2 },
+  input: { minHeight: 190, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: 15, backgroundColor: colors.white, color: colors.text, fontSize: 15, lineHeight: 22 },
   counterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  privateNote: { flex: 1, color: colors.muted, fontSize: 11, lineHeight: 16 },
-  counter: { color: colors.muted, fontSize: 11, fontWeight: '800' },
-  primary: { minHeight: 50, borderRadius: radius.md, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: colors.white, fontSize: 14, fontWeight: '900' },
+  privateRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  lockDot: { width: 24, height: 24, borderRadius: 9, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  lockText: { color: colors.green, fontSize: 13, fontWeight: '900' },
+  privateNote: { color: colors.muted, fontSize: 10, fontWeight: '800' },
+  counter: { color: colors.mutedSoft, fontSize: 10, fontWeight: '800' },
+  primary: { borderRadius: radius.md, overflow: 'hidden' },
+  primaryGradient: { minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 18 },
+  primaryText: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' },
+  primaryArrow: { color: colors.navyDeep, fontSize: 20, fontWeight: '900' },
   disabled: { opacity: 0.5 },
-  footer: { color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', paddingHorizontal: 12 },
+  timelineHint: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 34, marginTop: 2 },
+  timelineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.tealBright },
+  timelineDotFuture: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.lineWarm },
+  timelineLine: { flex: 1, height: 2, backgroundColor: colors.lineWarm },
+  timelineStar: { width: 30, height: 30, borderRadius: 12, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
+  timelineStarText: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
+  footer: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', paddingHorizontal: 30 },
 });

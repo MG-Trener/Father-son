@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   AudioModule,
@@ -23,10 +24,11 @@ import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { notifyFamilyEvent } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
-import { colors, radius } from '../theme';
+import { colors, gradients, radius, shadows } from '../theme';
 
 const MAX_DURATION_MS = 20 * 60 * 1000;
 const MIN_DURATION_MS = 500;
+const waveformBars = [18, 34, 23, 48, 30, 56, 25, 42, 19, 51, 28, 39, 22, 46, 31];
 
 const formatDuration = (millis: number) => {
   const totalSeconds = Math.max(0, Math.floor(millis / 1000));
@@ -196,65 +198,115 @@ export default function VoiceStoryNewScreen() {
   };
 
   const shownDuration = recorderState.isRecording ? recorderState.durationMillis : recordedDuration;
+  const isReady = Boolean(recordedUri && !recorderState.isRecording);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Text style={styles.backText}>‹</Text>
           </Pressable>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Голосовая история</Text>
-            <Text style={styles.subtitle}>Не сообщение на бегу, а кусочек жизни, который останется в вашей истории.</Text>
-          </View>
+          <Text style={styles.topTitle}>Голосовая история</Text>
         </View>
 
-        {prompt ? (
-          <View style={styles.promptCard}>
-            <Text style={styles.promptEyebrow}>ВОПРОС ДЛЯ РАЗГОВОРА</Text>
-            <Text style={styles.promptText}>{prompt}</Text>
+        <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}>
+          <View style={styles.heroOrb} />
+          <View style={styles.heroRing} />
+          <View style={styles.heroTopRow}>
+            <View>
+              <Text style={styles.heroKicker}>ГОЛОСОВАЯ КАПСУЛА</Text>
+              <Text style={styles.heroTitle}>{recorderState.isRecording ? 'Сейчас звучит настоящий момент.' : isReady ? 'Этот момент уже можно сохранить.' : 'Расскажи так, как рассказал бы при встрече.'}</Text>
+            </View>
+            <View style={[styles.stateBadge, recorderState.isRecording && styles.stateBadgeRecording]}>
+              <Text style={styles.stateDot}>{recorderState.isRecording ? '●' : isReady ? '✓' : '○'}</Text>
+              <Text style={styles.stateText}>{recorderState.isRecording ? 'REC' : isReady ? 'ГОТОВО' : 'ЖДЁМ'}</Text>
+            </View>
           </View>
-        ) : null}
 
-        <View style={styles.recorderCard}>
-          <Text style={styles.timer}>{formatDuration(shownDuration)}</Text>
-          <Text style={styles.timerHint}>
-            {recorderState.isRecording
-              ? 'Запись идёт. Говори спокойно — максимум 20 минут.'
-              : recordedUri
-                ? 'Запись готова. Прослушай её перед отправкой.'
-                : 'Нажми на микрофон, когда будешь готов.'}
-          </Text>
+          <View style={styles.waveStage}>
+            <View style={styles.waveform}>
+              {waveformBars.map((height, index) => {
+                const activeHeight = recorderState.isRecording
+                  ? Math.max(10, height - ((index + Math.floor(shownDuration / 250)) % 4) * 5)
+                  : isReady
+                    ? height
+                    : Math.max(8, Math.floor(height * 0.38));
+                return <View key={`${height}-${index}`} style={[styles.waveBar, { height: activeHeight }, recorderState.isRecording && styles.waveBarRecording]} />;
+              })}
+            </View>
+            <Text style={styles.timer}>{formatDuration(shownDuration)}</Text>
+            <Text style={styles.timerHint}>
+              {recorderState.isRecording
+                ? 'Говори спокойно. Запись остановится сама через 20 минут.'
+                : isReady
+                  ? 'Прослушай запись или сохрани её в вашей общей истории.'
+                  : 'Нажми большую кнопку — и просто начни говорить.'}
+            </Text>
+          </View>
 
           <Pressable
             disabled={busy}
             onPress={() => void (recorderState.isRecording ? stopRecording() : startRecording())}
-            style={[styles.recordButton, recorderState.isRecording && styles.recordButtonActive, busy && styles.disabled]}
+            style={[styles.recordOuter, recorderState.isRecording && styles.recordOuterActive, busy && styles.disabled]}
           >
-            <Text style={styles.recordIcon}>{recorderState.isRecording ? '■' : '●'}</Text>
+            <View style={[styles.recordMiddle, recorderState.isRecording && styles.recordMiddleActive]}>
+              <View style={[styles.recordButton, recorderState.isRecording && styles.recordButtonActive]}>
+                <Text style={styles.recordIcon}>{recorderState.isRecording ? '■' : '●'}</Text>
+              </View>
+            </View>
           </Pressable>
-          <Text style={styles.recordLabel}>{recorderState.isRecording ? 'Остановить' : recordedUri ? 'Записать заново' : 'Начать запись'}</Text>
+          <Text style={styles.recordLabel}>{recorderState.isRecording ? 'Остановить запись' : isReady ? 'Записать заново' : 'Начать запись'}</Text>
+        </LinearGradient>
 
-          {recordedUri ? (
+        {prompt ? (
+          <View style={[styles.promptCard, shadows.soft]}>
+            <View style={styles.promptIcon}><Text style={styles.promptIconText}>?</Text></View>
+            <View style={styles.promptBody}>
+              <Text style={styles.promptEyebrow}>ВОПРОС ДЛЯ РАЗГОВОРА</Text>
+              <Text style={styles.promptText}>{prompt}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {isReady ? (
+          <View style={[styles.playbackCard, shadows.soft]}>
+            <View style={styles.playbackHeader}>
+              <View>
+                <Text style={styles.playbackKicker}>ПРЕДПРОСЛУШИВАНИЕ</Text>
+                <Text style={styles.playbackTitle}>Как звучит история?</Text>
+              </View>
+              <View style={styles.durationBadge}><Text style={styles.durationText}>{formatDuration(recordedDuration)}</Text></View>
+            </View>
+            <View style={styles.playbackWave}>
+              {waveformBars.slice(0, 11).map((height, index) => (
+                <View key={`play-${height}-${index}`} style={[styles.playBar, { height: Math.max(7, Math.floor(height * 0.55)) }]} />
+              ))}
+            </View>
             <View style={styles.playbackRow}>
               <Pressable style={styles.playButton} onPress={() => void togglePlayback()}>
-                <Text style={styles.playButtonText}>{playerStatus.playing ? 'Пауза' : '▶ Прослушать'}</Text>
+                <Text style={styles.playButtonText}>{playerStatus.playing ? 'Ⅱ  Пауза' : '▶  Прослушать'}</Text>
               </Pressable>
               <Pressable style={styles.resetButton} onPress={resetRecording}>
-                <Text style={styles.resetButtonText}>Удалить локально</Text>
+                <Text style={styles.resetButtonText}>Удалить</Text>
               </Pressable>
             </View>
-          ) : null}
-        </View>
+          </View>
+        ) : null}
 
-        <View style={styles.fieldCard}>
-          <Text style={styles.label}>Название — необязательно</Text>
+        <View style={[styles.fieldCard, shadows.soft]}>
+          <View style={styles.fieldHeading}>
+            <View style={styles.fieldIcon}><Text style={styles.fieldIconText}>✦</Text></View>
+            <View style={styles.fieldHeadingText}>
+              <Text style={styles.label}>Дай этому моменту имя</Text>
+              <Text style={styles.fieldHint}>Необязательно — можно оставить только голос.</Text>
+            </View>
+          </View>
           <TextInput
             value={title}
             onChangeText={setTitle}
             placeholder="Например: После футбольного матча"
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={colors.mutedSoft}
             maxLength={120}
             style={styles.input}
           />
@@ -262,10 +314,10 @@ export default function VoiceStoryNewScreen() {
         </View>
 
         <View style={styles.noteCard}>
-          <Text style={styles.noteIcon}>🔒</Text>
+          <View style={styles.lockBadge}><Text style={styles.lockIcon}>⌁</Text></View>
           <View style={styles.noteBody}>
-            <Text style={styles.noteTitle}>Только ваша команда</Text>
-            <Text style={styles.noteText}>Запись сохраняется в приватном семейном хранилище и не становится публичной.</Text>
+            <Text style={styles.noteTitle}>Только Михаил и Артур</Text>
+            <Text style={styles.noteText}>Аудио хранится в приватном семейном Storage. Публичной ссылки у записи нет.</Text>
           </View>
         </View>
 
@@ -274,8 +326,20 @@ export default function VoiceStoryNewScreen() {
           onPress={() => void saveStory()}
           style={[styles.saveButton, (!recordedUri || recorderState.isRecording || busy) && styles.disabled]}
         >
-          <Text style={styles.saveText}>{busy ? 'Сохраняем…' : 'Сохранить голосовую историю'}</Text>
+          <LinearGradient colors={gradients.connection} style={styles.saveGradient}>
+            <Text style={styles.saveText}>{busy ? 'Сохраняем…' : 'Добавить в нашу историю'}</Text>
+            {!busy ? <Text style={styles.saveArrow}>→</Text> : null}
+          </LinearGradient>
         </Pressable>
+
+        <View style={styles.routeFooter}>
+          <View style={styles.routeDot} />
+          <View style={styles.routeLine} />
+          <View style={styles.routeVoice}><Text style={styles.routeVoiceText}>◉</Text></View>
+          <View style={styles.routeLine} />
+          <View style={styles.routeDotFuture} />
+        </View>
+        <Text style={styles.footerText}>Через годы голос сохранит то, чего не видно в обычной записи: настроение, смех и интонацию.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -284,37 +348,78 @@ export default function VoiceStoryNewScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.sand },
   content: { padding: 18, paddingBottom: 34, gap: 16 },
-  header: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  backButton: { width: 40, height: 40, borderRadius: radius.pill, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
-  backText: { color: colors.navy, fontSize: 30, lineHeight: 32, marginTop: -3 },
-  headerText: { flex: 1, paddingTop: 2 },
-  title: { color: colors.navyDeep, fontSize: 28, fontWeight: '900' },
-  subtitle: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 5 },
-  promptCard: { backgroundColor: '#FFF0CF', borderRadius: radius.lg, padding: 16, gap: 6 },
-  promptEyebrow: { color: '#8A5D12', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  promptText: { color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: '800' },
-  recorderCard: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 22, alignItems: 'center', gap: 10 },
-  timer: { color: colors.white, fontSize: 44, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  timerHint: { color: '#CFDADB', fontSize: 12, lineHeight: 18, textAlign: 'center', minHeight: 36 },
-  recordButton: { width: 84, height: 84, borderRadius: 42, marginTop: 6, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center', borderWidth: 7, borderColor: '#FFFFFF22' },
-  recordButtonActive: { backgroundColor: '#E36A5B' },
-  recordIcon: { color: colors.navyDeep, fontSize: 30, fontWeight: '900' },
-  recordLabel: { color: colors.white, fontSize: 13, fontWeight: '900' },
-  playbackRow: { width: '100%', flexDirection: 'row', gap: 9, marginTop: 8 },
-  playButton: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
-  playButtonText: { color: colors.navy, fontSize: 12, fontWeight: '900' },
-  resetButton: { flex: 1, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: '#6E8587', alignItems: 'center', justifyContent: 'center' },
-  resetButtonText: { color: colors.white, fontSize: 12, fontWeight: '800' },
-  fieldCard: { backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 16, gap: 8 },
-  label: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  input: { minHeight: 48, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.white, paddingHorizontal: 13, color: colors.text, fontSize: 14 },
-  counter: { color: colors.muted, fontSize: 10, textAlign: 'right' },
-  noteCard: { backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 15, flexDirection: 'row', gap: 12 },
-  noteIcon: { fontSize: 22 },
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  backButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
+  backText: { color: colors.navyDeep, fontSize: 31, lineHeight: 33, marginTop: -3 },
+  topTitle: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
+  hero: { minHeight: 430, borderRadius: radius.xl, padding: 20, overflow: 'hidden', alignItems: 'center' },
+  heroOrb: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,215,106,0.09)', top: -86, right: -56 },
+  heroRing: { position: 'absolute', width: 130, height: 130, borderRadius: 65, borderWidth: 2, borderColor: 'rgba(255,255,255,0.09)', bottom: 44, left: -58 },
+  heroTopRow: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  heroKicker: { color: colors.sun, fontSize: 8, fontWeight: '900', letterSpacing: 1.6 },
+  heroTitle: { color: colors.white, fontSize: 21, lineHeight: 26, fontWeight: '900', letterSpacing: -0.4, marginTop: 5, maxWidth: 230 },
+  stateBadge: { minWidth: 62, paddingHorizontal: 9, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.12)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  stateBadgeRecording: { backgroundColor: 'rgba(233,111,95,0.20)' },
+  stateDot: { color: colors.sun, fontSize: 9, fontWeight: '900' },
+  stateText: { color: colors.white, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  waveStage: { width: '100%', alignItems: 'center', marginTop: 26 },
+  waveform: { height: 62, width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  waveBar: { width: 5, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)' },
+  waveBarRecording: { backgroundColor: colors.sun },
+  timer: { color: colors.white, fontSize: 46, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: -1.5, marginTop: 5 },
+  timerHint: { color: '#D4E3E5', fontSize: 10, lineHeight: 15, textAlign: 'center', maxWidth: 260, minHeight: 30, marginTop: 2 },
+  recordOuter: { width: 104, height: 104, borderRadius: 52, marginTop: 12, backgroundColor: 'rgba(255,215,106,0.10)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,215,106,0.18)' },
+  recordOuterActive: { backgroundColor: 'rgba(233,111,95,0.10)', borderColor: 'rgba(233,111,95,0.28)' },
+  recordMiddle: { width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(255,215,106,0.18)', alignItems: 'center', justifyContent: 'center' },
+  recordMiddleActive: { backgroundColor: 'rgba(233,111,95,0.20)' },
+  recordButton: { width: 70, height: 70, borderRadius: 35, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
+  recordButtonActive: { backgroundColor: colors.coral },
+  recordIcon: { color: colors.navyDeep, fontSize: 24, fontWeight: '900' },
+  recordLabel: { color: colors.white, fontSize: 11, fontWeight: '900', marginTop: 7 },
+  promptCard: { backgroundColor: '#FFF0CF', borderRadius: radius.xl, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderWidth: 1, borderColor: '#F4DBA3' },
+  promptIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
+  promptIconText: { color: colors.navyDeep, fontSize: 17, fontWeight: '900' },
+  promptBody: { flex: 1 },
+  promptEyebrow: { color: '#8A5D12', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  promptText: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '800', marginTop: 4 },
+  playbackCard: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 17, borderWidth: 1, borderColor: colors.lineWarm, gap: 13 },
+  playbackHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  playbackKicker: { color: colors.teal, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },
+  playbackTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 2 },
+  durationBadge: { backgroundColor: colors.mint, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
+  durationText: { color: colors.green, fontSize: 10, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  playbackWave: { height: 34, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 5 },
+  playBar: { flex: 1, maxWidth: 5, borderRadius: 3, backgroundColor: colors.tealBright },
+  playbackRow: { flexDirection: 'row', gap: 9 },
+  playButton: { flex: 1, minHeight: 46, borderRadius: radius.md, backgroundColor: colors.navyDeep, alignItems: 'center', justifyContent: 'center' },
+  playButtonText: { color: colors.white, fontSize: 11, fontWeight: '900' },
+  resetButton: { minWidth: 92, minHeight: 46, borderRadius: radius.md, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  resetButtonText: { color: colors.muted, fontSize: 10, fontWeight: '900' },
+  fieldCard: { backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 17, gap: 10 },
+  fieldHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  fieldIcon: { width: 39, height: 39, borderRadius: 13, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center' },
+  fieldIconText: { color: colors.purple, fontSize: 16, fontWeight: '900' },
+  fieldHeadingText: { flex: 1 },
+  label: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' },
+  fieldHint: { color: colors.muted, fontSize: 9, marginTop: 2 },
+  input: { minHeight: 50, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.white, paddingHorizontal: 14, color: colors.text, fontSize: 14 },
+  counter: { color: colors.mutedSoft, fontSize: 9, textAlign: 'right' },
+  noteCard: { backgroundColor: '#EEF5F2', borderRadius: radius.lg, padding: 14, flexDirection: 'row', gap: 11, alignItems: 'center' },
+  lockBadge: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  lockIcon: { color: colors.green, fontSize: 17, fontWeight: '900' },
   noteBody: { flex: 1 },
-  noteTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  noteText: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
-  saveButton: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  saveText: { color: colors.white, fontSize: 14, fontWeight: '900' },
+  noteTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  noteText: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 2 },
+  saveButton: { borderRadius: radius.md, overflow: 'hidden' },
+  saveGradient: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 18 },
+  saveText: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' },
+  saveArrow: { color: colors.navyDeep, fontSize: 20, fontWeight: '900' },
   disabled: { opacity: 0.45 },
+  routeFooter: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 40, marginTop: 4 },
+  routeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.tealBright },
+  routeDotFuture: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.lineWarm },
+  routeLine: { flex: 1, height: 2, backgroundColor: colors.lineWarm },
+  routeVoice: { width: 31, height: 31, borderRadius: 12, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
+  routeVoiceText: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' },
+  footerText: { color: colors.muted, fontSize: 9, lineHeight: 14, textAlign: 'center', paddingHorizontal: 30 },
 });
