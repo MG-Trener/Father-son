@@ -114,7 +114,7 @@ export async function installReleaseApk(release: AppRelease) {
   const directory = new Directory(Paths.cache, 'papa-i-ya-updates');
   if (!directory.exists) directory.create();
 
-  const downloaded = await File.downloadFileAsync(downloadUrl, directory);
+  const downloaded = await File.downloadFileAsync(downloadUrl, directory, { idempotent: true });
   if (!downloaded.exists || downloaded.size <= 0) throw new Error('APK_DOWNLOAD_FAILED');
   if (release.size_bytes && downloaded.size !== release.size_bytes) throw new Error('APK_SIZE_MISMATCH');
 
