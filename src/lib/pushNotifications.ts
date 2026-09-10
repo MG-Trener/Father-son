@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { registerPushDeviceToken } from './pushDevices';
 import { supabase } from './supabase';
 
 Notifications.setNotificationHandler({
@@ -63,36 +64,24 @@ export async function registerPushDevice(session: Session): Promise<PushRegistra
       return { status: 'project_unconfigured' };
     }
 
-    const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-    const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-
     if (!session.user.id) {
       return { status: 'error', message: 'Нет активного пользователя для регистрации уведомлений.' };
     }
 
-    const { error } = await supabase.rpc('register_push_device', {
-      p_expo_push_token: token,
-      p_platform: platform,
-    });
+    const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+    const registered = await registerPushDeviceToken(token, platform);
 
-    if (error) throw error;
+    if (!registered) {
+      return { status: 'error', message: 'Не удалось сохранить токен push-уведомлений.' };
+    }
+
     return { status: 'registered', token };
   } catch (caught) {
     return {
       status: 'error',
       message: caught instanceof Error ? caught.message : 'Не удалось зарегистрировать push-уведомления.',
     };
-  }
-}
-
-export async function unregisterAllPushDevices() {
-  if (!supabase) return false;
-
-  try {
-    const { error } = await supabase.rpc('unregister_all_push_devices');
-    return !error;
-  } catch {
-    return false;
   }
 }
 
