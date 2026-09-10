@@ -32,6 +32,14 @@ const payloadNumber = (payload: unknown, key: string) => {
   return typeof value === 'number' ? value : null;
 };
 
+const durationLabel = (millis: number | null) => {
+  if (millis === null) return null;
+  const totalSeconds = Math.max(0, Math.round(millis / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
 const eventView = (event: TimelineEvent, actorName: string) => {
   const title = payloadText(event.payload, 'title');
   const xp = payloadNumber(event.payload, 'xp_reward');
@@ -68,6 +76,14 @@ const eventView = (event: TimelineEvent, actorName: string) => {
         icon: '✍️',
         title: prompt ? 'Ответ друг другу' : 'История дня',
         text: preview ? `${actorName}: ${preview}` : `${actorName} сохранил новую историю для вашей команды.`,
+      };
+    }
+    case 'voice_story_added': {
+      const duration = durationLabel(payloadNumber(event.payload, 'duration_ms'));
+      return {
+        icon: '🎙',
+        title: title || 'Голосовая история',
+        text: `${actorName} сохранил голосовой момент${duration ? ` · ${duration}` : ''}.`,
       };
     }
     case 'meeting_created':
@@ -170,7 +186,7 @@ export default function HistoryScreen() {
           title={`${child?.display_name ?? 'Артур'}${childAge !== null ? ` · ${childAge} лет` : ''}`}
           subtitle="Первая глава · Исследователь"
         >
-          <Text style={styles.body}>Здесь постепенно соберутся разговоры, футбол, шахматы, English, лидерские поступки, встречи, миссии и ваши заметки друг о друге.</Text>
+          <Text style={styles.body}>Здесь постепенно соберутся разговоры, футбол, шахматы, English, лидерские поступки, встречи, миссии, голосовые истории и ваши заметки друг о друге.</Text>
         </AppCard>
 
         {loading ? (
