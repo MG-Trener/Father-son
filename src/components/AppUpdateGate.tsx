@@ -26,7 +26,11 @@ export function AppUpdateGate() {
 
   const install = async () => {
     if (!status?.release || busy) return;
-    if (!status.release.download_url) {
+    const hasPublishedArtifact = Boolean(
+      status.release.download_url
+      || (status.release.storage_bucket && status.release.storage_path),
+    );
+    if (!hasPublishedArtifact) {
       Alert.alert('Сборка ещё публикуется', 'Новая версия уже зарегистрирована, но APK пока не выложен. Проверка повторится при следующем запуске.');
       return;
     }
@@ -38,6 +42,12 @@ export function AppUpdateGate() {
       const message = caught instanceof Error ? caught.message : '';
       if (message.includes('PERMISSION')) {
         Alert.alert('Разреши установку', 'Android должен разрешить «Папа & Я» устанавливать собственные обновления. После разрешения нажми «Обновить» ещё раз.');
+      } else if (message.includes('AUTH_REQUIRED')) {
+        Alert.alert('Нужно войти', 'APK хранится в приватном семейном хранилище. Войди в «Папа & Я» и повтори обновление.');
+      } else if (message.includes('SIZE_MISMATCH')) {
+        Alert.alert('Файл не прошёл проверку', 'Загруженный APK имеет неожиданный размер. Установка отменена — попробуй позже.');
+      } else if (message.includes('SIGNED_URL')) {
+        Alert.alert('Ссылка устарела', 'Не удалось получить временную защищённую ссылку на APK. Повтори обновление.');
       } else {
         Alert.alert('Не удалось обновить', 'Проверь интернет и попробуй ещё раз. Текущая версия продолжит работать.');
       }
