@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Redirect, Tabs } from 'expo-router';
-import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TeamLoadingScene } from '../../components/TeamLoadingScene';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -52,11 +53,7 @@ export default function TabsLayout() {
   const bottomInset = Math.max(insets.bottom, 8);
 
   if (authLoading || (session && familyLoading)) {
-    return (
-      <View style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <ActivityIndicator size="large" color={colors.navy} />
-      </View>
-    );
+    return <TeamLoadingScene topInset={insets.top} bottomInset={insets.bottom} />;
   }
 
   if (isSupabaseConfigured && !session) return <Redirect href="/sign-in" />;
@@ -121,7 +118,6 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sand },
   tabBar: {
     paddingTop: 8,
     backgroundColor: colors.paper,
