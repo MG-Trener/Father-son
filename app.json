@@ -20,6 +20,15 @@
         {
           "defaultChannel": "connection"
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Разрешить приложению «Папа & Я» записывать голосовые истории.",
+          "recordAudioAndroid": true,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
       ]
     ],
     "experiments": {
