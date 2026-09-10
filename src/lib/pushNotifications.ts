@@ -66,19 +66,14 @@ export async function registerPushDevice(session: Session): Promise<PushRegistra
     const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     const platform = Platform.OS === 'ios' ? 'ios' : 'android';
 
-    const { error } = await supabase
-      .from('push_devices')
-      .upsert(
-        {
-          user_id: session.user.id,
-          expo_push_token: token,
-          platform,
-          enabled: true,
-          last_seen_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'expo_push_token' },
-      );
+    if (!session.user.id) {
+      return { status: 'error', message: 'Нет активного пользователя для регистрации уведомлений.' };
+    }
+
+    const { error } = await supabase.rpc('register_push_device', {
+      p_expo_push_token: token,
+      p_platform: platform,
+    });
 
     if (error) throw error;
     return { status: 'registered', token };
@@ -87,6 +82,17 @@ export async function registerPushDevice(session: Session): Promise<PushRegistra
       status: 'error',
       message: caught instanceof Error ? caught.message : 'Не удалось зарегистрировать push-уведомления.',
     };
+  }
+}
+
+export async function unregisterAllPushDevices() {
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase.rpc('unregister_all_push_devices');
+    return !error;
+  } catch {
+    return false;
   }
 }
 
