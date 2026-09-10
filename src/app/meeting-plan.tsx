@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,12 +12,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { AppCard } from '../components/AppCard';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
-import { colors, radius } from '../theme';
+import { colors, gradients, radius, shadows } from '../theme';
 
 type Meeting = {
   id: string;
@@ -47,9 +47,16 @@ const prettyDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDate
   year: 'numeric',
 });
 
+const daysUntil = (value: string) => {
+  if (!validDate(value)) return null;
+  const target = new Date(`${value}T00:00:00`).getTime();
+  const today = new Date(`${todayIso()}T00:00:00`).getTime();
+  return Math.max(0, Math.ceil((target - today) / 86_400_000));
+};
+
 export default function MeetingPlanScreen() {
   const { session } = useAuth();
-  const { family } = useFamily();
+  const { family, members } = useFamily();
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [ideas, setIdeas] = useState<MeetingIdea[]>([]);
   const [date, setDate] = useState('');
@@ -58,6 +65,10 @@ export default function MeetingPlanScreen() {
   const [newIdea, setNewIdea] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  const parent = useMemo(() => members.find((member) => member.role === 'parent'), [members]);
+  const child = useMemo(() => members.find((member) => member.role === 'child'), [members]);
+  const countdown = daysUntil(date || meeting?.meeting_date || '');
 
   const load = useCallback(async () => {
     if (!supabase || !family) {
@@ -188,90 +199,153 @@ export default function MeetingPlanScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={styles.topBar}>
             <Pressable onPress={() => router.back()} style={styles.backButton}>
               <Text style={styles.backText}>‹</Text>
             </Pressable>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>Следующая встреча</Text>
-              <Text style={styles.subtitle}>Планы, которых приятно ждать вместе.</Text>
-            </View>
+            <Text style={styles.topTitle}>Следующая встреча</Text>
           </View>
 
           {loading ? (
             <ActivityIndicator size="large" color={colors.navy} style={styles.loader} />
           ) : (
             <>
-              {meeting ? (
-                <View style={styles.dateHero}>
-                  <Text style={styles.dateHeroLabel}>ВСТРЕЧА ЗАПЛАНИРОВАНА</Text>
-                  <Text style={styles.dateHeroValue}>{prettyDate(meeting.meeting_date)}</Text>
-                  <Text style={styles.dateHeroTitle}>{meeting.title}</Text>
+              <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}>
+                <View style={styles.orbLarge} />
+                <View style={styles.orbSmall} />
+                <View style={styles.heroKickerRow}>
+                  <Text style={styles.heroKicker}>{meeting ? 'ВСТРЕЧА ЗАПЛАНИРОВАНА' : 'СЛЕДУЮЩАЯ ГЛАВА'}</Text>
+                  {countdown !== null ? (
+                    <View style={styles.countdownBadge}>
+                      <Text style={styles.countdownValue}>{countdown}</Text>
+                      <Text style={styles.countdownLabel}>{countdown === 1 ? 'день' : 'дней'}</Text>
+                    </View>
+                  ) : null}
                 </View>
-              ) : null}
 
-              <AppCard title={meeting ? 'Изменить план' : 'Запланировать встречу'}>
-                <Text style={styles.label}>Дата</Text>
-                <TextInput
-                  value={date}
-                  onChangeText={setDate}
-                  placeholder="2026-09-20"
-                  placeholderTextColor={colors.muted}
-                  style={styles.input}
-                  keyboardType="numbers-and-punctuation"
-                />
-                <Text style={styles.label}>Название</Text>
-                <TextInput
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Наш выходной"
-                  placeholderTextColor={colors.muted}
-                  style={styles.input}
-                />
-                <Text style={styles.label}>Заметка</Text>
-                <TextInput
-                  value={note}
-                  onChangeText={setNote}
-                  placeholder="Что хочется успеть вместе?"
-                  placeholderTextColor={colors.muted}
-                  style={[styles.input, styles.noteInput]}
-                  multiline
-                  textAlignVertical="top"
-                />
+                <View style={styles.teamRoute}>
+                  <View style={styles.personBox}>
+                    <View style={[styles.avatar, styles.avatarDad]}><Text style={styles.avatarText}>М</Text></View>
+                    <Text style={styles.personName}>{parent?.display_name ?? 'Михаил'}</Text>
+                  </View>
+                  <View style={styles.routeWrap}>
+                    <View style={styles.routeLine} />
+                    <View style={styles.routePin}><Text style={styles.routePinText}>⌖</Text></View>
+                    <View style={styles.routeLine} />
+                  </View>
+                  <View style={styles.personBox}>
+                    <View style={[styles.avatar, styles.avatarSon]}><Text style={styles.avatarText}>А</Text></View>
+                    <Text style={styles.personName}>{child?.display_name ?? 'Артур'}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.heroTitle}>{meeting?.title ?? 'Придумаем, чего ждать вместе'}</Text>
+                <Text style={styles.heroDate}>{meeting ? prettyDate(meeting.meeting_date) : 'Выберите дату и создайте ожидание, которое будет вашим.'}</Text>
+              </LinearGradient>
+
+              <View style={[styles.formCard, shadows.soft]}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIcon}><Text style={styles.sectionIconText}>⌖</Text></View>
+                  <View style={styles.sectionText}>
+                    <Text style={styles.sectionTitle}>{meeting ? 'Обновить план' : 'Запланировать встречу'}</Text>
+                    <Text style={styles.sectionCopy}>Дата, идея и маленькая деталь, которая сделает встречу вашей.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.fieldWrap}>
+                  <Text style={styles.label}>Дата</Text>
+                  <TextInput
+                    value={date}
+                    onChangeText={setDate}
+                    placeholder="2026-09-20"
+                    placeholderTextColor={colors.mutedSoft}
+                    style={styles.input}
+                    keyboardType="numbers-and-punctuation"
+                  />
+                  {validDate(date) ? <Text style={styles.fieldHint}>{prettyDate(date)}</Text> : null}
+                </View>
+
+                <View style={styles.fieldWrap}>
+                  <Text style={styles.label}>Название</Text>
+                  <TextInput
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="Наш выходной"
+                    placeholderTextColor={colors.mutedSoft}
+                    style={styles.input}
+                  />
+                </View>
+
+                <View style={styles.fieldWrap}>
+                  <Text style={styles.label}>Что хочется успеть вместе</Text>
+                  <TextInput
+                    value={note}
+                    onChangeText={setNote}
+                    placeholder="Футбол, пицца, разговор, прогулка…"
+                    placeholderTextColor={colors.mutedSoft}
+                    style={[styles.input, styles.noteInput]}
+                    multiline
+                    textAlignVertical="top"
+                  />
+                </View>
+
                 <Pressable style={[styles.primary, busy && styles.disabled]} onPress={() => void saveMeeting()} disabled={busy}>
-                  <Text style={styles.primaryText}>{busy ? 'Сохраняем…' : meeting ? 'Сохранить изменения' : 'Запланировать'}</Text>
+                  <LinearGradient colors={gradients.connection} style={styles.primaryGradient}>
+                    <Text style={styles.primaryText}>{busy ? 'Сохраняем…' : meeting ? 'Сохранить нашу встречу' : 'Начать ждать вместе'}</Text>
+                    {!busy ? <Text style={styles.primaryArrow}>→</Text> : null}
+                  </LinearGradient>
                 </Pressable>
-              </AppCard>
+              </View>
 
               {meeting ? (
-                <AppCard title="Что сделаем вместе?" subtitle="Любой из вас может добавить идею">
+                <View style={[styles.ideasCard, shadows.soft]}>
+                  <View style={styles.ideaHeader}>
+                    <View>
+                      <Text style={styles.ideaKicker}>НАША КОПИЛКА</Text>
+                      <Text style={styles.ideaTitle}>Что сделаем вместе?</Text>
+                    </View>
+                    <View style={styles.ideaCount}><Text style={styles.ideaCountText}>{ideas.length}</Text></View>
+                  </View>
+
                   {ideas.length ? (
                     <View style={styles.ideas}>
-                      {ideas.map((idea) => (
+                      {ideas.map((idea, index) => (
                         <View key={idea.id} style={styles.ideaRow}>
-                          <Text style={styles.ideaBullet}>🔥</Text>
+                          <View style={[styles.ideaNumber, index % 2 === 0 ? styles.ideaNumberWarm : styles.ideaNumberCool]}>
+                            <Text style={styles.ideaNumberText}>{index + 1}</Text>
+                          </View>
                           <Text style={styles.ideaText}>{idea.title}</Text>
+                          <Text style={styles.ideaSpark}>✦</Text>
                         </View>
                       ))}
                     </View>
                   ) : (
-                    <Text style={styles.empty}>Пока идей нет. Добавьте первую.</Text>
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyIcon}>✦</Text>
+                      <Text style={styles.empty}>Пока идей нет. Добавьте первую — даже самую маленькую.</Text>
+                    </View>
                   )}
+
                   <View style={styles.ideaComposer}>
                     <TextInput
                       value={newIdea}
                       onChangeText={setNewIdea}
                       placeholder="Например: сыграть в футбол"
-                      placeholderTextColor={colors.muted}
+                      placeholderTextColor={colors.mutedSoft}
                       style={[styles.input, styles.ideaInput]}
                     />
-                    <Pressable style={styles.addButton} onPress={() => void addIdea()} disabled={busy || !newIdea.trim()}>
+                    <Pressable style={[styles.addButton, (!newIdea.trim() || busy) && styles.addButtonDisabled]} onPress={() => void addIdea()} disabled={busy || !newIdea.trim()}>
                       <Text style={styles.addButtonText}>+</Text>
                     </Pressable>
                   </View>
-                </AppCard>
+                </View>
               ) : null}
+
+              <View style={styles.footerCard}>
+                <Text style={styles.footerIcon}>∞</Text>
+                <Text style={styles.footerText}>Встреча — это не отчёт. Здесь храним только то, чего хочется ждать и потом вспоминать.</Text>
+              </View>
             </>
           )}
         </ScrollView>
@@ -284,30 +358,72 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.sand },
   keyboard: { flex: 1 },
   content: { padding: 18, paddingBottom: 34, gap: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   backButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   backText: { color: colors.navyDeep, fontSize: 31, lineHeight: 33, marginTop: -3 },
-  headerText: { flex: 1 },
-  title: { color: colors.navyDeep, fontSize: 28, fontWeight: '900' },
-  subtitle: { color: colors.muted, fontSize: 13, marginTop: 2 },
+  topTitle: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
   loader: { marginTop: 48 },
-  dateHero: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 22 },
-  dateHeroLabel: { color: '#C9D7D7', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  dateHeroValue: { color: colors.white, fontSize: 27, fontWeight: '900', marginTop: 6 },
-  dateHeroTitle: { color: '#E7EEEE', fontSize: 14, marginTop: 6 },
-  label: { color: colors.text, fontSize: 12, fontWeight: '900', marginBottom: -5 },
-  input: { minHeight: 49, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 14, backgroundColor: colors.white, color: colors.text, fontSize: 15 },
+  hero: { minHeight: 315, borderRadius: radius.xl, padding: 22, overflow: 'hidden', justifyContent: 'space-between' },
+  orbLarge: { position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(255,215,106,0.10)', top: -64, right: -45 },
+  orbSmall: { position: 'absolute', width: 110, height: 110, borderRadius: 55, borderWidth: 2, borderColor: 'rgba(255,255,255,0.10)', bottom: 38, left: -45 },
+  heroKickerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  heroKicker: { color: colors.sun, fontSize: 9, fontWeight: '900', letterSpacing: 1.6, maxWidth: '60%' },
+  countdownBadge: { minWidth: 58, height: 58, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', alignItems: 'center', justifyContent: 'center' },
+  countdownValue: { color: colors.white, fontSize: 19, fontWeight: '900', lineHeight: 21 },
+  countdownLabel: { color: '#BFD3D7', fontSize: 8, fontWeight: '800' },
+  teamRoute: { flexDirection: 'row', alignItems: 'center', marginVertical: 12 },
+  personBox: { width: 70, alignItems: 'center' },
+  avatar: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  avatarDad: { backgroundColor: colors.tealBright },
+  avatarSon: { backgroundColor: colors.orange },
+  avatarText: { color: colors.white, fontSize: 20, fontWeight: '900' },
+  personName: { color: colors.white, fontSize: 10, fontWeight: '900', marginTop: 6 },
+  routeWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 7 },
+  routeLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.22)' },
+  routePin: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
+  routePinText: { color: colors.navyDeep, fontSize: 17, fontWeight: '900' },
+  heroTitle: { color: colors.white, fontSize: 26, fontWeight: '900', letterSpacing: -0.6, maxWidth: '90%' },
+  heroDate: { color: '#D7E6E8', fontSize: 12, lineHeight: 18, marginTop: 6, maxWidth: '90%' },
+  formCard: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 18, gap: 15, borderWidth: 1, borderColor: colors.lineWarm },
+  sectionHeader: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  sectionIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  sectionIconText: { color: colors.green, fontSize: 19, fontWeight: '900' },
+  sectionText: { flex: 1 },
+  sectionTitle: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
+  sectionCopy: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 2 },
+  fieldWrap: { gap: 6 },
+  label: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  input: { minHeight: 50, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 14, backgroundColor: colors.white, color: colors.text, fontSize: 15 },
   noteInput: { minHeight: 92, paddingTop: 13, paddingBottom: 13 },
-  primary: { minHeight: 50, borderRadius: radius.md, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  primaryText: { color: colors.white, fontWeight: '900', fontSize: 14 },
+  fieldHint: { color: colors.teal, fontSize: 9, fontWeight: '800', paddingLeft: 2 },
+  primary: { borderRadius: radius.md, overflow: 'hidden' },
+  primaryGradient: { minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 18 },
+  primaryText: { color: colors.navyDeep, fontWeight: '900', fontSize: 14 },
+  primaryArrow: { color: colors.navyDeep, fontWeight: '900', fontSize: 20 },
   disabled: { opacity: 0.55 },
-  ideas: { gap: 7 },
-  ideaRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
-  ideaBullet: { fontSize: 13, marginTop: 2 },
-  ideaText: { flex: 1, color: colors.text, fontSize: 14, lineHeight: 20 },
-  empty: { color: colors.muted, fontSize: 13 },
+  ideasCard: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 18, gap: 15, borderWidth: 1, borderColor: colors.lineWarm },
+  ideaHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  ideaKicker: { color: colors.orange, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
+  ideaTitle: { color: colors.navyDeep, fontSize: 20, fontWeight: '900', marginTop: 2 },
+  ideaCount: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' },
+  ideaCountText: { color: colors.navyDeep, fontSize: 15, fontWeight: '900' },
+  ideas: { gap: 8 },
+  ideaRow: { flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: colors.white, borderRadius: radius.md, padding: 11, borderWidth: 1, borderColor: colors.line },
+  ideaNumber: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  ideaNumberWarm: { backgroundColor: '#FFF0D4' },
+  ideaNumberCool: { backgroundColor: '#E6F1F1' },
+  ideaNumberText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900' },
+  ideaText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  ideaSpark: { color: colors.amber, fontSize: 13 },
+  emptyState: { flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: colors.sandWarm, borderRadius: radius.md, padding: 13 },
+  emptyIcon: { color: colors.amber, fontSize: 18 },
+  empty: { flex: 1, color: colors.muted, fontSize: 11, lineHeight: 16 },
   ideaComposer: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   ideaInput: { flex: 1 },
-  addButton: { width: 49, height: 49, borderRadius: 16, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
+  addButton: { width: 50, height: 50, borderRadius: 16, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
+  addButtonDisabled: { opacity: 0.45 },
   addButtonText: { color: colors.navyDeep, fontSize: 27, fontWeight: '900', lineHeight: 29 },
+  footerCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EEF5F2', borderRadius: radius.lg, padding: 14 },
+  footerIcon: { color: colors.green, fontSize: 24, fontWeight: '900' },
+  footerText: { flex: 1, color: colors.muted, fontSize: 10, lineHeight: 15 },
 });
