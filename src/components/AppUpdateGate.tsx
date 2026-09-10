@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { checkForAppUpdate, installReleaseApk, type UpdateStatus } from '../lib/appUpdater';
+import { useAuth } from '../context/AuthContext';
 import { colors, gradients, radius, shadows } from '../theme';
 
 export function AppUpdateGate() {
+  const { session, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -13,21 +15,34 @@ export function AppUpdateGate() {
     try {
       const next = await checkForAppUpdate();
       setStatus(next);
-      if (next.required) setDismissed(false);
+      if (next.required && session) setDismissed(false);
     } catch {
       // Update checks must never block normal app startup on network errors.
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     const timer = setTimeout(() => void check(), 1600);
     return () => clearTimeout(timer);
   }, [check]);
 
+  useEffect(() => {
+    if (session && status?.required) setDismissed(false);
+  }, [session, status?.required]);
+
   const install = async () => {
     if (!status?.release || busy) return;
-    if (!status.release.download_url) {
+    const hasPublishedArtifact = Boolean(
+      status.release.download_url
+      || (status.release.storage_bucket && status.release.storage_path),
+    );
+    if (!hasPublishedArtifact) {
       Alert.alert('Сборка ещё публикуется', 'Новая версия уже зарегистрирована, но APK пока не выложен. Проверка повторится при следующем запуске.');
+      return;
+    }
+
+    if (!session && !status.release.download_url) {
+      Alert.alert('Сначала войди', 'APK хранится в приватном хранилище. Войди в «Папа & Я», после этого обновление можно будет установить.');
       return;
     }
 
@@ -38,6 +53,12 @@ export function AppUpdateGate() {
       const message = caught instanceof Error ? caught.message : '';
       if (message.includes('PERMISSION')) {
         Alert.alert('Разреши установку', 'Android должен разрешить «Папа & Я» устанавливать собственные обновления. После разрешения нажми «Обновить» ещё раз.');
+      } else if (message.includes('AUTH_REQUIRED')) {
+        Alert.alert('Нужно войти', 'APK хранится в приватном семейном хранилище. Войди в «Папа & Я» и повтори обновление.');
+      } else if (message.includes('SIZE_MISMATCH')) {
+        Alert.alert('Файл не прошёл проверку', 'Загруженный APK имеет неожиданный размер. Установка отменена — попробуй позже.');
+      } else if (message.includes('SIGNED_URL')) {
+        Alert.alert('Ссылка устарела', 'Не удалось получить временную защищённую ссылку на APK. Повтори обновление.');
       } else {
         Alert.alert('Не удалось обновить', 'Проверь интернет и попробуй ещё раз. Текущая версия продолжит работать.');
       }
@@ -46,11 +67,12 @@ export function AppUpdateGate() {
     }
   };
 
+  const blockingRequired = Boolean(status?.required && session && !authLoading);
   const visible = Boolean(status?.available && !dismissed);
   if (!status?.release) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => !status.required && setDismissed(true)}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => !blockingRequired && setDismissed(true)}>
       <View style={styles.overlay}>
         <View style={[styles.sheet, shadows.lift]}>
           <LinearGradient colors={gradients.team} style={styles.hero}>
@@ -59,7 +81,7 @@ export function AppUpdateGate() {
             <View style={styles.rocketBadge}>
               <Text style={styles.rocket}>↗</Text>
             </View>
-            <Text style={styles.kicker}>{status.required ? 'ВАЖНОЕ ОБНОВЛЕНИЕ' : 'НОВАЯ ГЛАВА'}</Text>
+            <Text style={styles.kicker}>{blockingRequired ? 'ВАЖНОЕ ОБНОВЛЕНИЕ' : 'НОВАЯ ГЛАВА'}</Text>
             <Text style={styles.title}>Папа & Я {status.release.version_name}</Text>
             <Text style={styles.heroText}>{status.release.title ?? 'В приложении появились новые возможности.'}</Text>
           </LinearGradient>
@@ -86,11 +108,11 @@ export function AppUpdateGate() {
 
             <Pressable style={[styles.updateButton, busy && styles.disabled]} disabled={busy} onPress={() => void install()}>
               <LinearGradient colors={gradients.connection} style={styles.updateGradient}>
-                {busy ? <ActivityIndicator color={colors.navyDeep} /> : <Text style={styles.updateText}>Обновить приложение</Text>}
+                {busy ? <ActivityIndicator color={colors.navyDeep} /> : <Text style={styles.updateText}>{!session && !status.release.download_url ? 'Войти и обновить' : 'Обновить приложение'}</Text>}
               </LinearGradient>
             </Pressable>
 
-            {!status.required ? (
+            {!blockingRequired ? (
               <Pressable style={styles.laterButton} onPress={() => setDismissed(true)}>
                 <Text style={styles.laterText}>Напомнить позже</Text>
               </Pressable>
