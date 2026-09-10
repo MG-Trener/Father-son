@@ -1,5 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { Redirect, Tabs } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
@@ -13,18 +14,36 @@ type TabGlyphProps = {
   prominent?: boolean;
 };
 
-const TabGlyph = ({ symbol, focused, accent = colors.navy, prominent = false }: TabGlyphProps) => (
-  <View
-    style={[
-      styles.glyph,
-      prominent && styles.glyphProminent,
-      focused && { backgroundColor: accent, borderColor: accent },
-      focused && styles.glyphFocused,
-    ]}
-  >
-    <Text style={[styles.glyphText, prominent && styles.glyphTextProminent, focused && styles.glyphTextFocused]}>{symbol}</Text>
-  </View>
-);
+const TabGlyph = ({ symbol, focused, accent = colors.navy, prominent = false }: TabGlyphProps) => {
+  const progress = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(progress, {
+      toValue: focused ? 1 : 0,
+      useNativeDriver: true,
+      speed: 22,
+      bounciness: focused ? 8 : 2,
+    }).start();
+  }, [focused, progress]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.glyph,
+        prominent && styles.glyphProminent,
+        focused && { backgroundColor: accent, borderColor: accent },
+        {
+          transform: [
+            { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) },
+            { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, prominent ? 1.12 : 1.08] }) },
+          ],
+        },
+      ]}
+    >
+      <Text style={[styles.glyphText, prominent && styles.glyphTextProminent, focused && styles.glyphTextFocused]}>{symbol}</Text>
+    </Animated.View>
+  );
+};
 
 export default function TabsLayout() {
   const { session, loading: authLoading } = useAuth();
@@ -124,7 +143,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sand,
   },
   glyphProminent: { width: 47, height: 38, marginTop: -5 },
-  glyphFocused: { transform: [{ translateY: -2 }] },
   glyphText: { color: colors.muted, fontSize: 17, fontWeight: '900' },
   glyphTextProminent: { fontSize: 20 },
   glyphTextFocused: { color: colors.white },
