@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
 import { supabase } from '../../lib/supabase';
-import { colors, gradients, moduleColors, radius, shadows } from '../../theme';
+import { colors, moduleColors, radius, shadows } from '../../theme';
 
 const directions = [
-  { id: 'school', icon: '📚', title: 'Школа', detail: 'Цели и маленькие победы', color: moduleColors.school },
-  { id: 'football', icon: '⚽', title: 'Футбол', detail: 'Тренировки и матчи', color: moduleColors.football },
-  { id: 'chess', icon: '♟', title: 'Шахматы', detail: 'Партии и стратегия', color: moduleColors.chess },
-  { id: 'english', icon: 'EN', title: 'English', detail: 'Живая речь', color: moduleColors.english },
-  { id: 'leadership', icon: '🧭', title: 'Лидерство', detail: 'Решения и характер', color: moduleColors.leadership },
+  { id: 'school', icon: '📘', title: 'Школа', detail: 'Знания и уверенность', color: moduleColors.school },
+  { id: 'football', icon: '⚽', title: 'Футбол', detail: 'Сила и характер', color: moduleColors.football },
+  { id: 'chess', icon: '♟', title: 'Шахматы', detail: 'Мыслить на шаг вперёд', color: moduleColors.chess },
+  { id: 'english', icon: 'EN', title: 'English', detail: 'Открывать мир', color: moduleColors.english },
+  { id: 'leadership', icon: '★', title: 'Лидерство', detail: 'Решения и ответственность', color: moduleColors.leadership },
 ] as const;
 
 const moodChoices = [
@@ -42,12 +42,12 @@ const daysUntil = (dateValue: string) => {
 };
 
 const countdownText = (meeting: UpcomingMeeting | null) => {
-  if (!meeting) return 'Выбрать дату';
+  if (!meeting) return 'Запланировать';
   const days = daysUntil(meeting.meeting_date);
   if (days === 0) return 'Сегодня!';
   if (days === 1) return 'Завтра';
-  if (days >= 2 && days <= 4) return `${days} дня`;
-  return `${days} дней`;
+  if (days >= 2 && days <= 4) return `Через ${days} дня`;
+  return `Через ${days} дней`;
 };
 
 const moodPresentation = (mood?: string) => (
@@ -71,7 +71,9 @@ export default function HomeScreen() {
 
   const parentName = parent?.display_name ?? 'Михаил';
   const childName = child?.display_name ?? 'Артур';
-  const teamName = family?.name ?? 'Михаил + Артур';
+  const isChild = me?.role === 'child';
+  const myName = isChild ? childName : parentName;
+  const teamName = family?.name ?? `${parentName} + ${childName}`;
   const isLive = Boolean(supabase && session && family && me);
 
   const loadHomeData = useCallback(async () => {
@@ -107,7 +109,9 @@ export default function HomeScreen() {
       await loadHomeData();
     } catch (caught) {
       Alert.alert('Не удалось сохранить настроение', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
-    } finally { setActionBusy(false); }
+    } finally {
+      setActionBusy(false);
+    }
   };
 
   const sendFiveMinutes = async () => {
@@ -124,98 +128,104 @@ export default function HomeScreen() {
       });
       if (error) {
         if (error.message.includes('SIGNAL_TOO_SOON')) {
-          Alert.alert('Сигнал уже отправлен', 'Не будем спамить. Подожди немного перед повторной отправкой.');
+          Alert.alert('Сигнал уже отправлен', 'Подожди немного перед повторной отправкой.');
           return;
         }
         throw error;
       }
       setInteractions((value) => value + 1);
-      Alert.alert('Отправлено ✦', `${me?.role === 'parent' ? childName : parentName} увидит, что у тебя есть несколько минут на связь.`);
+      Alert.alert('Отправлено ✦', `${isChild ? parentName : childName} увидит, что у тебя есть несколько минут на связь.`);
     } catch (caught) {
       Alert.alert('Не удалось отправить сигнал', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
-    } finally { setActionBusy(false); }
+    } finally {
+      setActionBusy(false);
+    }
   };
 
   const parentMood = moodPresentation(parent ? latestMoods[parent.user_id]?.mood : 'great');
   const childMood = moodPresentation(child ? latestMoods[child.user_id]?.mood : 'good');
   const myMood = me ? moodPresentation(latestMoods[me.user_id]?.mood) : null;
-  const todayQuestion = me?.role === 'child'
+  const todayQuestion = isChild
     ? 'Какой момент сегодня ты хотел бы показать папе?'
     : 'Что сегодня ты хотел бы рассказать Артуру не как совет, а просто как историю?';
+
+  const heroTitle = isChild ? `Привет, ${myName}!` : `Привет, ${myName}`;
+  const heroSubtitle = isChild
+    ? 'Сегодня — ещё один маленький шаг к твоей большой истории.'
+    : `Самое важное для ${childName} — знать, что папа рядом.`;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={gradients.team} start={{ x: 0.05, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, shadows.lift]}>
-          <View style={styles.heroOrbOne} />
-          <View style={styles.heroOrbTwo} />
-          <View style={styles.heroRing} />
-          <Text style={styles.heroStar}>✦</Text>
-
-          <View style={styles.heroTop}>
-            <View>
-              <Text style={styles.brand}>Папа & Я</Text>
-              <Text style={styles.tagline}>Одна команда. Где бы мы ни были.</Text>
-            </View>
-            <Pressable style={styles.teamBadge} onPress={() => router.push('/(tabs)/us')}>
-              <Text style={styles.teamBadgeText}>КОМАНДА</Text>
-              <Text style={styles.teamBadgeName}>{teamName}</Text>
-            </Pressable>
+        <View style={styles.brandRow}>
+          <View>
+            <Text style={styles.brand}>Папа <Text style={styles.brandAmp}>&</Text> Я</Text>
+            <Text style={styles.brandCaption}>Больше, чем планы. Настоящее вместе.</Text>
           </View>
-
-          <View style={styles.peopleScene}>
-            <View style={styles.personHero}>
-              <View style={[styles.avatar, styles.avatarParent]}>
-                <Text style={styles.avatarInitial}>{initial(parentName)}</Text>
-                <View style={styles.moodBubble}><Text style={styles.moodBubbleEmoji}>{parentMood.emoji}</Text></View>
-              </View>
-              <Text style={styles.personHeroName}>{parentName}</Text>
-              <Text style={styles.personHeroMood}>{parentMood.label}</Text>
+          <Pressable style={styles.teamChip} onPress={() => router.push('/(tabs)/us')}>
+            <View style={styles.teamFaces}>
+              <View style={[styles.miniFace, styles.miniFaceDad]}><Text style={styles.miniFaceText}>{initial(parentName)}</Text></View>
+              <View style={[styles.miniFace, styles.miniFaceChild]}><Text style={styles.miniFaceText}>{initial(childName)}</Text></View>
             </View>
-
-            <View style={styles.routeWrap}>
-              <View style={styles.routeDot} />
-              <View style={styles.routeLine} />
-              <View style={styles.routeCompass}><Text style={styles.routeCompassText}>✦</Text></View>
-              <View style={styles.routeLine} />
-              <View style={styles.routeDot} />
-            </View>
-
-            <View style={styles.personHero}>
-              <View style={[styles.avatar, styles.avatarChild]}>
-                <Text style={styles.avatarInitial}>{initial(childName)}</Text>
-                <View style={styles.moodBubble}><Text style={styles.moodBubbleEmoji}>{childMood.emoji}</Text></View>
-              </View>
-              <Text style={styles.personHeroName}>{childName}</Text>
-              <Text style={styles.personHeroMood}>{child ? childMood.label : 'Ждём в команде'}</Text>
-            </View>
-          </View>
-
-          <Pressable style={styles.meetingStrip} onPress={() => router.push('/meeting-plan')}>
-            <View style={styles.calendarIcon}><Text style={styles.calendarIconText}>⌁</Text></View>
-            <View style={styles.meetingStripText}>
-              <Text style={styles.meetingStripLabel}>{nextMeeting ? 'ДО СЛЕДУЮЩЕЙ ВСТРЕЧИ' : 'НАША СЛЕДУЮЩАЯ ВСТРЕЧА'}</Text>
-              <Text style={styles.meetingStripTitle}>{countdownText(nextMeeting)}</Text>
-              <Text style={styles.meetingStripHint}>{nextMeeting?.title ?? 'Выбрать дату и придумать приключение'}</Text>
-            </View>
-            <Text style={styles.heroChevron}>›</Text>
+            <Text style={styles.teamChipText}>{teamName}</Text>
           </Pressable>
-        </LinearGradient>
+        </View>
+
+        <ImageBackground
+          source={require('../../../assets/generated/family-hero.png')}
+          style={[styles.hero, shadows.lift]}
+          imageStyle={styles.heroImage}
+        >
+          <LinearGradient
+            colors={isChild ? ['rgba(8,31,42,0.16)', 'rgba(8,31,42,0.40)', 'rgba(5,22,31,0.92)'] : ['rgba(8,31,42,0.12)', 'rgba(8,31,42,0.48)', 'rgba(5,22,31,0.94)']}
+            locations={[0, 0.48, 1]}
+            style={styles.heroOverlay}
+          >
+            <View style={styles.heroTopRow}>
+              <View style={[styles.modePill, isChild ? styles.modePillChild : styles.modePillDad]}>
+                <Text style={styles.modePillText}>{isChild ? 'МОЙ ПУТЬ' : 'РЕЖИМ ПАПЫ'}</Text>
+              </View>
+              <View style={styles.heroQuotePill}>
+                <Text style={styles.heroQuote}>Вместе к большему</Text>
+              </View>
+            </View>
+
+            <View style={styles.heroBottom}>
+              <Text style={styles.heroTitle}>{heroTitle}</Text>
+              <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
+
+              <Pressable style={styles.meetingBar} onPress={() => router.push('/meeting-plan')}>
+                <View style={styles.meetingIcon}><Text style={styles.meetingIconText}>⌁</Text></View>
+                <View style={styles.meetingCopy}>
+                  <Text style={styles.meetingEyebrow}>СЛЕДУЮЩАЯ ВСТРЕЧА</Text>
+                  <Text style={styles.meetingTitle}>{countdownText(nextMeeting)}</Text>
+                  <Text style={styles.meetingHint} numberOfLines={1}>{nextMeeting?.title ?? 'Выбрать дату и придумать приключение'}</Text>
+                </View>
+                <Text style={styles.meetingArrow}>›</Text>
+              </Pressable>
+            </View>
+          </LinearGradient>
+        </ImageBackground>
 
         {isLive ? (
-          <View style={[styles.moodPanel, shadows.soft]}>
+          <View style={[styles.moodCard, shadows.soft]}>
             <View style={styles.sectionHead}>
               <View>
                 <Text style={styles.eyebrow}>СЕГОДНЯ</Text>
-                <Text style={styles.panelTitle}>Как ты?</Text>
+                <Text style={styles.sectionTitle}>Как ты?</Text>
               </View>
-              {myMood ? <Text style={styles.currentMood}>{myMood.emoji} {myMood.label}</Text> : null}
+              {myMood ? <Text style={styles.moodCurrent}>{myMood.emoji} {myMood.label}</Text> : null}
             </View>
             <View style={styles.moodRow}>
               {moodChoices.map((choice) => {
                 const active = me ? latestMoods[me.user_id]?.mood === choice.key : false;
                 return (
-                  <Pressable key={choice.key} disabled={actionBusy} onPress={() => void saveMood(choice.key)} style={[styles.moodButton, active && styles.moodButtonActive]}>
+                  <Pressable
+                    key={choice.key}
+                    disabled={actionBusy}
+                    onPress={() => void saveMood(choice.key)}
+                    style={[styles.moodButton, active && styles.moodButtonActive]}
+                  >
                     <Text style={styles.moodEmoji}>{choice.emoji}</Text>
                     <Text style={[styles.moodLabel, active && styles.moodLabelActive]}>{choice.label}</Text>
                   </Pressable>
@@ -225,77 +235,102 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <View style={styles.connectionGrid}>
-          <Pressable style={[styles.connectionPressable, actionBusy && styles.disabled]} onPress={() => void sendFiveMinutes()} disabled={actionBusy}>
-            <LinearGradient colors={gradients.connection} style={[styles.connectionCard, shadows.soft]}>
-              <View style={styles.chatBubbleOne}><Text style={styles.chatBubbleText}>●</Text></View>
-              <View style={styles.chatBubbleTwo} />
-              <Text style={styles.connectionKicker}>БЫСТРАЯ СВЯЗЬ</Text>
-              <Text style={styles.connectionTitle}>Есть{`\n`}5 минут?</Text>
-              <Text style={styles.connectionText}>Позвать друг друга поговорить или сыграть</Text>
-              <View style={styles.connectionArrow}><Text style={styles.connectionArrowText}>→</Text></View>
-            </LinearGradient>
+        <View style={styles.sectionHead}>
+          <View>
+            <Text style={styles.eyebrow}>ВАЖНОЕ НА СЕГОДНЯ</Text>
+            <Text style={styles.sectionTitle}>{isChild ? 'Мои маленькие шаги' : 'Быть рядом'}</Text>
+          </View>
+          <Text style={styles.sectionTiny}>без гонки и давления</Text>
+        </View>
+
+        <View style={styles.actionGrid}>
+          <Pressable style={[styles.actionCard, styles.actionCardPrimary, shadows.soft]} onPress={() => void sendFiveMinutes()} disabled={actionBusy}>
+            <View style={styles.actionIconLight}><Text style={styles.actionIconLightText}>♥</Text></View>
+            <Text style={styles.actionKicker}>БЫСТРАЯ СВЯЗЬ</Text>
+            <Text style={styles.actionTitleLight}>Есть 5 минут?</Text>
+            <Text style={styles.actionTextLight}>{isChild ? 'Позвать папу поговорить или сыграть.' : `Показать ${childName}, что сейчас ты свободен для него.`}</Text>
+            <View style={styles.actionFooterLight}><Text style={styles.actionFooterLightText}>Позвать</Text><Text style={styles.actionFooterLightArrow}>→</Text></View>
           </Pressable>
 
-          <Pressable style={styles.connectionPressable} onPress={() => router.push({ pathname: '/reflection-new', params: { prompt: todayQuestion } })}>
-            <LinearGradient colors={gradients.story} style={[styles.storyCard, shadows.soft]}>
-              <View style={styles.storyMoon} />
-              <Text style={styles.storyGlyph}>“</Text>
-              <Text style={styles.storyKicker}>ВОПРОС ДНЯ</Text>
-              <Text style={styles.storyQuestion}>{todayQuestion}</Text>
-              <View style={styles.storyAction}><Text style={styles.storyActionText}>Ответить ↗</Text></View>
-            </LinearGradient>
+          <Pressable
+            style={[styles.actionCard, styles.actionCardWarm, shadows.soft]}
+            onPress={() => router.push({ pathname: '/reflection-new', params: { prompt: todayQuestion } })}
+          >
+            <Text style={styles.actionQuote}>“</Text>
+            <Text style={styles.actionKickerWarm}>ВОПРОС ДНЯ</Text>
+            <Text style={styles.actionQuestion}>{todayQuestion}</Text>
+            <Text style={styles.actionAnswer}>Ответить ↗</Text>
           </Pressable>
         </View>
 
         <View style={styles.sectionHead}>
           <View>
-            <Text style={styles.eyebrow}>КАРТА РОСТА</Text>
-            <Text style={styles.sectionTitle}>Наши направления</Text>
+            <Text style={styles.eyebrow}>ПУТЬ АРТУРА</Text>
+            <Text style={styles.sectionTitle}>Растём в своём темпе</Text>
           </View>
           <Pressable onPress={() => router.push('/(tabs)/development')}><Text style={styles.sectionLink}>Весь путь →</Text></Pressable>
         </View>
 
-        <View style={styles.directionGrid}>
-          {directions.map((item, index) => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.directionRow}>
+          {directions.map((item) => (
             <Pressable
               key={item.id}
-              style={[styles.directionCard, index === directions.length - 1 && styles.directionCardWide, { backgroundColor: item.color.base }, shadows.soft]}
+              style={[styles.directionCard, { backgroundColor: item.color.base }, shadows.soft]}
               onPress={() => router.push({ pathname: '/growth-journal', params: { category: item.id } })}
             >
-              <View style={[styles.directionGlow, { backgroundColor: item.color.glow }]} />
               <View style={[styles.directionIcon, { backgroundColor: item.color.strong }]}>
                 <Text style={styles.directionIconText}>{item.icon}</Text>
               </View>
               <Text style={styles.directionTitle}>{item.title}</Text>
               <Text style={styles.directionDetail}>{item.detail}</Text>
-              <View style={styles.directionFooter}>
-                <Text style={[styles.directionJournal, { color: item.color.strong }]}>Открыть журнал</Text>
-                <Text style={[styles.directionArrow, { color: item.color.strong }]}>↗</Text>
+              <View style={[styles.directionLine, { backgroundColor: item.color.glow }]}>
+                <View style={[styles.directionLineFill, { backgroundColor: item.color.strong }]} />
               </View>
+              <Text style={[styles.directionOpen, { color: item.color.strong }]}>Открыть →</Text>
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
 
-        <View style={[styles.progressCard, shadows.soft]}>
-          <View style={styles.progressArt}>
-            <View style={styles.progressPlanet}><Text style={styles.progressPlanetText}>✦</Text></View>
-            <View style={styles.progressOrbit} />
-          </View>
-          <Text style={styles.eyebrow}>НАША КОМАНДА</Text>
-          <Text style={styles.progressTitle}>Напарники</Text>
-          <Text style={styles.progressText}>Каждый разговор, встреча и настоящий шаг делает вашу общую историю длиннее.</Text>
-          <View style={styles.progressTrack}>
-            <LinearGradient colors={[colors.amber, colors.orange]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.progressFill} />
-            <View style={styles.progressMarker} />
+        <Pressable style={[styles.bookCard, shadows.soft]} onPress={() => router.push('/(tabs)/yearbook')}>
+          <LinearGradient colors={['#F6E7CB', '#FFF9EE']} style={styles.bookGradient}>
+            <View style={styles.bookBadge}><Text style={styles.bookBadgeText}>КНИГА ГОДА</Text></View>
+            <Text style={styles.bookTitle}>Не потерять то, что действительно важно</Text>
+            <Text style={styles.bookText}>Миссии, достижения, голосовые истории и ваши ответы собираются в одну историю взросления.</Text>
+            <View style={styles.bookFooter}>
+              <View>
+                <Text style={styles.bookStat}>{growthCount + completedMissions + interactions}</Text>
+                <Text style={styles.bookStatLabel}>моментов уже сохранено</Text>
+              </View>
+              <View style={styles.bookButton}><Text style={styles.bookButtonText}>Открыть книгу</Text><Text style={styles.bookButtonArrow}>›</Text></View>
+            </View>
+          </LinearGradient>
+        </Pressable>
+
+        <View style={[styles.growthCard, shadows.soft]}>
+          <View style={styles.growthHeader}>
+            <View>
+              <Text style={styles.eyebrow}>НАШ РОСТ</Text>
+              <Text style={styles.sectionTitle}>Команда в цифрах</Text>
+            </View>
+            <View style={styles.growthHeart}><Text style={styles.growthHeartText}>♥</Text></View>
           </View>
           <View style={styles.statsRow}>
-            <View style={styles.statItem}><Text style={styles.statValue}>{interactions}</Text><Text style={styles.statLabel}>моментов вместе</Text></View>
-            <View style={styles.statDivider} />
             <View style={styles.statItem}><Text style={styles.statValue}>{completedMissions}</Text><Text style={styles.statLabel}>миссий</Text></View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}><Text style={styles.statValue}>{interactions}</Text><Text style={styles.statLabel}>моментов вместе</Text></View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}><Text style={styles.statValue}>{growthCount}</Text><Text style={styles.statLabel}>записей пути</Text></View>
           </View>
+          <View style={styles.moodPeopleRow}>
+            <View style={styles.personMood}><View style={[styles.personAvatar, styles.personAvatarDad]}><Text style={styles.personAvatarText}>{initial(parentName)}</Text></View><View><Text style={styles.personName}>{parentName}</Text><Text style={styles.personMoodText}>{parentMood.emoji} {parentMood.label}</Text></View></View>
+            <View style={styles.personMood}><View style={[styles.personAvatar, styles.personAvatarChild]}><Text style={styles.personAvatarText}>{initial(childName)}</Text></View><View><Text style={styles.personName}>{childName}</Text><Text style={styles.personMoodText}>{childMood.emoji} {childMood.label}</Text></View></View>
+          </View>
+        </View>
+
+        <View style={styles.signatureCard}>
+          <Text style={styles.signatureMark}>⌁</Text>
+          <Text style={styles.signatureText}>{isChild ? '«Ты можешь больше, чем думаешь. И я всегда рядом.»' : '«Не успеть всё. Успеть главное.»'}</Text>
+          <Text style={styles.signatureAuthor}>{isChild ? '— Папа ♥' : `— для ${childName}`}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -303,98 +338,109 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.sand },
-  content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 36, gap: 18 },
-  hero: { borderRadius: radius.xl, padding: 21, overflow: 'hidden', minHeight: 430 },
-  heroOrbOne: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,215,106,0.09)', right: -70, top: -70 },
-  heroOrbTwo: { position: 'absolute', width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(75,158,158,0.16)', left: -45, bottom: 40 },
-  heroRing: { position: 'absolute', width: 170, height: 170, borderRadius: 85, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', right: 8, top: 100 },
-  heroStar: { position: 'absolute', color: 'rgba(255,215,106,0.35)', fontSize: 76, right: 30, top: 110 },
-  heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  brand: { color: colors.white, fontSize: 31, fontWeight: '900', letterSpacing: -1 },
-  tagline: { color: '#D9E8E9', fontSize: 12, marginTop: 4, fontWeight: '700' },
-  teamBadge: { alignItems: 'flex-end', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8, maxWidth: 112 },
-  teamBadgeText: { color: '#AFC9CC', fontSize: 7, fontWeight: '900', letterSpacing: 1 },
-  teamBadgeName: { color: colors.white, fontSize: 10, fontWeight: '900', marginTop: 2 },
-  peopleScene: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 34 },
-  personHero: { alignItems: 'center', width: 86 },
-  avatar: { width: 70, height: 70, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: 'rgba(255,255,255,0.85)', position: 'relative' },
-  avatarParent: { backgroundColor: colors.blue, transform: [{ rotate: '-3deg' }] },
-  avatarChild: { backgroundColor: colors.orange, transform: [{ rotate: '3deg' }] },
-  avatarInitial: { color: colors.white, fontSize: 28, fontWeight: '900' },
-  moodBubble: { position: 'absolute', width: 28, height: 28, borderRadius: 14, backgroundColor: colors.white, right: -9, bottom: -7, alignItems: 'center', justifyContent: 'center' },
-  moodBubbleEmoji: { fontSize: 16 },
-  personHeroName: { color: colors.white, fontSize: 13, fontWeight: '900', marginTop: 11 },
-  personHeroMood: { color: '#BFD2D4', fontSize: 9, fontWeight: '700', marginTop: 2 },
-  routeWrap: { width: 105, flexDirection: 'row', alignItems: 'center', marginHorizontal: -2, marginBottom: 34 },
-  routeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.55)' },
-  routeLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
-  routeCompass: { width: 31, height: 31, borderRadius: 16, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
-  routeCompassText: { color: colors.navyDeep, fontSize: 15, fontWeight: '900' },
-  meetingStrip: { marginTop: 30, minHeight: 91, borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  calendarIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  calendarIconText: { color: colors.navyDeep, fontSize: 28, fontWeight: '900', transform: [{ rotate: '-12deg' }] },
-  meetingStripText: { flex: 1 },
-  meetingStripLabel: { color: '#B9CFD1', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
-  meetingStripTitle: { color: colors.white, fontSize: 22, fontWeight: '900', marginTop: 1 },
-  meetingStripHint: { color: '#D6E3E4', fontSize: 10, marginTop: 2 },
-  heroChevron: { color: colors.white, fontSize: 30, opacity: 0.75 },
-  moodPanel: { borderRadius: radius.lg, backgroundColor: colors.paper, padding: 16, borderWidth: 1, borderColor: colors.lineWarm },
+  safe: { flex: 1, backgroundColor: '#F6F1E7' },
+  content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 34, gap: 18 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 2 },
+  brand: { color: colors.navyDeep, fontSize: 29, fontWeight: '900', letterSpacing: -1.2 },
+  brandAmp: { color: colors.amber },
+  brandCaption: { color: '#7B7A72', fontSize: 10, fontWeight: '700', marginTop: 2 },
+  teamChip: { maxWidth: 160, minHeight: 47, backgroundColor: colors.paper, borderRadius: 18, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: '#E8DFD0', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  teamFaces: { width: 48, flexDirection: 'row' },
+  miniFace: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.paper },
+  miniFaceDad: { backgroundColor: colors.navy, zIndex: 2 },
+  miniFaceChild: { backgroundColor: colors.amber, marginLeft: -8 },
+  miniFaceText: { color: colors.white, fontWeight: '900', fontSize: 11 },
+  teamChipText: { flexShrink: 1, color: colors.navy, fontSize: 9, fontWeight: '900' },
+  hero: { height: 386, borderRadius: 30, overflow: 'hidden' },
+  heroImage: { borderRadius: 30 },
+  heroOverlay: { flex: 1, padding: 18, justifyContent: 'space-between' },
+  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modePill: { borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
+  modePillDad: { backgroundColor: 'rgba(7,31,42,0.58)' },
+  modePillChild: { backgroundColor: 'rgba(245,172,60,0.90)' },
+  modePillText: { color: colors.white, fontSize: 8, letterSpacing: 1.2, fontWeight: '900' },
+  heroQuotePill: { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 7 },
+  heroQuote: { color: colors.white, fontSize: 9, fontWeight: '800' },
+  heroBottom: { gap: 7 },
+  heroTitle: { color: colors.white, fontSize: 32, lineHeight: 35, fontWeight: '900', letterSpacing: -1.2 },
+  heroSubtitle: { color: '#F7F1E8', fontSize: 13, lineHeight: 19, fontWeight: '700', maxWidth: '88%', marginBottom: 8 },
+  meetingBar: { minHeight: 78, backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 20, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  meetingIcon: { width: 45, height: 45, borderRadius: 15, backgroundColor: '#F8E0AA', alignItems: 'center', justifyContent: 'center' },
+  meetingIconText: { color: colors.navyDeep, fontSize: 28, fontWeight: '900', transform: [{ rotate: '-12deg' }] },
+  meetingCopy: { flex: 1 },
+  meetingEyebrow: { color: '#899394', fontSize: 7, fontWeight: '900', letterSpacing: 1 },
+  meetingTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 1 },
+  meetingHint: { color: '#737E80', fontSize: 9, marginTop: 2, fontWeight: '600' },
+  meetingArrow: { color: colors.navyDeep, fontSize: 29, opacity: 0.7 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 },
-  eyebrow: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.25 },
-  panelTitle: { color: colors.text, fontSize: 21, fontWeight: '900', marginTop: 2 },
-  currentMood: { color: colors.green, fontSize: 11, fontWeight: '900', backgroundColor: colors.mint, paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.pill },
+  eyebrow: { color: '#879194', fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },
+  sectionTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 3, letterSpacing: -0.4 },
+  sectionTiny: { color: '#A19D92', fontSize: 8, fontWeight: '700', maxWidth: 90, textAlign: 'right' },
+  sectionLink: { color: colors.teal, fontSize: 10, fontWeight: '900' },
+  moodCard: { backgroundColor: colors.paper, borderRadius: 24, padding: 15, borderWidth: 1, borderColor: '#E9DFD0' },
+  moodCurrent: { color: colors.green, fontSize: 10, fontWeight: '900', backgroundColor: '#E1F0E7', paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.pill },
   moodRow: { flexDirection: 'row', gap: 6, marginTop: 12 },
-  moodButton: { flex: 1, minHeight: 67, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sand, borderWidth: 1.5, borderColor: 'transparent' },
-  moodButtonActive: { backgroundColor: '#E0F0E7', borderColor: colors.green, transform: [{ translateY: -2 }] },
-  moodEmoji: { fontSize: 23 },
-  moodLabel: { color: colors.muted, fontSize: 8, fontWeight: '800', marginTop: 5 },
+  moodButton: { flex: 1, minHeight: 62, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F1E9', borderWidth: 1.5, borderColor: 'transparent' },
+  moodButtonActive: { backgroundColor: '#E2F1E9', borderColor: colors.green, transform: [{ translateY: -2 }] },
+  moodEmoji: { fontSize: 22 },
+  moodLabel: { color: '#7B8587', fontSize: 7.5, fontWeight: '800', marginTop: 4 },
   moodLabelActive: { color: colors.green },
-  connectionGrid: { flexDirection: 'row', gap: 11 },
-  connectionPressable: { flex: 1 },
-  connectionCard: { minHeight: 238, borderRadius: radius.lg, padding: 17, overflow: 'hidden' },
-  chatBubbleOne: { position: 'absolute', width: 74, height: 58, borderRadius: 24, borderBottomLeftRadius: 7, backgroundColor: 'rgba(255,255,255,0.23)', right: -13, top: 16, alignItems: 'center', justifyContent: 'center' },
-  chatBubbleText: { color: 'rgba(255,255,255,0.75)', fontSize: 22 },
-  chatBubbleTwo: { position: 'absolute', width: 36, height: 28, borderRadius: 13, borderBottomRightRadius: 4, backgroundColor: 'rgba(7,31,42,0.12)', right: 49, top: 72 },
-  connectionKicker: { color: 'rgba(13,46,57,0.62)', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  connectionTitle: { color: colors.navyDeep, fontSize: 29, lineHeight: 28, fontWeight: '900', marginTop: 36, letterSpacing: -0.8 },
-  connectionText: { color: '#684E2F', fontSize: 10, lineHeight: 15, fontWeight: '700', marginTop: 9, maxWidth: '90%' },
-  connectionArrow: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.48)', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
-  connectionArrowText: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
-  storyCard: { minHeight: 238, borderRadius: radius.lg, padding: 17, overflow: 'hidden' },
-  storyMoon: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.13)', right: -32, top: -20 },
-  storyGlyph: { position: 'absolute', color: 'rgba(255,255,255,0.18)', fontSize: 104, fontWeight: '900', right: 17, top: 3 },
-  storyKicker: { color: '#E9E5FA', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  storyQuestion: { color: colors.white, fontSize: 15, lineHeight: 21, fontWeight: '900', marginTop: 33 },
-  storyAction: { alignSelf: 'flex-start', marginTop: 'auto', paddingHorizontal: 11, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.16)' },
-  storyActionText: { color: colors.white, fontSize: 10, fontWeight: '900' },
-  sectionTitle: { color: colors.navyDeep, fontSize: 23, fontWeight: '900', marginTop: 2, letterSpacing: -0.4 },
-  sectionLink: { color: colors.teal, fontSize: 11, fontWeight: '900', paddingBottom: 3 },
-  directionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  directionCard: { width: '48.5%', minHeight: 183, borderRadius: radius.lg, padding: 15, overflow: 'hidden' },
-  directionCardWide: { width: '100%', minHeight: 145 },
-  directionGlow: { position: 'absolute', width: 110, height: 110, borderRadius: 55, right: -35, top: -35, opacity: 0.65 },
-  directionIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  directionIconText: { color: colors.white, fontSize: 22, fontWeight: '900' },
-  directionTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 15 },
-  directionDetail: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 3, maxWidth: '86%' },
-  directionFooter: { marginTop: 'auto', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  directionJournal: { fontSize: 9, fontWeight: '900' },
-  directionArrow: { fontSize: 20, fontWeight: '900' },
-  progressCard: { minHeight: 260, borderRadius: radius.xl, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.lineWarm, padding: 20, overflow: 'hidden' },
-  progressArt: { position: 'absolute', right: 13, top: 15, width: 100, height: 100, alignItems: 'center', justifyContent: 'center' },
-  progressPlanet: { width: 55, height: 55, borderRadius: 28, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  progressPlanetText: { color: colors.navyDeep, fontSize: 24, fontWeight: '900' },
-  progressOrbit: { position: 'absolute', width: 92, height: 45, borderRadius: 46, borderWidth: 2, borderColor: colors.lineWarm, transform: [{ rotate: '-28deg' }] },
-  progressTitle: { color: colors.navyDeep, fontSize: 28, fontWeight: '900', marginTop: 4 },
-  progressText: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 6, maxWidth: '70%' },
-  progressTrack: { height: 9, borderRadius: radius.pill, backgroundColor: colors.sandWarm, marginTop: 23, overflow: 'visible' },
-  progressFill: { width: '38%', height: 9, borderRadius: radius.pill },
-  progressMarker: { position: 'absolute', left: '36%', top: -5, width: 19, height: 19, borderRadius: 10, backgroundColor: colors.white, borderWidth: 5, borderColor: colors.orange },
-  statsRow: { flexDirection: 'row', marginTop: 22, alignItems: 'center' },
-  statItem: { flex: 1 },
+  actionGrid: { flexDirection: 'row', gap: 11 },
+  actionCard: { flex: 1, minHeight: 225, borderRadius: 26, padding: 16, overflow: 'hidden' },
+  actionCardPrimary: { backgroundColor: '#0E4252' },
+  actionCardWarm: { backgroundColor: '#F0C46D' },
+  actionIconLight: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.13)' },
+  actionIconLightText: { color: '#FFD26A', fontSize: 20 },
+  actionKicker: { color: '#9FC3CA', fontSize: 7.5, fontWeight: '900', letterSpacing: 1, marginTop: 19 },
+  actionTitleLight: { color: colors.white, fontSize: 25, lineHeight: 28, fontWeight: '900', marginTop: 3, letterSpacing: -0.8 },
+  actionTextLight: { color: '#D0E0E3', fontSize: 10, lineHeight: 15, fontWeight: '600', marginTop: 8 },
+  actionFooterLight: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' },
+  actionFooterLightText: { color: '#FFD26A', fontSize: 10, fontWeight: '900' },
+  actionFooterLightArrow: { color: colors.white, fontSize: 19 },
+  actionQuote: { position: 'absolute', right: 13, top: 4, color: 'rgba(255,255,255,0.34)', fontSize: 88, fontWeight: '900' },
+  actionKickerWarm: { color: '#805E22', fontSize: 7.5, fontWeight: '900', letterSpacing: 1 },
+  actionQuestion: { color: '#3C3425', fontSize: 15, lineHeight: 20, fontWeight: '900', marginTop: 34 },
+  actionAnswer: { color: '#3C3425', fontSize: 10, fontWeight: '900', marginTop: 'auto' },
+  directionRow: { gap: 10, paddingRight: 8, paddingBottom: 2 },
+  directionCard: { width: 150, minHeight: 176, borderRadius: 23, padding: 14, overflow: 'hidden' },
+  directionIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  directionIconText: { color: colors.white, fontSize: 19, fontWeight: '900' },
+  directionTitle: { color: colors.navyDeep, fontSize: 15, fontWeight: '900', marginTop: 12 },
+  directionDetail: { color: '#657477', fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 3, minHeight: 27 },
+  directionLine: { height: 6, borderRadius: 4, overflow: 'hidden', marginTop: 12 },
+  directionLineFill: { width: '62%', height: '100%', borderRadius: 4 },
+  directionOpen: { fontSize: 9, fontWeight: '900', marginTop: 10 },
+  bookCard: { borderRadius: 27, overflow: 'hidden' },
+  bookGradient: { padding: 18 },
+  bookBadge: { alignSelf: 'flex-start', backgroundColor: '#0D4050', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
+  bookBadgeText: { color: '#FFD16A', fontSize: 7.5, fontWeight: '900', letterSpacing: 1.1 },
+  bookTitle: { color: colors.navyDeep, fontSize: 22, lineHeight: 26, fontWeight: '900', marginTop: 14, maxWidth: '88%', letterSpacing: -0.5 },
+  bookText: { color: '#6A6E69', fontSize: 10, lineHeight: 15, fontWeight: '600', marginTop: 7, maxWidth: '94%' },
+  bookFooter: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: 18 },
+  bookStat: { color: colors.navyDeep, fontSize: 25, fontWeight: '900' },
+  bookStatLabel: { color: '#8A8C84', fontSize: 8, fontWeight: '700', marginTop: 1 },
+  bookButton: { backgroundColor: colors.white, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  bookButtonText: { color: colors.navyDeep, fontSize: 9, fontWeight: '900' },
+  bookButtonArrow: { color: colors.navyDeep, fontSize: 19, lineHeight: 19 },
+  growthCard: { backgroundColor: colors.paper, borderRadius: 27, padding: 17, borderWidth: 1, borderColor: '#E9DFD0' },
+  growthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  growthHeart: { width: 46, height: 46, borderRadius: 16, backgroundColor: '#E1F0E7', alignItems: 'center', justifyContent: 'center' },
+  growthHeartText: { color: colors.green, fontSize: 20 },
+  statsRow: { flexDirection: 'row', alignItems: 'stretch', marginTop: 18, backgroundColor: '#F6F1E8', borderRadius: 20, paddingVertical: 14 },
+  statItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   statValue: { color: colors.navyDeep, fontSize: 21, fontWeight: '900' },
-  statLabel: { color: colors.muted, fontSize: 8, lineHeight: 11, fontWeight: '800', marginTop: 2 },
-  statDivider: { width: 1, height: 30, backgroundColor: colors.lineWarm, marginHorizontal: 8 },
-  disabled: { opacity: 0.55 },
+  statLabel: { color: '#7E8889', fontSize: 7.5, fontWeight: '800', textAlign: 'center', marginTop: 2 },
+  statDivider: { width: 1, backgroundColor: '#DED8CC', marginVertical: 2 },
+  moodPeopleRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  personMood: { flex: 1, minHeight: 63, borderRadius: 18, borderWidth: 1, borderColor: '#E8E1D5', paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  personAvatar: { width: 37, height: 37, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  personAvatarDad: { backgroundColor: colors.navy },
+  personAvatarChild: { backgroundColor: colors.amber },
+  personAvatarText: { color: colors.white, fontSize: 14, fontWeight: '900' },
+  personName: { color: colors.navyDeep, fontSize: 10, fontWeight: '900' },
+  personMoodText: { color: '#7B8587', fontSize: 8, fontWeight: '700', marginTop: 2 },
+  signatureCard: { minHeight: 93, borderRadius: 25, backgroundColor: '#EFE2CE', padding: 17, paddingLeft: 63, justifyContent: 'center', overflow: 'hidden' },
+  signatureMark: { position: 'absolute', left: 17, top: 22, color: '#31515B', fontSize: 34, fontWeight: '900', transform: [{ rotate: '-12deg' }] },
+  signatureText: { color: '#513F2F', fontSize: 13, lineHeight: 18, fontWeight: '800', fontStyle: 'italic' },
+  signatureAuthor: { color: '#7D6652', fontSize: 9, fontWeight: '900', marginTop: 5, alignSelf: 'flex-end' },
 });
