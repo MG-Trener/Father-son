@@ -1,18 +1,39 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
-import { colors, gradients, radius, shadows } from '../theme';
+import { colors, radius, shadows } from '../theme';
 
 type WeeklyFocus = { id: string; target_user_id: string | null; category: string; title: string; week_start: string };
 type Meeting = { id: string; meeting_date: string; title: string };
 type Ritual = { id: string; title: string; symbol: string; cadence: 'weekly' | 'monthly' | 'flexible'; cadence_value: number | null };
 type RitualMoment = { ritual_id: string; happened_on: string };
 type Mood = { user_id: string; mood: string; created_at: string };
+
+const artwork = {
+  calendar: require('../../assets/generated/utility-calendar.png'),
+  goal: require('../../assets/generated/utility-goal.png'),
+  recognition: require('../../assets/generated/utility-recognition.png'),
+  together: require('../../assets/generated/nav-together.png'),
+  book: require('../../assets/generated/nav-book.png'),
+  school: require('../../assets/generated/direction-school.png'),
+  football: require('../../assets/generated/direction-football.png'),
+  chess: require('../../assets/generated/direction-chess.png'),
+  english: require('../../assets/generated/direction-english.png'),
+  leadership: require('../../assets/generated/direction-leadership.png'),
+} as const;
+
+const focusArtwork: Record<string, (typeof artwork)[keyof typeof artwork]> = {
+  school: artwork.school,
+  football: artwork.football,
+  chess: artwork.chess,
+  english: artwork.english,
+  leadership: artwork.leadership,
+};
 
 const moodMeta: Record<string, { emoji: string; label: string }> = {
   great: { emoji: '😄', label: 'Отлично' },
@@ -129,10 +150,10 @@ export default function TodayScreen() {
   const doneIds = new Set(moments.map((item) => item.ritual_id));
 
   const nextAction = !myMood
-    ? { icon: '♥', kicker: 'ОДИН МАЛЕНЬКИЙ ШАГ', title: 'Отметить, как ты сегодня', text: 'Одной отметки достаточно. Никакого обязательного комментария.', route: '/mood-check-in' as const }
+    ? { image: artwork.together, kicker: 'ОДИН МАЛЕНЬКИЙ ШАГ', title: 'Отметить, как ты сегодня', text: 'Одной отметки достаточно. Никакого обязательного комментария.', route: '/mood-check-in' as const }
     : dueRituals.some((ritual) => !doneIds.has(ritual.id))
-      ? { icon: '∞', kicker: 'МОЖНО СЕГОДНЯ', title: 'Не забыть ваш ритуал', text: 'Если случится — просто отметьте момент. Если нет, ничего не потеряется.', route: '/rituals' as const }
-      : { icon: '?', kicker: 'ЕСЛИ ЕСТЬ 5 МИНУТ', title: 'Вытянуть карточку разговора', text: 'Один вопрос без правильного ответа — просто повод узнать друг друга ещё чуть лучше.', route: '/conversation-cards' as const };
+      ? { image: artwork.goal, kicker: 'МОЖНО СЕГОДНЯ', title: 'Не забыть ваш ритуал', text: 'Если случится — просто отметьте момент. Если нет, ничего не потеряется.', route: '/rituals' as const }
+      : { image: artwork.together, kicker: 'ЕСЛИ ЕСТЬ 5 МИНУТ', title: 'Вытянуть карточку разговора', text: 'Один вопрос без правильного ответа — просто повод узнать друг друга ещё чуть лучше.', route: '/conversation-cards' as const };
 
   if (loading) {
     return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.loader}><ActivityIndicator size="large" color={colors.navy} /></View></SafeAreaView>;
@@ -150,27 +171,36 @@ export default function TodayScreen() {
           <View><Text style={styles.topKicker}>ПАПА & Я</Text><Text style={styles.topTitle}>Сегодня</Text></View>
         </View>
 
-        <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}>
-          <View style={styles.heroGlow} />
-          <Text style={styles.heroKicker}>{new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</Text>
-          <Text style={styles.heroTitle}>{isChild ? `${childName}, что сегодня действительно важно?` : `${parentName}, что сегодня поможет быть ближе?`}</Text>
-          <Text style={styles.heroText}>Не список дел. Только несколько ориентиров вашей общей жизни на сегодня.</Text>
-          <View style={styles.heroPeople}>
-            <View style={styles.personPill}><Text style={styles.personPillText}>{parentMood?.emoji ?? '○'} {parentName}</Text></View>
-            <View style={styles.personPill}><Text style={styles.personPillText}>{childMood?.emoji ?? '○'} {childName}</Text></View>
-          </View>
-        </LinearGradient>
+        <View style={[styles.hero, shadows.lift]}>
+          <ImageBackground source={require('../../assets/generated/family-hero.png')} resizeMode="cover" style={styles.heroBackground} imageStyle={styles.heroImage}>
+            <LinearGradient colors={['rgba(5,29,39,0.22)', 'rgba(6,37,48,0.72)', 'rgba(5,24,33,0.96)']} locations={[0, 0.48, 1]} style={styles.heroOverlay}>
+              <View style={styles.heroGlow} />
+              <View style={styles.heroTopRow}>
+                <Text style={styles.heroKicker}>{new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</Text>
+                <View style={styles.heroBadge}><Image source={artwork.calendar} style={styles.heroBadgeImage} resizeMode="contain" /></View>
+              </View>
+              <View style={styles.heroCopy}>
+                <Text style={styles.heroTitle}>{isChild ? `${childName}, что сегодня действительно важно?` : `${parentName}, что сегодня поможет быть ближе?`}</Text>
+                <Text style={styles.heroText}>Не список дел. Только несколько ориентиров вашей общей жизни на сегодня.</Text>
+              </View>
+              <View style={styles.heroPeople}>
+                <View style={styles.personPill}><Text style={styles.personPillText}>{parentMood?.emoji ?? '○'} {parentName}</Text></View>
+                <View style={styles.personPill}><Text style={styles.personPillText}>{childMood?.emoji ?? '○'} {childName}</Text></View>
+              </View>
+            </LinearGradient>
+          </ImageBackground>
+        </View>
 
         <View style={styles.sectionHead}><View><Text style={styles.eyebrow}>НА ЭТОЙ НЕДЕЛЕ</Text><Text style={styles.sectionTitle}>Держим в поле зрения</Text></View></View>
         <View style={styles.focusGrid}>
           <Pressable style={[styles.focusCard, styles.focusChild, shadows.soft]} onPress={() => router.push('/weekly-focus')}>
-            <Text style={styles.focusIcon}>◎</Text>
+            <Image source={focusArtwork[childFocus?.category ?? ''] ?? artwork.goal} style={styles.focusImage} resizeMode="contain" />
             <Text style={styles.focusKicker}>ФОКУС {childName.toUpperCase()}</Text>
             <Text style={styles.focusTitle}>{childFocus?.title ?? 'Пока не выбран'}</Text>
             <Text style={styles.focusOpen}>{childFocus ? 'Открыть →' : 'Выбрать →'}</Text>
           </Pressable>
           <Pressable style={[styles.focusCard, styles.focusTogether, shadows.soft]} onPress={() => router.push('/weekly-focus')}>
-            <Text style={styles.focusIconTogether}>♥</Text>
+            <Image source={artwork.together} style={styles.focusImage} resizeMode="contain" />
             <Text style={styles.focusKickerTogether}>ПАПА & Я</Text>
             <Text style={styles.focusTitle}>{togetherFocus?.title ?? 'Пока без общего ориентира'}</Text>
             <Text style={styles.focusOpenTogether}>{togetherFocus ? 'Открыть →' : 'Выбрать →'}</Text>
@@ -178,7 +208,7 @@ export default function TodayScreen() {
         </View>
 
         <Pressable style={[styles.meetingCard, shadows.soft]} onPress={() => router.push('/meeting-plan')}>
-          <View style={styles.meetingIcon}><Text style={styles.meetingIconText}>⌁</Text></View>
+          <View style={styles.meetingIcon}><Image source={artwork.calendar} style={styles.meetingIconImage} resizeMode="contain" /></View>
           <View style={styles.meetingCopy}>
             <Text style={styles.eyebrow}>СЛЕДУЮЩАЯ ВСТРЕЧА</Text>
             <Text style={styles.meetingTitle}>{meetingLabel(meeting)}</Text>
@@ -205,21 +235,21 @@ export default function TodayScreen() {
           </View>
         ) : (
           <Pressable onPress={() => router.push('/rituals')} style={[styles.emptyRitual, shadows.soft]}>
-            <Text style={styles.emptyRitualIcon}>∞</Text>
+            <Image source={artwork.goal} style={styles.emptyRitualImage} resizeMode="contain" />
             <View style={styles.emptyRitualCopy}><Text style={styles.emptyRitualTitle}>Сегодня ничего не обязано повторяться</Text><Text style={styles.emptyRitualText}>Гибкие ритуалы можно отметить в любой день, когда они действительно случились.</Text></View>
           </Pressable>
         )}
 
         <Pressable style={[styles.nextCard, shadows.lift]} onPress={() => router.push(nextAction.route)}>
-          <View style={styles.nextIcon}><Text style={styles.nextIconText}>{nextAction.icon}</Text></View>
+          <View style={styles.nextIcon}><Image source={nextAction.image} style={styles.nextIconImage} resizeMode="contain" /></View>
           <View style={styles.nextCopy}><Text style={styles.nextKicker}>{nextAction.kicker}</Text><Text style={styles.nextTitle}>{nextAction.title}</Text><Text style={styles.nextText}>{nextAction.text}</Text></View>
           <Text style={styles.nextArrow}>→</Text>
         </Pressable>
 
         <View style={styles.quickRow}>
-          <Pressable style={styles.quick} onPress={() => router.push('/week-review')}><Text style={styles.quickIcon}>▤</Text><Text style={styles.quickText}>Итог недели</Text></Pressable>
-          <Pressable style={styles.quick} onPress={() => router.push('/recognitions')}><Text style={styles.quickIcon}>✦</Text><Text style={styles.quickText}>Я заметил</Text></Pressable>
-          <Pressable style={styles.quick} onPress={() => router.push('/conversation-cards')}><Text style={styles.quickIcon}>?</Text><Text style={styles.quickText}>Карточка</Text></Pressable>
+          <Pressable style={styles.quick} onPress={() => router.push('/week-review')}><Image source={artwork.book} style={styles.quickImage} resizeMode="contain" /><Text style={styles.quickText}>Итог недели</Text></Pressable>
+          <Pressable style={styles.quick} onPress={() => router.push('/recognitions')}><Image source={artwork.recognition} style={styles.quickImage} resizeMode="contain" /><Text style={styles.quickText}>Я заметил</Text></Pressable>
+          <Pressable style={styles.quick} onPress={() => router.push('/conversation-cards')}><Image source={artwork.together} style={styles.quickImage} resizeMode="contain" /><Text style={styles.quickText}>Карточка</Text></Pressable>
         </View>
 
         {!session ? <Text style={styles.demo}>После входа здесь появятся ваши реальные данные.</Text> : null}
@@ -237,32 +267,38 @@ const styles = StyleSheet.create({
   backText: { color: colors.navyDeep, fontSize: 31, lineHeight: 33, marginTop: -3 },
   topKicker: { color: colors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
   topTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 1 },
-  hero: { minHeight: 270, borderRadius: radius.xl, padding: 21, overflow: 'hidden' },
+  hero: { minHeight: 290, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.night },
+  heroBackground: { flex: 1, minHeight: 290 },
+  heroImage: { borderRadius: radius.xl },
+  heroOverlay: { flex: 1, minHeight: 290, padding: 21, justifyContent: 'space-between' },
   heroGlow: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,215,106,0.10)', right: -70, top: -75 },
-  heroKicker: { color: colors.sun, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  heroTitle: { color: colors.white, fontSize: 27, lineHeight: 32, fontWeight: '900', marginTop: 11, maxWidth: '92%' },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  heroKicker: { color: '#F5D692', fontSize: 8, fontWeight: '900', letterSpacing: 1.2, maxWidth: '70%' },
+  heroBadge: { width: 58, height: 58, borderRadius: 18, backgroundColor: 'rgba(255,248,233,0.92)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  heroBadgeImage: { width: 53, height: 53 },
+  heroCopy: { maxWidth: '92%' },
+  heroTitle: { color: colors.white, fontSize: 27, lineHeight: 32, fontWeight: '900' },
   heroText: { color: '#D8E6E7', fontSize: 11, lineHeight: 17, marginTop: 9, maxWidth: '91%' },
-  heroPeople: { flexDirection: 'row', gap: 8, marginTop: 'auto' },
-  personPill: { backgroundColor: 'rgba(255,255,255,0.11)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 7 },
+  heroPeople: { flexDirection: 'row', gap: 8 },
+  personPill: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   personPillText: { color: colors.white, fontSize: 9, fontWeight: '900' },
   sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   eyebrow: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1.15 },
   sectionTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 2 },
   link: { color: colors.teal, fontSize: 10, fontWeight: '900' },
   focusGrid: { flexDirection: 'row', gap: 10 },
-  focusCard: { flex: 1, minHeight: 178, borderRadius: radius.xl, padding: 15 },
+  focusCard: { flex: 1, minHeight: 184, borderRadius: radius.xl, padding: 15, overflow: 'hidden' },
   focusChild: { backgroundColor: '#DCEFFF' },
   focusTogether: { backgroundColor: '#FFF0CF' },
-  focusIcon: { color: '#2E6286', fontSize: 24, fontWeight: '900' },
-  focusIconTogether: { color: '#A7751E', fontSize: 22, fontWeight: '900' },
-  focusKicker: { color: '#2E6286', fontSize: 7, fontWeight: '900', letterSpacing: 0.9, marginTop: 12 },
-  focusKickerTogether: { color: '#956719', fontSize: 7, fontWeight: '900', letterSpacing: 0.9, marginTop: 12 },
+  focusImage: { width: 54, height: 54 },
+  focusKicker: { color: '#2E6286', fontSize: 7, fontWeight: '900', letterSpacing: 0.9, marginTop: 8 },
+  focusKickerTogether: { color: '#956719', fontSize: 7, fontWeight: '900', letterSpacing: 0.9, marginTop: 8 },
   focusTitle: { color: colors.navyDeep, fontSize: 15, lineHeight: 20, fontWeight: '900', marginTop: 6 },
   focusOpen: { color: '#2E6286', fontSize: 9, fontWeight: '900', marginTop: 'auto' },
   focusOpenTogether: { color: '#956719', fontSize: 9, fontWeight: '900', marginTop: 'auto' },
   meetingCard: { minHeight: 96, backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  meetingIcon: { width: 50, height: 50, borderRadius: 17, backgroundColor: '#F8E0AA', alignItems: 'center', justifyContent: 'center' },
-  meetingIconText: { color: colors.navyDeep, fontSize: 28, fontWeight: '900', transform: [{ rotate: '-12deg' }] },
+  meetingIcon: { width: 54, height: 54, borderRadius: 17, backgroundColor: '#F8E0AA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  meetingIconImage: { width: 50, height: 50 },
   meetingCopy: { flex: 1 },
   meetingTitle: { color: colors.navyDeep, fontSize: 17, fontWeight: '900', marginTop: 2 },
   meetingText: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 3 },
@@ -277,22 +313,22 @@ const styles = StyleSheet.create({
   ritualTitle: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' },
   ritualState: { color: colors.muted, fontSize: 8, marginTop: 3 },
   ritualStateDone: { color: colors.green, fontWeight: '800' },
-  emptyRitual: { minHeight: 88, backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  emptyRitualIcon: { width: 43, color: colors.amber, fontSize: 26, fontWeight: '900', textAlign: 'center' },
+  emptyRitual: { minHeight: 94, backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  emptyRitualImage: { width: 52, height: 52 },
   emptyRitualCopy: { flex: 1 },
   emptyRitualTitle: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' },
   emptyRitualText: { color: colors.muted, fontSize: 8, lineHeight: 13, marginTop: 3 },
   nextCard: { minHeight: 125, backgroundColor: colors.navyDeep, borderRadius: radius.xl, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  nextIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  nextIconText: { color: colors.navyDeep, fontSize: 20, fontWeight: '900' },
+  nextIcon: { width: 52, height: 52, borderRadius: 17, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  nextIconImage: { width: 48, height: 48 },
   nextCopy: { flex: 1 },
   nextKicker: { color: '#9FC3CA', fontSize: 7, fontWeight: '900', letterSpacing: 1 },
   nextTitle: { color: colors.white, fontSize: 16, fontWeight: '900', marginTop: 3 },
   nextText: { color: '#D4E2E4', fontSize: 9, lineHeight: 14, marginTop: 4 },
   nextArrow: { color: colors.sun, fontSize: 20, fontWeight: '900' },
   quickRow: { flexDirection: 'row', gap: 8 },
-  quick: { flex: 1, minHeight: 70, backgroundColor: colors.paper, borderRadius: 18, borderWidth: 1, borderColor: colors.lineWarm, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  quickIcon: { color: colors.teal, fontSize: 17, fontWeight: '900' },
+  quick: { flex: 1, minHeight: 84, backgroundColor: colors.paper, borderRadius: 18, borderWidth: 1, borderColor: colors.lineWarm, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 6 },
+  quickImage: { width: 40, height: 40 },
   quickText: { color: colors.navyDeep, fontSize: 8, fontWeight: '900' },
   demo: { color: colors.muted, fontSize: 9, textAlign: 'center' },
 });
