@@ -30,6 +30,7 @@ export default function ReflectionNewScreen() {
     : params.mode === 'story'
       ? 'Что сегодня хочется сохранить друг для друга?'
       : 'Что хочется сказать сейчас?';
+  const displayPrompt = prompt.replace(/\s*·\s*Книга года\s+\d+\s*$/i, '').trim();
   const isStory = params.mode === 'story';
 
   const other = useMemo(
@@ -83,7 +84,7 @@ export default function ReflectionNewScreen() {
               <Text style={styles.memoryIcon}>{isStory ? '✦' : '∞'}</Text>
             </View>
             <Text style={styles.heroKicker}>{isStory ? 'СОХРАНИТЬ МОМЕНТ' : 'МЕЖДУ НАМИ'}</Text>
-            <Text style={styles.heroTitle}>{prompt}</Text>
+            <Text style={styles.heroTitle}>{displayPrompt}</Text>
             <Text style={styles.heroCopy}>Не отчёт и не обязанность. Просто одна мысль, которую будет интересно услышать или перечитать позже.</Text>
           </LinearGradient>
 
