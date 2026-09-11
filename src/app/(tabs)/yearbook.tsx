@@ -393,7 +393,7 @@ export default function YearBookScreen() {
             {chapterItems.length ? (
               <View style={styles.timeline}>
                 {chapterItems.slice(0, 80).map((item, index) => {
-                  const meta = categoryMeta[item.category] ?? categoryMeta.together;
+                  const meta = categoryMeta[item.category] ?? categoryMeta.together!;
                   return (
                     <View key={item.id} style={styles.timelineRow}>
                       <View style={styles.rail}>
