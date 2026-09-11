@@ -58,6 +58,7 @@ export default function FutureLetterComposer() {
   const { family, members, me } = useFamily();
   const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
   const other = useMemo(() => members.find((member) => member.user_id !== me?.user_id) ?? null, [members, me]);
+  const names = useMemo(() => new Map(members.map((member) => [member.user_id, member.display_name])), [members]);
   const letterId = typeof params.id === 'string' ? params.id : null;
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -66,8 +67,6 @@ export default function FutureLetterComposer() {
   const [loading, setLoading] = useState(Boolean(letterId));
   const [busy, setBusy] = useState(false);
 
-  const names = useMemo(() => new Map(members.map((member) => [member.user_id, member.display_name])), [members]);
-
   useEffect(() => {
     if (!recipientId && me) setRecipientId(me.role === 'child' ? me.user_id : (child?.user_id ?? other?.user_id ?? me.user_id));
   }, [recipientId, me, child, other]);
@@ -75,16 +74,18 @@ export default function FutureLetterComposer() {
   useEffect(() => {
     if (!unlockDay) {
       const birthday = nextBirthday(child?.birth_date ?? null);
-      const fallback = new Date(); fallback.setFullYear(fallback.getFullYear() + 1);
+      const fallback = new Date();
+      fallback.setFullYear(fallback.getFullYear() + 1);
       setUnlockDay(toIsoDay(birthday ?? fallback));
     }
   }, [unlockDay, child?.birth_date]);
 
   const loadDraft = useCallback(async () => {
-    if (!letterId || !supabase || !me) return;
+    const client = supabase;
+    if (!letterId || !client || !me) return;
     const [letterResult, contentResult] = await Promise.all([
-      supabase.from('future_letters').select('id,author_user_id,recipient_user_id,title,unlock_at,status').eq('id', letterId).single(),
-      supabase.from('future_letter_contents').select('body').eq('letter_id', letterId).maybeSingle(),
+      client.from('future_letters').select('id,author_user_id,recipient_user_id,title,unlock_at,status').eq('id', letterId).single(),
+      client.from('future_letter_contents').select('body').eq('letter_id', letterId).maybeSingle(),
     ]);
     if (letterResult.error) {
       Alert.alert('Черновик не найден', letterResult.error.message);
@@ -119,7 +120,8 @@ export default function FutureLetterComposer() {
     if (fifteen) result.push({ label: 'В 15 лет', date: fifteen });
     const eighteen = birthdayAtAge(child?.birth_date ?? null, 18);
     if (eighteen) result.push({ label: 'В 18 лет', date: eighteen });
-    const year = new Date(); year.setFullYear(year.getFullYear() + 1);
+    const year = new Date();
+    year.setFullYear(year.getFullYear() + 1);
     result.push({ label: 'Через год', date: year });
     return result;
   }, [child?.birth_date]);
@@ -136,13 +138,14 @@ export default function FutureLetterComposer() {
   };
 
   const save = async () => {
-    if (!supabase || !family || busy) return null;
+    const client = supabase;
+    if (!client || !family || busy) return null;
     const valid = validate();
     if (!valid) return null;
     setBusy(true);
     try {
       if (letterId) {
-        const { data, error } = await supabase.rpc('update_future_letter_draft', {
+        const { data, error } = await client.rpc('update_future_letter_draft', {
           p_letter_id: letterId,
           p_title: valid.cleanTitle,
           p_body: valid.cleanBody,
@@ -152,7 +155,7 @@ export default function FutureLetterComposer() {
         if (error) throw error;
         return ((data ?? {}) as RpcResult).letter_id ?? letterId;
       }
-      const { data, error } = await supabase.rpc('create_future_letter', {
+      const { data, error } = await client.rpc('create_future_letter', {
         p_family_id: family.id,
         p_recipient_user_id: recipientId,
         p_title: valid.cleanTitle,
@@ -187,10 +190,11 @@ export default function FutureLetterComposer() {
           text: 'Запечатать',
           onPress: () => void (async () => {
             const id = await save();
-            if (!id || !supabase) return;
+            const client = supabase;
+            if (!id || !client) return;
             setBusy(true);
             try {
-              const { error } = await supabase.rpc('seal_future_letter', { p_letter_id: id });
+              const { error } = await client.rpc('seal_future_letter', { p_letter_id: id });
               if (error) throw error;
               Alert.alert('Письмо запечатано ✉️', 'Теперь содержание будет ждать своей даты.', [{ text: 'Готово', onPress: () => router.replace('/letters') }]);
             } catch (caught) {
@@ -205,19 +209,26 @@ export default function FutureLetterComposer() {
   };
 
   const removeDraft = () => {
-    if (!letterId || !supabase) return;
+    const client = supabase;
+    if (!letterId || !client) return;
     Alert.alert('Удалить черновик?', 'Текст будет удалён без возможности восстановления.', [
       { text: 'Отмена', style: 'cancel' },
-      { text: 'Удалить', style: 'destructive', onPress: () => void (async () => {
-        setBusy(true);
-        try {
-          const { error } = await supabase.rpc('delete_future_letter_draft', { p_letter_id: letterId });
-          if (error) throw error;
-          router.replace('/letters');
-        } catch (caught) {
-          Alert.alert('Не удалось удалить', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
-        } finally { setBusy(false); }
-      })() },
+      {
+        text: 'Удалить',
+        style: 'destructive',
+        onPress: () => void (async () => {
+          setBusy(true);
+          try {
+            const { error } = await client.rpc('delete_future_letter_draft', { p_letter_id: letterId });
+            if (error) throw error;
+            router.replace('/letters');
+          } catch (caught) {
+            Alert.alert('Не удалось удалить', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
+          } finally {
+            setBusy(false);
+          }
+        })(),
+      },
     ]);
   };
 
