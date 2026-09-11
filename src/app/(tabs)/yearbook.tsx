@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import YearBookV2 from '../../screens/YearBookV2';
 import { colors, shadows } from '../../theme';
@@ -9,7 +9,9 @@ export default function YearBookTab() {
       <YearBookV2 />
       <View style={styles.quickArchive}>
         <Pressable style={[styles.archiveButton, styles.historyButton, shadows.lift]} onPress={() => router.push('/(tabs)/history')}>
-          <Text style={styles.historyIcon}>↺</Text>
+          <View style={styles.iconShell}>
+            <Image source={require('../../../assets/generated/nav-book.png')} style={styles.archiveImage} resizeMode="contain" />
+          </View>
           <View>
             <Text style={styles.archiveKicker}>АРХИВ</Text>
             <Text style={styles.archiveText}>История</Text>
@@ -19,7 +21,7 @@ export default function YearBookTab() {
           <Text style={styles.lettersIcon}>✉️</Text>
           <View>
             <Text style={styles.archiveKicker}>КАПСУЛА</Text>
-            <Text style={styles.archiveText}>Письма</Text>
+            <Text style={styles.lettersText}>Письма</Text>
           </View>
         </Pressable>
       </View>
@@ -37,25 +39,35 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   archiveButton: {
-    minHeight: 52,
+    minHeight: 54,
     borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
     borderWidth: 1,
   },
   historyButton: {
-    backgroundColor: colors.paper,
-    borderColor: '#D8E1DF',
+    backgroundColor: '#FFF8E9',
+    borderColor: '#EBCB86',
   },
   lettersButton: {
     backgroundColor: colors.navyDeep,
     borderColor: 'rgba(255,255,255,0.16)',
   },
-  historyIcon: { color: colors.teal, fontSize: 19, fontWeight: '900' },
+  iconShell: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.navyDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  archiveImage: { width: 33, height: 33 },
   lettersIcon: { fontSize: 19 },
-  archiveKicker: { color: '#8AA0A3', fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
-  archiveText: { color: colors.text, fontSize: 10, fontWeight: '900', marginTop: 1 },
+  archiveKicker: { color: '#9B7027', fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
+  archiveText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900', marginTop: 1 },
+  lettersText: { color: colors.white, fontSize: 10, fontWeight: '900', marginTop: 1 },
 });
