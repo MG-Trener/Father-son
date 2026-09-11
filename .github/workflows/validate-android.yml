@@ -43,10 +43,11 @@ jobs:
   preview-apk:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     needs: validate
     env:
-      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -93,15 +94,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          cache-read-only: false
 
-      - name: Runner capacity
-        run: |
-          echo "CPU: $(nproc)"
-          free -h
-          df -h .
-
-      - name: Build standalone preview APK
+      - name: Build ARM64 release APK
         working-directory: android
         shell: bash
         env:
@@ -118,9 +113,12 @@ jobs:
             SIGNING_ARGS+=("-Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD")
           fi
 
+          echo "Building only arm64-v8a for faster phone releases"
           ./gradlew :app:assembleRelease \
+            -PreactNativeArchitectures=arm64-v8a \
             --no-daemon \
             --max-workers=2 \
+            --build-cache \
             --stacktrace \
             --console=plain \
             "${SIGNING_ARGS[@]}" 2>&1 | tee ../gradle-build.log
@@ -160,6 +158,7 @@ jobs:
           echo "size_bytes=$SIZE_BYTES" >> "$GITHUB_OUTPUT"
           echo "storage_path=$STORAGE_PATH" >> "$GITHUB_OUTPUT"
           echo "release_asset=$RELEASE_ASSET" >> "$GITHUB_OUTPUT"
+          echo "APK size: $SIZE_BYTES bytes"
 
       - name: Publish versioned GitHub preview release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -182,15 +181,15 @@ jobs:
           fi
 
           if [ "$RELEASE_SIGNED" = "true" ]; then
-            SIGNING_NOTE="Подписано постоянным release-ключом; подходит для последующих обновлений поверх базовой production-установки."
+            SIGNING_NOTE="Подписано постоянным release-ключом; подходит для последующих обновлений."
           else
-            SIGNING_NOTE="Preview/debug-подпись; может потребоваться удалить предыдущую установку перед установкой этого APK."
+            SIGNING_NOTE="Preview/debug-подпись."
           fi
 
           cat > release-notes.md <<EOF
-          Предварительная Android-версия «Папа & Я» ${VERSION} (versionCode ${VERSION_CODE}).
+          Android-версия «Папа & Я» ${VERSION} (versionCode ${VERSION_CODE}).
 
-          APK собран автоматически из main после успешных Expo Doctor и TypeScript проверок.
+          Оптимизированная ARM64-сборка для современных Android-телефонов.
           SHA-256: ${SHA256}
           ${SIGNING_NOTE}
 
@@ -215,7 +214,7 @@ jobs:
         shell: bash
         run: |
           if [ -z "$SUPABASE_RELEASE_SECRET_KEY" ]; then
-            echo "SUPABASE_RELEASE_SECRET_KEY is not configured; GitHub preview release remains available."
+            echo "SUPABASE_RELEASE_SECRET_KEY is not configured; GitHub release remains available."
             exit 0
           fi
 
@@ -239,7 +238,7 @@ jobs:
               version_code: Number(process.env.VERSION_CODE),
               minimum_supported_code: 1,
               title: `Папа & Я ${process.env.VERSION}`,
-              notes: "Автоматическая Android-сборка из main, подписанная постоянным release-ключом.",
+              notes: "Автоматическая ARM64 Android-сборка из main, подписанная постоянным release-ключом.",
               download_url: null,
               storage_bucket: "app-releases",
               storage_path: process.env.STORAGE_PATH,
@@ -274,6 +273,7 @@ jobs:
           retention-days: 7
 
       - name: Upload preview APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: papa-i-ya-preview-${{ steps.release_meta.outputs.version }}
