@@ -50,9 +50,10 @@ const TabGlyph = ({ symbol, focused, accent = colors.navy, prominent = false }: 
 
 export default function TabsLayout() {
   const { session, loading: authLoading } = useAuth();
-  const { family, loading: familyLoading } = useFamily();
+  const { family, me, loading: familyLoading } = useFamily();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 8);
+  const isChild = me?.role === 'child';
 
   if (authLoading || (session && familyLoading)) {
     return <TeamLoadingScene topInset={insets.top} bottomInset={insets.bottom} />;
@@ -90,8 +91,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="development"
         options={{
-          title: 'Развитие',
-          tabBarIcon: ({ focused }) => <TabGlyph symbol="↗" focused={focused} accent={colors.green} />,
+          title: isChild ? 'Мой путь' : 'Развитие',
+          tabBarIcon: ({ focused }) => <TabGlyph symbol="↗" focused={focused} accent={isChild ? colors.orange : colors.green} />,
         }}
       />
       <Tabs.Screen
@@ -111,7 +112,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="us"
         options={{
-          title: 'Мы',
+          title: isChild ? 'Команда' : 'Мы',
           tabBarIcon: ({ focused }) => <TabGlyph symbol="●" focused={focused} accent={colors.tealBright} />,
         }}
       />
