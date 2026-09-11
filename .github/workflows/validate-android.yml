@@ -46,6 +46,10 @@ jobs:
     needs: validate
     env:
       GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -67,6 +71,23 @@ jobs:
       - name: Generate Android project
         run: CI=1 npx expo prebuild --platform android
 
+      - name: Configure persistent release signing
+        id: signing
+        shell: bash
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] \
+            && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] \
+            && [ -n "$ANDROID_KEY_ALIAS" ] \
+            && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+            chmod 600 android/app/release.keystore
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Persistent Android release signing is configured."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Release-signing secrets are not configured; build will remain preview/debug signed."
+          fi
+
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v6
         with:
@@ -81,10 +102,45 @@ jobs:
 
       - name: Build standalone preview APK
         working-directory: android
+        shell: bash
+        env:
+          SIGNING_READY: ${{ steps.signing.outputs.ready }}
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew :app:assembleRelease --no-daemon --max-workers=2 --stacktrace --console=plain 2>&1 | tee ../gradle-build.log
+
+          SIGNING_ARGS=()
+          if [ "$SIGNING_READY" = "true" ]; then
+            SIGNING_ARGS+=("-Pandroid.injected.signing.store.file=$PWD/app/release.keystore")
+            SIGNING_ARGS+=("-Pandroid.injected.signing.store.password=$ANDROID_KEYSTORE_PASSWORD")
+            SIGNING_ARGS+=("-Pandroid.injected.signing.key.alias=$ANDROID_KEY_ALIAS")
+            SIGNING_ARGS+=("-Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD")
+          fi
+
+          ./gradlew :app:assembleRelease \
+            --no-daemon \
+            --max-workers=2 \
+            --stacktrace \
+            --console=plain \
+            "${SIGNING_ARGS[@]}" 2>&1 | tee ../gradle-build.log
+
+      - name: Verify APK signing identity
+        id: signing_check
+        shell: bash
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          BUILD_TOOLS_VERSION="$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner"
+          CERT_INFO="$($APKSIGNER verify --print-certs "$APK")"
+          echo "$CERT_INFO"
+
+          if echo "$CERT_INFO" | grep -qi 'Android Debug'; then
+            echo "release_signed=false" >> "$GITHUB_OUTPUT"
+            echo "APK is debug signed. It can be used for preview installs, but not as a stable in-place update."
+          else
+            echo "release_signed=true" >> "$GITHUB_OUTPUT"
+            echo "APK uses the persistent release signing identity."
+          fi
 
       - name: Prepare release metadata
         id: release_meta
@@ -112,6 +168,7 @@ jobs:
           VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
           SHA256: ${{ steps.release_meta.outputs.sha256 }}
           RELEASE_ASSET: ${{ steps.release_meta.outputs.release_asset }}
+          RELEASE_SIGNED: ${{ steps.signing_check.outputs.release_signed }}
         shell: bash
         run: |
           TAG="android-v${VERSION_CODE}"
@@ -123,11 +180,18 @@ jobs:
             exit 0
           fi
 
+          if [ "$RELEASE_SIGNED" = "true" ]; then
+            SIGNING_NOTE="Подписано постоянным release-ключом; подходит для последующих обновлений поверх базовой production-установки."
+          else
+            SIGNING_NOTE="Preview/debug-подпись; может потребоваться удалить предыдущую установку перед установкой этого APK."
+          fi
+
           cat > release-notes.md <<EOF
           Предварительная Android-версия «Папа & Я» ${VERSION} (versionCode ${VERSION_CODE}).
 
           APK собран автоматически из main после успешных Expo Doctor и TypeScript проверок.
           SHA-256: ${SHA256}
+          ${SIGNING_NOTE}
 
           Канал: preview.
           EOF
@@ -139,7 +203,7 @@ jobs:
             --prerelease
 
       - name: Publish APK to private Supabase Storage
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.signing_check.outputs.release_signed == 'true'
         env:
           SUPABASE_RELEASE_SECRET_KEY: ${{ secrets.SUPABASE_RELEASE_SECRET_KEY }}
           VERSION: ${{ steps.release_meta.outputs.version }}
@@ -155,15 +219,6 @@ jobs:
           fi
 
           APK="android/app/build/outputs/apk/release/app-release.apk"
-          BUILD_TOOLS_VERSION="$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
-          APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner"
-          CERT_INFO="$($APKSIGNER verify --print-certs "$APK")"
-          echo "$CERT_INFO"
-          if echo "$CERT_INFO" | grep -qi 'Android Debug'; then
-            echo "APK is still debug-signed. Refusing to publish it as an application update."
-            exit 0
-          fi
-
           BASE_URL="$EXPO_PUBLIC_SUPABASE_URL"
 
           curl --fail-with-body --silent --show-error \
@@ -183,7 +238,7 @@ jobs:
               version_code: Number(process.env.VERSION_CODE),
               minimum_supported_code: 1,
               title: `Папа & Я ${process.env.VERSION}`,
-              notes: "Автоматическая Android-сборка из main.",
+              notes: "Автоматическая Android-сборка из main, подписанная постоянным release-ключом.",
               download_url: null,
               storage_bucket: "app-releases",
               storage_path: process.env.STORAGE_PATH,
@@ -203,6 +258,10 @@ jobs:
             --header "Content-Type: application/json" \
             --header "Prefer: resolution=merge-duplicates,return=minimal" \
             --data "$RELEASE_JSON"
+
+      - name: Clean signing material
+        if: always()
+        run: rm -f android/app/release.keystore
 
       - name: Upload Gradle log
         if: always()
