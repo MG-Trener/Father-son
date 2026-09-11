@@ -48,8 +48,12 @@ async function splitHorizontalStrip(file, names, prefix, targetSize) {
     const right = Math.floor((metadata.width * (index + 1)) / names.length);
     const width = Math.max(1, right - left);
 
-    await png(file)
+    const crop = await png(file)
       .extract({ left, top: 0, width, height: metadata.height })
+      .png()
+      .toBuffer();
+
+    await sharp(crop)
       .trim({ threshold: 8 })
       .resize(targetSize, targetSize, { fit: 'contain', background: transparent })
       .png({ compressionLevel: 9 })
@@ -85,8 +89,12 @@ async function splitGrid(file, names, columns, rows, prefix, targetSize) {
     const top = Math.floor((metadata.height * row) / rows);
     const bottom = Math.floor((metadata.height * (row + 1)) / rows);
 
-    await png(file)
+    const crop = await png(file)
       .extract({ left, top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) })
+      .png()
+      .toBuffer();
+
+    await sharp(crop)
       .trim({ threshold: 8 })
       .resize(targetSize, targetSize, { fit: 'contain', background: transparent })
       .png({ compressionLevel: 9 })
