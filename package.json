@@ -4,6 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
+    "postinstall": "node scripts/generate-splash-asset.mjs",
     "start": "expo start",
     "android": "expo start --android",
     "web": "expo start --web",
