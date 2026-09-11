@@ -7,7 +7,7 @@ const tools: HubTool[] = [
     route: '/today', base: '#E5F0F2', ink: '#2D6D73', wide: true,
   },
   {
-    icon: '?', eyebrow: 'РАЗГОВОР', title: 'Карточки',
+    image: require('../../assets/generated/nav-together.png'), eyebrow: 'РАЗГОВОР', title: 'Карточки',
     text: 'Один вопрос, чтобы узнать друг друга ещё немного лучше.',
     route: '/conversation-cards', base: '#EDE8F7', ink: '#66579C',
   },
