@@ -8,6 +8,10 @@ export default function TogetherTab() {
     <View style={styles.root}>
       <TogetherV2 />
       <View style={styles.quickDock}>
+        <Pressable style={[styles.quickButton, styles.ritualButton, shadows.lift]} onPress={() => router.push('/rituals')}>
+          <Text style={styles.ritualIcon}>∞</Text>
+          <Text style={styles.ritualText}>Ритуалы</Text>
+        </Pressable>
         <Pressable style={[styles.quickButton, styles.recognitionButton, shadows.lift]} onPress={() => router.push('/recognitions')}>
           <Text style={styles.recognitionIcon}>✦</Text>
           <Text style={styles.recognitionText}>Я заметил</Text>
@@ -39,8 +43,11 @@ const styles = StyleSheet.create({
     gap: 7,
     borderWidth: 1,
   },
+  ritualButton: { backgroundColor: '#FFF0D2', borderColor: '#E9D2A5' },
   recognitionButton: { backgroundColor: '#F4EAF7', borderColor: '#D9C9E7' },
   pulseButton: { backgroundColor: colors.navy, borderColor: colors.navy },
+  ritualIcon: { color: '#A7751E', fontSize: 14, fontWeight: '900' },
+  ritualText: { color: '#805B1E', fontSize: 11, fontWeight: '900' },
   recognitionIcon: { color: colors.purple, fontSize: 13, fontWeight: '900' },
   recognitionText: { color: colors.purple, fontSize: 11, fontWeight: '900' },
   pulseIcon: { color: colors.sun, fontSize: 13, fontWeight: '900' },
