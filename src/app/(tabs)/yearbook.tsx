@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { useFamily } from '../../context/FamilyContext';
 import { supabase } from '../../lib/supabase';
 import { colors, gradients, radius, shadows } from '../../theme';
@@ -44,6 +45,7 @@ type AwardDefinition = {
 
 type ActivityEvent = {
   id: string;
+  actor_user_id: string | null;
   event_type: string;
   occurred_at: string;
   payload: unknown;
@@ -66,7 +68,22 @@ type CategoryMeta = {
   text: string;
 };
 
+type AnnualPrompt = {
+  id: string;
+  icon: string;
+  title: string;
+  question: string;
+  note: string;
+};
+
 const chapterAges = [11, 12, 13, 14, 15, 16, 17] as const;
+
+const annualPrompts: AnnualPrompt[] = [
+  { id: 'proud', icon: '★', title: 'Гордость года', question: 'Чем я горжусь в этом году?', note: 'Не обязательно достижением. Это может быть поступок, усилие или момент, когда не сдался.' },
+  { id: 'hard', icon: '↟', title: 'Сложный момент', question: 'Что было самым сложным?', note: 'Что потребовало больше всего сил, терпения или смелости?' },
+  { id: 'learned', icon: '◇', title: 'Главный рост', question: 'Чему я научился?', note: 'Навык, вывод о себе, новое понимание людей или жизни.' },
+  { id: 'next', icon: '→', title: 'В следующий год', question: 'Что я хочу попробовать дальше?', note: 'Не обещание и не обязанность — просто направление, которое сейчас интересно.' },
+];
 
 const categoryMeta: Record<string, CategoryMeta> = {
   school: { title: 'Школа', icon: '✎', accent: '#DCE7F6', strong: '#477FA3', text: '#27465F' },
@@ -87,6 +104,8 @@ const payloadText = (payload: unknown, key: string) => {
   const value = payloadRecord(payload)[key];
   return typeof value === 'string' ? value : null;
 };
+
+const annualPromptKey = (question: string, age: number) => `${question} · Книга года ${age}`;
 
 const addYears = (date: Date, years: number) => {
   const result = new Date(date);
@@ -128,8 +147,9 @@ const eventTitle = (event: ActivityEvent) => {
   const title = payloadText(event.payload, 'title');
   const preview = payloadText(event.payload, 'preview');
   const message = payloadText(event.payload, 'message');
-  if (event.event_type === 'voice_story_added') return { title: title || 'Голосовая история', detail: preview };
-  if (event.event_type === 'reflection_added') return { title: title || 'Сохранили важный момент', detail: preview };
+  const prompt = payloadText(event.payload, 'prompt');
+  if (event.event_type === 'voice_story_added') return { title: title || (prompt ? 'Голосовой ответ' : 'Голосовая история'), detail: preview };
+  if (event.event_type === 'reflection_added') return { title: prompt ? 'Ответ для книги года' : 'Сохранили важный момент', detail: preview };
   if (event.event_type === 'five_minutes_ping') return { title: 'Нашли пять минут друг для друга', detail: null };
   if (event.event_type === 'advice_requested') return { title: 'Попросили совета', detail: message };
   if (event.event_type === 'connection_response') return { title: 'Ответили друг другу', detail: null };
@@ -137,7 +157,7 @@ const eventTitle = (event: ActivityEvent) => {
 };
 
 export default function YearBookScreen() {
-  const { family, members } = useFamily();
+  const { family, members, me } = useFamily();
   const child = useMemo(() => members.find((member) => member.role === 'child') ?? members[0] ?? null, [members]);
   const currentAge = ageFromBirthDate(child?.birth_date ?? null);
   const [selectedAge, setSelectedAge] = useState(currentAge);
@@ -163,7 +183,7 @@ export default function YearBookScreen() {
       supabase.from('missions').select('id,category,title,completed_at').eq('family_id', family.id).eq('status', 'completed').order('completed_at', { ascending: false }).limit(300),
       supabase.from('achievement_awards').select('id,definition_id,awarded_at').eq('family_id', family.id).eq('recipient_user_id', child.user_id).order('awarded_at', { ascending: false }).limit(200),
       supabase.from('achievement_definitions').select('id,title,category'),
-      supabase.from('activity_events').select('id,event_type,occurred_at,payload').eq('family_id', family.id).in('event_type', ['voice_story_added', 'reflection_added', 'five_minutes_ping', 'advice_requested', 'connection_response']).order('occurred_at', { ascending: false }).limit(400),
+      supabase.from('activity_events').select('id,actor_user_id,event_type,occurred_at,payload').eq('family_id', family.id).in('event_type', ['voice_story_added', 'reflection_added', 'five_minutes_ping', 'advice_requested', 'connection_response']).order('occurred_at', { ascending: false }).limit(500),
     ]);
 
     const error = growthResult.error ?? missionsResult.error ?? awardsResult.error ?? definitionsResult.error ?? eventsResult.error;
@@ -232,11 +252,38 @@ export default function YearBookScreen() {
     return counts;
   }, [chapterItems]);
 
+  const annualAnswers = useMemo(() => {
+    const result = new Map<string, Set<string>>();
+    for (const prompt of annualPrompts) {
+      const key = annualPromptKey(prompt.question, selectedAge);
+      const answeredBy = new Set<string>();
+      for (const event of events) {
+        if ((event.event_type === 'reflection_added' || event.event_type === 'voice_story_added')
+          && payloadText(event.payload, 'prompt') === key
+          && event.actor_user_id) {
+          answeredBy.add(event.actor_user_id);
+        }
+      }
+      result.set(prompt.id, answeredBy);
+    }
+    return result;
+  }, [events, selectedAge]);
+
   const awardCount = useMemo(() => chapterItems.filter((item) => item.kind === 'award').length, [chapterItems]);
   const missionCount = useMemo(() => chapterItems.filter((item) => item.kind === 'mission').length, [chapterItems]);
+  const annualAnswerCount = useMemo(() => Array.from(annualAnswers.values()).reduce((sum, set) => sum + set.size, 0), [annualAnswers]);
+  const canReflect = selectedAge <= currentAge;
   const startLabel = start.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
   const endDisplay = new Date(end); endDisplay.setDate(endDisplay.getDate() - 1);
   const endLabel = endDisplay.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const answerPrompt = (prompt: AnnualPrompt) => {
+    if (!canReflect) return;
+    router.push({
+      pathname: '/reflection-new',
+      params: { prompt: annualPromptKey(prompt.question, selectedAge) },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -285,6 +332,57 @@ export default function YearBookScreen() {
                   <Text style={[styles.categoryCount, { color: meta.text }]}>{categoryCounts.get(id) ?? 0} моментов</Text>
                 </View>
               ))}
+            </View>
+
+            <View style={styles.sectionHead}>
+              <View><Text style={styles.sectionKicker}>ЛИЧНЫЕ ИТОГИ</Text><Text style={styles.sectionTitle}>Два голоса об одном годе</Text></View>
+              <Text style={styles.sectionCount}>{annualAnswerCount}/{annualPrompts.length * Math.max(1, members.length)}</Text>
+            </View>
+
+            <View style={[styles.reflectionIntro, shadows.soft]}>
+              <View style={styles.reflectionIntroIcon}><Text style={styles.reflectionIntroIconText}>∞</Text></View>
+              <View style={styles.reflectionIntroBody}>
+                <Text style={styles.reflectionIntroTitle}>Михаил и Артур отвечают каждый от себя</Text>
+                <Text style={styles.reflectionIntroText}>Можно написать или записать голосом. Ответ не заменяет прошлый: спустя годы будет интересно услышать именно тот голос и те мысли.</Text>
+              </View>
+            </View>
+
+            <View style={styles.promptList}>
+              {annualPrompts.map((prompt) => {
+                const answeredBy = annualAnswers.get(prompt.id) ?? new Set<string>();
+                const meAnswered = me ? answeredBy.has(me.user_id) : false;
+                return (
+                  <View key={prompt.id} style={[styles.promptCard, shadows.soft]}>
+                    <View style={styles.promptHead}>
+                      <View style={styles.promptIcon}><Text style={styles.promptIconText}>{prompt.icon}</Text></View>
+                      <View style={styles.promptHeadText}>
+                        <Text style={styles.promptKicker}>{prompt.title.toUpperCase()}</Text>
+                        <Text style={styles.promptQuestion}>{prompt.question}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.promptNote}>{prompt.note}</Text>
+                    <View style={styles.memberStatuses}>
+                      {members.map((member) => {
+                        const answered = answeredBy.has(member.user_id);
+                        return (
+                          <View key={member.user_id} style={[styles.memberPill, answered && styles.memberPillDone]}>
+                            <Text style={[styles.memberDot, answered && styles.memberDotDone]}>{answered ? '✓' : '○'}</Text>
+                            <Text style={[styles.memberName, answered && styles.memberNameDone]}>{member.display_name}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                    {canReflect ? (
+                      <Pressable style={[styles.answerButton, meAnswered && styles.answerButtonRepeat]} onPress={() => answerPrompt(prompt)}>
+                        <Text style={[styles.answerButtonText, meAnswered && styles.answerButtonTextRepeat]}>{meAnswered ? 'Добавить ещё одну мысль' : 'Ответить текстом или голосом'}</Text>
+                        <Text style={[styles.answerArrow, meAnswered && styles.answerButtonTextRepeat]}>→</Text>
+                      </Pressable>
+                    ) : (
+                      <View style={styles.futurePrompt}><Text style={styles.futurePromptText}>Эта глава откроется, когда наступит этот возраст.</Text></View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
 
             <View style={styles.sectionHead}>
@@ -354,6 +452,32 @@ const styles = StyleSheet.create({
   categoryIconText: { color: colors.white, fontSize: 15, fontWeight: '900' },
   categoryTitle: { fontSize: 16, fontWeight: '900', marginTop: 12 },
   categoryCount: { fontSize: 9, fontWeight: '800', marginTop: 4, opacity: 0.8 },
+  reflectionIntro: { flexDirection: 'row', gap: 13, backgroundColor: colors.paper, borderRadius: radius.xl, padding: 17, borderWidth: 1, borderColor: colors.lineWarm },
+  reflectionIntroIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center' },
+  reflectionIntroIconText: { color: colors.purple, fontSize: 21, fontWeight: '900' },
+  reflectionIntroBody: { flex: 1 },
+  reflectionIntroTitle: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
+  reflectionIntroText: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 5 },
+  promptList: { gap: 11 },
+  promptCard: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 17, borderWidth: 1, borderColor: colors.lineWarm },
+  promptHead: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  promptIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center' },
+  promptIconText: { color: '#A9701D', fontSize: 17, fontWeight: '900' },
+  promptHeadText: { flex: 1 },
+  promptKicker: { color: colors.orange, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  promptQuestion: { color: colors.navyDeep, fontSize: 17, lineHeight: 22, fontWeight: '900', marginTop: 3 },
+  promptNote: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 11 },
+  memberStatuses: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 13 },
+  memberPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.pill, backgroundColor: colors.sand, borderWidth: 1, borderColor: colors.lineWarm, paddingHorizontal: 9, paddingVertical: 6 },
+  memberPillDone: { backgroundColor: colors.mint, borderColor: '#B7DCC7' },
+  memberDot: { color: colors.mutedSoft, fontSize: 10, fontWeight: '900' }, memberDotDone: { color: colors.green },
+  memberName: { color: colors.muted, fontSize: 9, fontWeight: '900' }, memberNameDone: { color: '#2F6B50' },
+  answerButton: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.navy, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 14, paddingHorizontal: 14 },
+  answerButtonRepeat: { backgroundColor: colors.sandWarm, borderWidth: 1, borderColor: colors.lineWarm },
+  answerButtonText: { color: colors.white, fontSize: 11, fontWeight: '900' }, answerButtonTextRepeat: { color: colors.navyDeep },
+  answerArrow: { color: colors.white, fontSize: 17, fontWeight: '900' },
+  futurePrompt: { marginTop: 14, borderRadius: radius.md, backgroundColor: colors.sand, padding: 12 },
+  futurePromptText: { color: colors.muted, fontSize: 9, lineHeight: 14, textAlign: 'center', fontWeight: '800' },
   timeline: { gap: 0 }, timelineRow: { flexDirection: 'row' }, rail: { width: 26, alignItems: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5, marginTop: 18 }, line: { width: 1, flex: 1, minHeight: 72, backgroundColor: colors.line },
   itemCard: { flex: 1, backgroundColor: colors.paper, borderRadius: radius.lg, padding: 14, marginBottom: 10 },
