@@ -8,6 +8,10 @@ export default function UsTab() {
     <View style={styles.root}>
       <UsV2 />
       <View style={styles.dock}>
+        <Pressable style={[styles.tool, styles.eventsButton, shadows.lift]} onPress={() => router.push('/notifications')}>
+          <View style={[styles.icon, styles.eventsIcon]}><Text style={styles.eventsIconText}>•</Text></View>
+          <View><Text style={styles.eventsKicker}>НЕ ПРОПУСТИТЬ</Text><Text style={styles.eventsText}>События</Text></View>
+        </Pressable>
         <Pressable style={[styles.tool, styles.guideButton, shadows.lift]} onPress={() => router.push('/onboarding')}>
           <View style={[styles.icon, styles.guideIcon]}><Text style={styles.guideIconText}>?</Text></View>
           <View><Text style={styles.guideKicker}>КАК УСТРОЕНО</Text><Text style={styles.guideText}>Короткое знакомство</Text></View>
@@ -24,11 +28,16 @@ export default function UsTab() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   dock: { position: 'absolute', right: 16, bottom: 14, alignItems: 'flex-end', gap: 7 },
-  tool: { minHeight: 47, borderRadius: 18, paddingHorizontal: 11, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1 },
+  tool: { minHeight: 45, borderRadius: 18, paddingHorizontal: 11, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1 },
+  eventsButton: { backgroundColor: '#F7E8EE', borderColor: '#E8CAD6' },
   guideButton: { backgroundColor: '#E6F0F2', borderColor: '#CADFE3' },
   agreementButton: { backgroundColor: '#FFF0CF', borderColor: '#E9D7AC' },
-  icon: { width: 31, height: 31, borderRadius: 11, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
-  iconText: { fontSize: 15 },
+  icon: { width: 30, height: 30, borderRadius: 11, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  iconText: { fontSize: 14 },
+  eventsIcon: { backgroundColor: colors.coral },
+  eventsIconText: { color: colors.white, fontSize: 19, fontWeight: '900', lineHeight: 20 },
+  eventsKicker: { color: '#9B5660', fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
+  eventsText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900', marginTop: 1 },
   guideIcon: { backgroundColor: colors.navyDeep },
   guideIconText: { color: colors.sun, fontSize: 14, fontWeight: '900' },
   guideKicker: { color: colors.teal, fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
