@@ -17,6 +17,7 @@ export type FamilyMember = {
   display_name: string;
   birth_date: string | null;
   joined_at: string;
+  onboarding_completed_at: string | null;
 };
 
 export type FamilyTeam = {
@@ -65,7 +66,7 @@ export function FamilyProvider({ children }: PropsWithChildren) {
     try {
       const { data: membership, error: membershipError } = await supabase
         .from('family_members')
-        .select('family_id,user_id,role,display_name,birth_date,joined_at')
+        .select('family_id,user_id,role,display_name,birth_date,joined_at,onboarding_completed_at')
         .eq('user_id', session.user.id)
         .maybeSingle();
 
@@ -86,7 +87,7 @@ export function FamilyProvider({ children }: PropsWithChildren) {
           .single(),
         supabase
           .from('family_members')
-          .select('family_id,user_id,role,display_name,birth_date,joined_at')
+          .select('family_id,user_id,role,display_name,birth_date,joined_at,onboarding_completed_at')
           .eq('family_id', membership.family_id)
           .order('joined_at', { ascending: true }),
       ]);
