@@ -5,22 +5,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
+import { notifyFamilyEvent } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
 import { colors, gradients, radius, shadows } from '../theme';
 
 type Agreement = { id: string; created_by: string; title: string; note: string | null; created_at: string; archived_at: string | null };
 type Confirmation = { agreement_id: string; user_id: string; confirmed_at: string };
+const eventIdFromRpc = (data: unknown) => data && typeof data === 'object' && !Array.isArray(data) && typeof (data as Record<string, unknown>).event_id === 'string' ? (data as Record<string, unknown>).event_id as string : null;
 
 export default function AgreementsScreen() {
   const { session } = useAuth();
   const { family, members } = useFamily();
-  const [agreements, setAgreements] = useState<Agreement[]>([]);
-  const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
-  const [title, setTitle] = useState('');
-  const [note, setNote] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [agreements, setAgreements] = useState<Agreement[]>([]); const [confirmations, setConfirmations] = useState<Confirmation[]>([]); const [title, setTitle] = useState(''); const [note, setNote] = useState(''); const [loading, setLoading] = useState(true); const [creating, setCreating] = useState(false); const [busyId, setBusyId] = useState<string | null>(null);
   const names = useMemo(() => new Map(members.map((m) => [m.user_id, m.display_name])), [members]);
 
   const load = useCallback(async () => {
@@ -30,11 +26,7 @@ export default function AgreementsScreen() {
     if (error) { Alert.alert('Не удалось загрузить договорённости', error.message); setLoading(false); return; }
     const rows = (data ?? []) as Agreement[]; setAgreements(rows);
     const ids = rows.map((r) => r.id);
-    if (!ids.length) setConfirmations([]);
-    else {
-      const result = await client.from('family_agreement_confirmations').select('agreement_id,user_id,confirmed_at').in('agreement_id', ids);
-      if (!result.error) setConfirmations((result.data ?? []) as Confirmation[]);
-    }
+    if (!ids.length) setConfirmations([]); else { const result = await client.from('family_agreement_confirmations').select('agreement_id,user_id,confirmed_at').in('agreement_id', ids); if (!result.error) setConfirmations((result.data ?? []) as Confirmation[]); }
     setLoading(false);
   }, [family]);
   useEffect(() => { void load(); }, [load]);
@@ -42,46 +34,28 @@ export default function AgreementsScreen() {
   const confirmationsFor = (id: string) => confirmations.filter((c) => c.agreement_id === id);
   const active = (id: string) => members.length >= 2 && confirmationsFor(id).length >= members.length;
   const mine = (id: string) => confirmationsFor(id).some((c) => c.user_id === session?.user.id);
-  const open = agreements.filter((a) => !a.archived_at);
-  const archived = agreements.filter((a) => a.archived_at).slice(0, 6);
-  const activeCount = open.filter((a) => active(a.id)).length;
+  const open = agreements.filter((a) => !a.archived_at); const archived = agreements.filter((a) => a.archived_at).slice(0, 6); const activeCount = open.filter((a) => active(a.id)).length;
 
   const createAgreement = async () => {
     const client = supabase;
     if (!client || !family || !session || creating) return;
-    const clean = title.trim();
-    if (clean.length < 3) { Alert.alert('Слишком коротко', 'Сформулируй договорённость хотя бы несколькими словами.'); return; }
+    const clean = title.trim(); if (clean.length < 3) { Alert.alert('Слишком коротко', 'Сформулируй договорённость хотя бы несколькими словами.'); return; }
     setCreating(true);
-    try {
-      const { error } = await client.rpc('create_family_agreement', { p_family_id: family.id, p_title: clean, p_note: note.trim() || null });
-      if (error) throw error;
-      setTitle(''); setNote(''); await load();
-    } catch (e) { Alert.alert('Не удалось предложить', e instanceof Error ? e.message : 'Попробуй ещё раз.'); }
-    finally { setCreating(false); }
+    try { const { data, error } = await client.rpc('create_family_agreement', { p_family_id: family.id, p_title: clean, p_note: note.trim() || null }); if (error) throw error; const eventId = eventIdFromRpc(data); if (eventId) void notifyFamilyEvent(eventId); setTitle(''); setNote(''); await load(); }
+    catch (e) { Alert.alert('Не удалось предложить', e instanceof Error ? e.message : 'Попробуй ещё раз.'); } finally { setCreating(false); }
   };
 
   const confirm = async (agreement: Agreement) => {
-    const client = supabase;
-    if (!client || busyId) return;
-    setBusyId(agreement.id);
-    try { const { error } = await client.rpc('confirm_family_agreement', { p_agreement_id: agreement.id }); if (error) throw error; await load(); }
-    catch (e) { Alert.alert('Не удалось подтвердить', e instanceof Error ? e.message : 'Попробуй ещё раз.'); }
-    finally { setBusyId(null); }
+    const client = supabase; if (!client || busyId) return; setBusyId(agreement.id);
+    try { const { data, error } = await client.rpc('confirm_family_agreement', { p_agreement_id: agreement.id }); if (error) throw error; const eventId = eventIdFromRpc(data); if (eventId) void notifyFamilyEvent(eventId); await load(); }
+    catch (e) { Alert.alert('Не удалось подтвердить', e instanceof Error ? e.message : 'Попробуй ещё раз.'); } finally { setBusyId(null); }
   };
 
   const askArchive = (agreement: Agreement) => {
-    const client = supabase;
-    if (!client || busyId) return;
+    const client = supabase; if (!client || busyId) return;
     Alert.alert('Убрать договорённость?', 'Она останется в истории, но перестанет считаться действующей.', [
       { text: 'Отмена', style: 'cancel' },
-      { text: 'Убрать', style: 'destructive', onPress: () => {
-        void (async () => {
-          setBusyId(agreement.id);
-          try { const { error } = await client.rpc('archive_family_agreement', { p_agreement_id: agreement.id }); if (error) throw error; await load(); }
-          catch (e) { Alert.alert('Не удалось убрать', e instanceof Error ? e.message : 'Попробуй ещё раз.'); }
-          finally { setBusyId(null); }
-        })();
-      } },
+      { text: 'Убрать', style: 'destructive', onPress: () => { void (async () => { setBusyId(agreement.id); try { const { error } = await client.rpc('archive_family_agreement', { p_agreement_id: agreement.id }); if (error) throw error; await load(); } catch (e) { Alert.alert('Не удалось убрать', e instanceof Error ? e.message : 'Попробуй ещё раз.'); } finally { setBusyId(null); } })(); } },
     ]);
   };
 
@@ -89,15 +63,9 @@ export default function AgreementsScreen() {
   return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
     <View style={styles.top}><Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable><View><Text style={styles.topKicker}>КОМАНДА</Text><Text style={styles.topTitle}>Наши договорённости</Text></View></View>
     <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}><Text style={styles.heroKicker}>НЕ ПРАВИЛА · А ВЗАИМНОЕ СОГЛАСИЕ</Text><Text style={styles.heroTitle}>То, о чём мы договорились друг с другом.</Text><Text style={styles.heroText}>Предложение становится общим только после подтверждения обоих. Любой из вас может позже снять своё согласие.</Text><View style={styles.stats}><View><Text style={styles.statValue}>{activeCount}</Text><Text style={styles.statLabel}>действуют</Text></View><View style={styles.divider} /><View><Text style={styles.statValue}>{open.length - activeCount}</Text><Text style={styles.statLabel}>ждут согласия</Text></View></View></LinearGradient>
-
     <View style={[styles.create, shadows.soft]}><Text style={styles.kicker}>ПРЕДЛОЖИТЬ</Text><Text style={styles.sectionTitle}>Новая договорённость</Text><Text style={styles.helper}>Предложив её, ты сразу подтверждаешь своё согласие. После отправки текст не меняется.</Text><TextInput value={title} onChangeText={setTitle} maxLength={140} placeholder="Например: если злимся — говорим, когда вернёмся к разговору" placeholderTextColor={colors.mutedSoft} style={styles.input} /><TextInput value={note} onChangeText={setNote} maxLength={1200} multiline textAlignVertical="top" placeholder="Почему это важно? Необязательно." placeholderTextColor={colors.mutedSoft} style={[styles.input, styles.note]} /><Pressable disabled={creating} onPress={() => void createAgreement()} style={[styles.primary, creating && { opacity: 0.5 }]}>{creating ? <ActivityIndicator color={colors.white} /> : <Text style={styles.primaryText}>Предложить друг другу →</Text>}</Pressable></View>
-
     <View style={styles.sectionHead}><View><Text style={styles.kicker}>МЕЖДУ НАМИ</Text><Text style={styles.sectionTitle}>Сейчас</Text></View><View style={styles.count}><Text style={styles.countText}>{open.length}</Text></View></View>
-    {open.length ? open.map((a) => {
-      const yes = confirmationsFor(a.id); const isActive = active(a.id); const myYes = mine(a.id); const creator = names.get(a.created_by) ?? 'Участник';
-      return <View key={a.id} style={[styles.card, isActive && styles.cardActive, shadows.soft]}><View style={styles.rowBetween}><View style={[styles.badge, isActive ? styles.badgeActive : styles.badgeWait]}><Text style={[styles.badgeText, { color: isActive ? colors.green : '#9A6A1B' }]}>{isActive ? 'НАША ДОГОВОРЁННОСТЬ' : 'ЖДЁМ СОГЛАСИЯ'}</Text></View><Pressable disabled={busyId === a.id} onPress={() => askArchive(a)}><Text style={styles.archive}>Убрать</Text></Pressable></View><Text style={styles.agreementTitle}>{a.title}</Text>{a.note ? <Text style={styles.copy}>{a.note}</Text> : null}<Text style={styles.proposed}>Предложил: {creator}</Text><View style={styles.people}>{members.map((m) => { const ok = yes.some((c) => c.user_id === m.user_id); return <View key={m.user_id} style={styles.person}><View style={[styles.avatar, ok && styles.avatarYes]}><Text style={{ color: ok ? colors.green : colors.muted, fontWeight: '900' }}>{m.display_name.slice(0, 1).toUpperCase()}</Text></View><View><Text style={styles.personName}>{m.display_name}</Text><Text style={[styles.personState, ok && { color: colors.green }]}>{ok ? 'согласен ✓' : 'ещё не подтвердил'}</Text></View></View>; })}</View>{!myYes ? <Pressable disabled={busyId === a.id} onPress={() => void confirm(a)} style={[styles.confirm, busyId === a.id && { opacity: 0.5 }]}>{busyId === a.id ? <ActivityIndicator color={colors.white} /> : <Text style={styles.confirmText}>Я согласен с этим 🤝</Text>}</Pressable> : !isActive ? <Text style={styles.waiting}>Твоё согласие уже есть. Теперь решение за вторым участником.</Text> : null}</View>;
-    }) : <View style={styles.empty}><Text style={styles.emptyIcon}>🤝</Text><Text style={styles.emptyTitle}>Пока без формальных договорённостей</Text><Text style={styles.copy}>Они нужны только там, где помогают быть понятнее друг другу.</Text></View>}
-
+    {open.length ? open.map((a) => { const yes = confirmationsFor(a.id); const isActive = active(a.id); const myYes = mine(a.id); const creator = names.get(a.created_by) ?? 'Участник'; return <View key={a.id} style={[styles.card, isActive && styles.cardActive, shadows.soft]}><View style={styles.rowBetween}><View style={[styles.badge, isActive ? styles.badgeActive : styles.badgeWait]}><Text style={[styles.badgeText, { color: isActive ? colors.green : '#9A6A1B' }]}>{isActive ? 'НАША ДОГОВОРЁННОСТЬ' : 'ЖДЁМ СОГЛАСИЯ'}</Text></View><Pressable disabled={busyId === a.id} onPress={() => askArchive(a)}><Text style={styles.archive}>Убрать</Text></Pressable></View><Text style={styles.agreementTitle}>{a.title}</Text>{a.note ? <Text style={styles.copy}>{a.note}</Text> : null}<Text style={styles.proposed}>Предложил: {creator}</Text><View style={styles.people}>{members.map((m) => { const ok = yes.some((c) => c.user_id === m.user_id); return <View key={m.user_id} style={styles.person}><View style={[styles.avatar, ok && styles.avatarYes]}><Text style={{ color: ok ? colors.green : colors.muted, fontWeight: '900' }}>{m.display_name.slice(0, 1).toUpperCase()}</Text></View><View><Text style={styles.personName}>{m.display_name}</Text><Text style={[styles.personState, ok && { color: colors.green }]}>{ok ? 'согласен ✓' : 'ещё не подтвердил'}</Text></View></View>; })}</View>{!myYes ? <Pressable disabled={busyId === a.id} onPress={() => void confirm(a)} style={[styles.confirm, busyId === a.id && { opacity: 0.5 }]}>{busyId === a.id ? <ActivityIndicator color={colors.white} /> : <Text style={styles.confirmText}>Я согласен с этим 🤝</Text>}</Pressable> : !isActive ? <Text style={styles.waiting}>Твоё согласие уже есть. Теперь решение за вторым участником.</Text> : null}</View>; }) : <View style={styles.empty}><Text style={styles.emptyIcon}>🤝</Text><Text style={styles.emptyTitle}>Пока без формальных договорённостей</Text><Text style={styles.copy}>Они нужны только там, где помогают быть понятнее друг другу.</Text></View>}
     {archived.length ? <View style={[styles.archiveCard, shadows.soft]}><Text style={styles.kicker}>БЫЛО ВАЖНО РАНЬШЕ</Text>{archived.map((a, i) => <View key={a.id} style={[styles.archiveRow, i > 0 && styles.border]}><Text style={styles.archiveDot}>○</Text><View style={{ flex: 1 }}><Text style={styles.archiveTitle}>{a.title}</Text><Text style={styles.archiveMeta}>Снята, но остаётся частью истории</Text></View></View>)}</View> : null}
   </ScrollView></SafeAreaView>;
 }
