@@ -128,7 +128,7 @@ export default function AchievementsScreen() {
   const opened = useMemo(() => awards.map((award) => {
     const definition = definitionsById.get(award.definition_id);
     const pathId = normalizeCategory(definition?.category);
-    const path = paths.find((item) => item.id === pathId) ?? paths[5];
+    const path: Path = paths.find((item) => item.id === pathId) ?? paths[5]!;
     return {
       id: award.id,
       title: definition?.title ?? 'Веха пути',
