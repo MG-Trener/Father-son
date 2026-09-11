@@ -41,6 +41,7 @@ jobs:
         run: npm run typecheck
 
   preview-apk:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: validate
