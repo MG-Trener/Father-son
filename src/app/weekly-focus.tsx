@@ -1,16 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -21,19 +10,9 @@ import { colors, gradients, radius, shadows } from '../theme';
 
 type Category = 'school' | 'football' | 'chess' | 'english' | 'leadership' | 'together';
 type Slot = 'child' | 'together';
+type Focus = { id: string; created_by: string; target_user_id: string | null; category: Category; title: string; note: string | null; week_start: string };
 
-type WeeklyFocus = {
-  id: string;
-  created_by: string;
-  target_user_id: string | null;
-  category: Category;
-  title: string;
-  note: string | null;
-  week_start: string;
-  updated_at: string;
-};
-
-const categoryMeta: Record<Category, { title: string; icon: string; base: string; ink: string }> = {
+const meta: Record<Category, { title: string; icon: string; base: string; ink: string }> = {
   school: { title: 'Школа', icon: '📘', base: '#DCEFFF', ink: '#2E6286' },
   football: { title: 'Футбол', icon: '⚽', base: '#DDF4E6', ink: '#356B50' },
   chess: { title: 'Шахматы', icon: '♞', base: '#EAE5FA', ink: '#5B5091' },
@@ -42,36 +21,24 @@ const categoryMeta: Record<Category, { title: string; icon: string; base: string
   together: { title: 'Папа & Я', icon: '♥', base: '#FFF0CF', ink: '#A56E16' },
 };
 
-const localIso = (date: Date) => {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
+const localIso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+const currentMonday = () => {
+  const d = new Date(); d.setHours(12, 0, 0, 0);
+  const day = d.getDay(); d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return localIso(d);
 };
-
-const currentMondayIso = () => {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  const day = date.getDay();
-  date.setDate(date.getDate() + (day === 0 ? -6 : 1 - day));
-  return localIso(date);
-};
-
-const weekLabel = (weekStart: string) => {
-  const start = new Date(`${weekStart}T12:00:00`);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  const left = start.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-  const right = end.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-  return `${left} — ${right}`;
+const weekLabel = (iso: string) => {
+  const start = new Date(`${iso}T12:00:00`); const end = new Date(start); end.setDate(end.getDate() + 6);
+  return `${start.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — ${end.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`;
 };
 
 export default function WeeklyFocusScreen() {
   const { session } = useAuth();
   const { family, members } = useFamily();
-  const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
+  const child = useMemo(() => members.find((m) => m.role === 'child') ?? null, [members]);
   const childName = child?.display_name ?? 'Артур';
-  const weekStart = useMemo(currentMondayIso, []);
-
-  const [rows, setRows] = useState<WeeklyFocus[]>([]);
+  const weekStart = useMemo(currentMonday, []);
+  const [rows, setRows] = useState<Focus[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<Slot | null>(null);
@@ -80,292 +47,85 @@ export default function WeeklyFocusScreen() {
   const [note, setNote] = useState('');
 
   const load = useCallback(async () => {
-    if (!supabase || !family) {
-      setLoading(false);
-      return;
-    }
-    const { data, error } = await supabase
-      .from('weekly_focuses')
-      .select('id,created_by,target_user_id,category,title,note,week_start,updated_at')
-      .eq('family_id', family.id)
-      .lte('week_start', weekStart)
-      .order('week_start', { ascending: false })
-      .order('created_at', { ascending: true })
-      .limit(24);
+    if (!supabase || !family) { setLoading(false); return; }
+    const { data, error } = await supabase.from('weekly_focuses')
+      .select('id,created_by,target_user_id,category,title,note,week_start')
+      .eq('family_id', family.id).lte('week_start', weekStart).order('week_start', { ascending: false }).limit(24);
     if (error) Alert.alert('Не удалось загрузить фокус недели', error.message);
-    else setRows((data ?? []) as WeeklyFocus[]);
+    else setRows((data ?? []) as Focus[]);
     setLoading(false);
   }, [family, weekStart]);
-
   useEffect(() => { void load(); }, [load]);
 
-  const childFocus = useMemo(
-    () => rows.find((row) => row.week_start === weekStart && row.target_user_id === child?.user_id) ?? null,
-    [rows, weekStart, child?.user_id],
-  );
-  const togetherFocus = useMemo(
-    () => rows.find((row) => row.week_start === weekStart && row.target_user_id === null) ?? null,
-    [rows, weekStart],
-  );
-  const previous = useMemo(() => rows.filter((row) => row.week_start < weekStart).slice(0, 8), [rows, weekStart]);
-
+  const childFocus = rows.find((r) => r.week_start === weekStart && r.target_user_id === child?.user_id) ?? null;
+  const togetherFocus = rows.find((r) => r.week_start === weekStart && r.target_user_id === null) ?? null;
+  const previous = rows.filter((r) => r.week_start < weekStart).slice(0, 8);
   const currentFor = (slot: Slot) => slot === 'child' ? childFocus : togetherFocus;
+  const editingFocus = editing ? currentFor(editing) : null;
 
   const openEditor = (slot: Slot) => {
     const current = currentFor(slot);
-    setEditing(slot);
-    setCategory(current?.category ?? (slot === 'together' ? 'together' : 'school'));
-    setTitle(current?.title ?? '');
-    setNote(current?.note ?? '');
+    setEditing(slot); setCategory(current?.category ?? (slot === 'together' ? 'together' : 'school'));
+    setTitle(current?.title ?? ''); setNote(current?.note ?? '');
   };
 
   const save = async () => {
-    if (!supabase || !family || !session || !editing || busy || !child) return;
-    const cleanTitle = title.trim();
-    if (!cleanTitle) {
-      Alert.alert('Нужен ориентир', 'Напиши одну короткую вещь, на которую хочется обратить внимание на этой неделе.');
-      return;
-    }
+    const client = supabase;
+    if (!client || !family || !session || !editing || !child || busy) return;
+    const clean = title.trim();
+    if (!clean) { Alert.alert('Нужен ориентир', 'Напиши одну короткую вещь на эту неделю.'); return; }
     setBusy(true);
     try {
       const existing = currentFor(editing);
       if (existing) {
-        const { error } = await supabase
-          .from('weekly_focuses')
-          .update({ category, title: cleanTitle, note: note.trim() || null, updated_at: new Date().toISOString() })
-          .eq('id', existing.id);
+        const { error } = await client.from('weekly_focuses').update({ category, title: clean, note: note.trim() || null, updated_at: new Date().toISOString() }).eq('id', existing.id);
         if (error) throw error;
       } else {
-        const targetUserId = editing === 'child' ? child.user_id : null;
-        const { error } = await supabase.from('weekly_focuses').insert({
-          family_id: family.id,
-          created_by: session.user.id,
-          target_user_id: targetUserId,
-          category,
-          title: cleanTitle,
-          note: note.trim() || null,
-          week_start: weekStart,
-        });
+        const target = editing === 'child' ? child.user_id : null;
+        const { error } = await client.from('weekly_focuses').insert({ family_id: family.id, created_by: session.user.id, target_user_id: target, category, title: clean, note: note.trim() || null, week_start: weekStart });
         if (error) throw error;
-
-        await supabase.from('activity_events').insert({
-          family_id: family.id,
-          actor_user_id: session.user.id,
-          event_type: 'weekly_focus_added',
-          category,
-          payload: {
-            title: cleanTitle,
-            week_start: weekStart,
-            scope: editing,
-            target_user_id: targetUserId,
-          },
-        }).catch(() => undefined);
+        await client.from('activity_events').insert({ family_id: family.id, actor_user_id: session.user.id, event_type: 'weekly_focus_added', category, payload: { title: clean, week_start: weekStart, scope: editing, target_user_id: target } });
       }
-      setEditing(null);
-      setTitle('');
-      setNote('');
-      await load();
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Попробуй ещё раз.';
-      Alert.alert(message.includes('duplicate') ? 'Фокус уже задан' : 'Не удалось сохранить', message);
-    } finally {
-      setBusy(false);
-    }
+      setEditing(null); setTitle(''); setNote(''); await load();
+    } catch (e) { Alert.alert('Не удалось сохранить', e instanceof Error ? e.message : 'Попробуй ещё раз.'); }
+    finally { setBusy(false); }
   };
 
-  const remove = async (focus: WeeklyFocus) => {
-    if (!supabase || busy) return;
+  const remove = async () => {
+    const client = supabase;
+    if (!client || !editingFocus || busy) return;
     setBusy(true);
-    try {
-      const { error } = await supabase.from('weekly_focuses').delete().eq('id', focus.id);
-      if (error) throw error;
-      setEditing(null);
-      await load();
-    } catch (caught) {
-      Alert.alert('Не удалось убрать фокус', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
-    } finally {
-      setBusy(false);
-    }
+    try { const { error } = await client.from('weekly_focuses').delete().eq('id', editingFocus.id); if (error) throw error; setEditing(null); await load(); }
+    catch (e) { Alert.alert('Не удалось убрать фокус', e instanceof Error ? e.message : 'Попробуй ещё раз.'); }
+    finally { setBusy(false); }
   };
 
-  const reflect = (focus: WeeklyFocus) => {
-    router.push({
-      pathname: '/reflection-new',
-      params: { prompt: `Что получилось с фокусом «${focus.title}» на этой неделе?` },
-    });
+  const focusCard = (slot: Slot, focus: Focus | null) => {
+    const m = focus ? meta[focus.category] : meta[slot === 'together' ? 'together' : 'school'];
+    return <View style={[styles.card, shadows.soft, { backgroundColor: m.base }]}>
+      <View style={styles.row}><View style={[styles.icon, { backgroundColor: m.ink }]}><Text style={styles.iconText}>{m.icon}</Text></View><View style={{ flex: 1 }}><Text style={[styles.kicker, { color: m.ink }]}>{slot === 'together' ? 'НАШ ФОКУС' : `ФОКУС ${childName.toUpperCase()}`}</Text><Text style={[styles.category, { color: m.ink }]}>{focus ? m.title : 'На эту неделю'}</Text></View></View>
+      {focus ? <><Text style={styles.focusTitle}>{focus.title}</Text>{focus.note ? <Text style={styles.copy}>{focus.note}</Text> : null}<View style={styles.actions}><Pressable style={styles.soft} onPress={() => openEditor(slot)}><Text style={styles.softText}>Изменить</Text></Pressable><Pressable style={styles.soft} onPress={() => router.push({ pathname: '/reflection-new', params: { prompt: `Что получилось с фокусом «${focus.title}» на этой неделе?` } })}><Text style={styles.softText}>Подвести итог</Text></Pressable></View></>
+        : <><Text style={styles.emptyTitle}>{slot === 'together' ? 'Что важно прожить вместе?' : `На чём ${childName} хочет сосредоточиться?`}</Text><Text style={styles.copy}>Не задача и не обещание — просто ориентир, к которому можно возвращаться.</Text><Pressable style={[styles.primary, { backgroundColor: m.ink }]} onPress={() => openEditor(slot)}><Text style={styles.primaryText}>Задать фокус →</Text></Pressable></>}
+    </View>;
   };
 
-  const renderFocusCard = (slot: Slot, focus: WeeklyFocus | null) => {
-    const isTogether = slot === 'together';
-    const meta = focus ? categoryMeta[focus.category] : categoryMeta[isTogether ? 'together' : 'school'];
-    return (
-      <View style={[styles.focusCard, shadows.soft, { backgroundColor: meta.base }]}>
-        <View style={styles.focusTop}>
-          <View style={[styles.focusIcon, { backgroundColor: meta.ink }]}><Text style={styles.focusIconText}>{meta.icon}</Text></View>
-          <View style={styles.focusHeadCopy}>
-            <Text style={[styles.focusKicker, { color: meta.ink }]}>{isTogether ? 'НАШ ФОКУС' : `ФОКУС ${childName.toUpperCase()}`}</Text>
-            <Text style={[styles.focusCategory, { color: meta.ink }]}>{focus ? meta.title : 'На эту неделю'}</Text>
-          </View>
-        </View>
-        {focus ? (
-          <>
-            <Text style={styles.focusTitle}>{focus.title}</Text>
-            {focus.note ? <Text style={styles.focusNote}>{focus.note}</Text> : null}
-            <View style={styles.focusActions}>
-              <Pressable style={styles.softButton} onPress={() => openEditor(slot)}><Text style={styles.softButtonText}>Изменить</Text></Pressable>
-              <Pressable style={styles.softButton} onPress={() => reflect(focus)}><Text style={styles.softButtonText}>Подвести итог</Text></Pressable>
-            </View>
-          </>
-        ) : (
-          <>
-            <Text style={styles.emptyTitle}>{isTogether ? 'Что важно сделать или прожить вместе?' : `На чём ${childName} хочет сосредоточиться?`}</Text>
-            <Text style={styles.emptyCopy}>Это не задача и не обещание. Просто направление, к которому можно возвращаться в течение недели.</Text>
-            <Pressable style={[styles.addButton, { backgroundColor: meta.ink }]} onPress={() => openEditor(slot)}><Text style={styles.addButtonText}>Задать фокус →</Text></Pressable>
-          </>
-        )}
-      </View>
-    );
-  };
-
-  if (loading) {
-    return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.loader}><ActivityIndicator size="large" color={colors.navy} /></View></SafeAreaView>;
-  }
-
-  return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={styles.topBar}>
-            <Pressable onPress={() => router.back()} style={styles.backButton}><Text style={styles.backText}>‹</Text></Pressable>
-            <View><Text style={styles.topKicker}>РАЗВИТИЕ БЕЗ ГОНКИ</Text><Text style={styles.topTitle}>Фокус недели</Text></View>
-          </View>
-
-          <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}>
-            <View style={styles.heroOrb} />
-            <Text style={styles.heroKicker}>НЕДЕЛЯ · {weekLabel(weekStart).toUpperCase()}</Text>
-            <Text style={styles.heroTitle}>Две вещи, которые стоит держать в поле зрения.</Text>
-            <Text style={styles.heroText}>Один ориентир для {childName} и один для вас двоих. Если жизнь поменяет планы — ничего не обнулится.</Text>
-            <View style={styles.heroRule}><Text style={styles.heroRuleText}>Без XP · без серии · без «провалено»</Text></View>
-          </LinearGradient>
-
-          {renderFocusCard('child', childFocus)}
-          {renderFocusCard('together', togetherFocus)}
-
-          {editing ? (
-            <View style={[styles.editor, shadows.soft]}>
-              <View style={styles.editorHead}>
-                <View><Text style={styles.editorKicker}>РЕДАКТОР</Text><Text style={styles.editorTitle}>{editing === 'child' ? `Фокус ${childName}` : 'Наш общий фокус'}</Text></View>
-                <Pressable onPress={() => setEditing(null)}><Text style={styles.close}>×</Text></Pressable>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-                {(Object.keys(categoryMeta) as Category[]).map((key) => {
-                  const item = categoryMeta[key];
-                  const active = key === category;
-                  return (
-                    <Pressable key={key} onPress={() => setCategory(key)} style={[styles.categoryChip, active && { backgroundColor: item.base, borderColor: item.ink }]}>
-                      <Text style={[styles.categoryText, active && { color: item.ink }]}>{item.icon} {item.title}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-              <TextInput value={title} onChangeText={setTitle} maxLength={120} placeholder="Например: спокойно готовиться к контрольной" placeholderTextColor={colors.mutedSoft} style={styles.input} />
-              <TextInput value={note} onChangeText={setNote} maxLength={600} placeholder="Необязательно: что поможет не потерять этот ориентир?" placeholderTextColor={colors.mutedSoft} multiline textAlignVertical="top" style={[styles.input, styles.noteInput]} />
-              <View style={styles.editorActions}>
-                {currentFor(editing) ? <Pressable disabled={busy} style={styles.removeButton} onPress={() => void remove(currentFor(editing)!)}><Text style={styles.removeText}>Убрать</Text></Pressable> : null}
-                <Pressable disabled={busy} style={[styles.saveButton, busy && styles.disabled]} onPress={() => void save()}>
-                  {busy ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.saveText}>Сохранить фокус</Text>}
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          <View style={styles.sectionHead}>
-            <View><Text style={styles.sectionKicker}>БЕЗ СЕРИЙ</Text><Text style={styles.sectionTitle}>Предыдущие недели</Text></View>
-          </View>
-          {previous.length ? (
-            <View style={[styles.historyCard, shadows.soft]}>
-              {previous.map((focus, index) => {
-                const meta = categoryMeta[focus.category];
-                return (
-                  <View key={focus.id} style={[styles.historyRow, index > 0 && styles.historyBorder]}>
-                    <View style={[styles.historyIcon, { backgroundColor: meta.base }]}><Text style={[styles.historyIconText, { color: meta.ink }]}>{meta.icon}</Text></View>
-                    <View style={styles.historyCopy}>
-                      <Text style={styles.historyTitle}>{focus.title}</Text>
-                      <Text style={styles.historyMeta}>{weekLabel(focus.week_start)} · {focus.target_user_id ? childName : 'Папа & Я'}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={styles.historyEmpty}><Text style={styles.historyEmptyText}>После первой недели здесь останутся прежние ориентиры — как следы пути, а не как отчёт.</Text></View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
+  if (loading) return <SafeAreaView style={styles.safe}><View style={styles.loader}><ActivityIndicator size="large" color={colors.navy} /></View></SafeAreaView>;
+  return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <View style={styles.top}><Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable><View><Text style={styles.topKicker}>РАЗВИТИЕ БЕЗ ГОНКИ</Text><Text style={styles.topTitle}>Фокус недели</Text></View></View>
+    <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}><Text style={styles.heroKicker}>НЕДЕЛЯ · {weekLabel(weekStart).toUpperCase()}</Text><Text style={styles.heroTitle}>Два ориентира вместо списка обязанностей.</Text><Text style={styles.heroText}>Один для {childName}, один для вас двоих. Пауза ничего не обнуляет.</Text><Text style={styles.rule}>Без XP · без серии · без «провалено»</Text></LinearGradient>
+    {focusCard('child', childFocus)}{focusCard('together', togetherFocus)}
+    {editing ? <View style={[styles.editor, shadows.soft]}><View style={styles.rowBetween}><Text style={styles.editorTitle}>{editing === 'child' ? `Фокус ${childName}` : 'Наш общий фокус'}</Text><Pressable onPress={() => setEditing(null)}><Text style={styles.close}>×</Text></Pressable></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>{(Object.keys(meta) as Category[]).map((key) => <Pressable key={key} onPress={() => setCategory(key)} style={[styles.chip, category === key && { backgroundColor: meta[key].base, borderColor: meta[key].ink }]}><Text style={{ color: category === key ? meta[key].ink : colors.muted, fontSize: 9, fontWeight: '900' }}>{meta[key].icon} {meta[key].title}</Text></Pressable>)}</ScrollView><TextInput value={title} onChangeText={setTitle} maxLength={120} placeholder="Например: спокойно готовиться к контрольной" placeholderTextColor={colors.mutedSoft} style={styles.input} /><TextInput value={note} onChangeText={setNote} maxLength={600} multiline textAlignVertical="top" placeholder="Что поможет удержать ориентир? Необязательно." placeholderTextColor={colors.mutedSoft} style={[styles.input, styles.note]} /><View style={styles.actions}>{editingFocus ? <Pressable disabled={busy} style={styles.remove} onPress={() => void remove()}><Text style={styles.removeText}>Убрать</Text></Pressable> : null}<Pressable disabled={busy} style={[styles.save, busy && { opacity: 0.5 }]} onPress={() => void save()}>{busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.saveText}>Сохранить</Text>}</Pressable></View></View> : null}
+    <View><Text style={styles.topKicker}>БЕЗ СЕРИЙ</Text><Text style={styles.sectionTitle}>Предыдущие недели</Text></View>
+    {previous.length ? <View style={[styles.history, shadows.soft]}>{previous.map((f, i) => <View key={f.id} style={[styles.historyRow, i > 0 && styles.border]}><Text style={styles.historyIcon}>{meta[f.category].icon}</Text><View style={{ flex: 1 }}><Text style={styles.historyTitle}>{f.title}</Text><Text style={styles.historyMeta}>{weekLabel(f.week_start)} · {f.target_user_id ? childName : 'Папа & Я'}</Text></View></View>)}</View> : <Text style={styles.copy}>После первой недели здесь останутся старые ориентиры — как следы пути, а не отчёт.</Text>}
+  </ScrollView></SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.sand },
-  keyboard: { flex: 1 },
-  content: { padding: 16, paddingBottom: 36, gap: 15 },
-  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  topBar: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  backButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  backText: { color: colors.navyDeep, fontSize: 31, lineHeight: 33, marginTop: -3 },
-  topKicker: { color: colors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
-  topTitle: { color: colors.navyDeep, fontSize: 20, fontWeight: '900', marginTop: 1 },
-  hero: { minHeight: 240, borderRadius: radius.xl, padding: 21, overflow: 'hidden' },
-  heroOrb: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255,215,106,0.09)', right: -58, top: -72 },
-  heroKicker: { color: colors.sun, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },
-  heroTitle: { color: colors.white, fontSize: 25, lineHeight: 30, fontWeight: '900', marginTop: 10, maxWidth: '88%' },
-  heroText: { color: '#D8E6E7', fontSize: 11, lineHeight: 17, marginTop: 9, maxWidth: '91%' },
-  heroRule: { alignSelf: 'flex-start', marginTop: 'auto', backgroundColor: 'rgba(255,255,255,0.11)', borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 7 },
-  heroRuleText: { color: '#DDEBEC', fontSize: 8, fontWeight: '900' },
-  focusCard: { borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
-  focusTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  focusIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  focusIconText: { color: colors.white, fontSize: 17, fontWeight: '900' },
-  focusHeadCopy: { flex: 1 },
-  focusKicker: { fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  focusCategory: { fontSize: 12, fontWeight: '900', marginTop: 2 },
-  focusTitle: { color: colors.navyDeep, fontSize: 20, lineHeight: 25, fontWeight: '900', marginTop: 15 },
-  focusNote: { color: colors.muted, fontSize: 10, lineHeight: 16, marginTop: 6 },
-  focusActions: { flexDirection: 'row', gap: 8, marginTop: 15 },
-  softButton: { flex: 1, minHeight: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.64)', alignItems: 'center', justifyContent: 'center' },
-  softButtonText: { color: colors.navyDeep, fontSize: 9, fontWeight: '900' },
-  emptyTitle: { color: colors.navyDeep, fontSize: 18, lineHeight: 23, fontWeight: '900', marginTop: 15 },
-  emptyCopy: { color: colors.muted, fontSize: 10, lineHeight: 16, marginTop: 6 },
-  addButton: { minHeight: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 15 },
-  addButtonText: { color: colors.white, fontSize: 10, fontWeight: '900' },
-  editor: { backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 17, gap: 12 },
-  editorHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  editorKicker: { color: colors.teal, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  editorTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 2 },
-  close: { color: colors.muted, fontSize: 28, fontWeight: '700' },
-  categoryRow: { gap: 7, paddingVertical: 1 },
-  categoryChip: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.white },
-  categoryText: { color: colors.muted, fontSize: 9, fontWeight: '900' },
-  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: 13, color: colors.text, fontSize: 12 },
-  noteInput: { minHeight: 96, paddingTop: 12 },
-  editorActions: { flexDirection: 'row', gap: 8 },
-  removeButton: { minWidth: 88, minHeight: 46, borderRadius: 15, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' },
-  removeText: { color: colors.red, fontSize: 10, fontWeight: '900' },
-  saveButton: { flex: 1, minHeight: 46, borderRadius: 15, backgroundColor: colors.navyDeep, alignItems: 'center', justifyContent: 'center' },
-  saveText: { color: colors.white, fontSize: 10, fontWeight: '900' },
-  disabled: { opacity: 0.55 },
-  sectionHead: { marginTop: 3 },
-  sectionKicker: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  sectionTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 2 },
-  historyCard: { backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, paddingHorizontal: 15 },
-  historyRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  historyBorder: { borderTopWidth: 1, borderTopColor: colors.lineWarm },
-  historyIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  historyIconText: { fontSize: 14, fontWeight: '900' },
-  historyCopy: { flex: 1 },
-  historyTitle: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' },
-  historyMeta: { color: colors.muted, fontSize: 8, marginTop: 3 },
-  historyEmpty: { backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.lineWarm, padding: 16 },
-  historyEmptyText: { color: colors.muted, fontSize: 10, lineHeight: 16 },
+  safe: { flex: 1, backgroundColor: colors.sand }, content: { padding: 16, paddingBottom: 38, gap: 15 }, loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 11 }, back: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line }, backText: { fontSize: 31, color: colors.navyDeep }, topKicker: { color: colors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 }, topTitle: { color: colors.navyDeep, fontSize: 20, fontWeight: '900' },
+  hero: { minHeight: 225, borderRadius: radius.xl, padding: 21 }, heroKicker: { color: colors.sun, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 }, heroTitle: { color: colors.white, fontSize: 25, lineHeight: 30, fontWeight: '900', marginTop: 10 }, heroText: { color: '#D8E6E7', fontSize: 11, lineHeight: 17, marginTop: 8 }, rule: { color: '#DDEBEC', fontSize: 8, fontWeight: '900', marginTop: 'auto' },
+  card: { borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' }, row: { flexDirection: 'row', alignItems: 'center', gap: 10 }, icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, iconText: { color: colors.white, fontWeight: '900' }, kicker: { fontSize: 8, fontWeight: '900', letterSpacing: 1.1 }, category: { fontSize: 12, fontWeight: '900', marginTop: 2 }, focusTitle: { color: colors.navyDeep, fontSize: 20, lineHeight: 25, fontWeight: '900', marginTop: 14 }, emptyTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 14 }, copy: { color: colors.muted, fontSize: 10, lineHeight: 16, marginTop: 6 },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 14 }, soft: { flex: 1, minHeight: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.66)', alignItems: 'center', justifyContent: 'center' }, softText: { color: colors.navyDeep, fontSize: 9, fontWeight: '900' }, primary: { minHeight: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 14 }, primaryText: { color: colors.white, fontSize: 10, fontWeight: '900' },
+  editor: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 17, borderWidth: 1, borderColor: colors.lineWarm, gap: 11 }, rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, editorTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900' }, close: { fontSize: 28, color: colors.muted }, chips: { gap: 7 }, chip: { borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.white }, input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: 12, color: colors.text }, note: { minHeight: 90, paddingTop: 11 }, remove: { minWidth: 85, minHeight: 44, borderRadius: 14, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' }, removeText: { color: colors.red, fontSize: 9, fontWeight: '900' }, save: { flex: 1, minHeight: 44, borderRadius: 14, backgroundColor: colors.navyDeep, alignItems: 'center', justifyContent: 'center' }, saveText: { color: colors.white, fontSize: 10, fontWeight: '900' },
+  sectionTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900' }, history: { backgroundColor: colors.paper, borderRadius: radius.xl, paddingHorizontal: 15, borderWidth: 1, borderColor: colors.lineWarm }, historyRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10 }, border: { borderTopWidth: 1, borderTopColor: colors.lineWarm }, historyIcon: { fontSize: 18, width: 30 }, historyTitle: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' }, historyMeta: { color: colors.muted, fontSize: 8, marginTop: 2 },
 });
