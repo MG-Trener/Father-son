@@ -23,6 +23,15 @@ const growthMeta: Record<string, { icon: string; title: string; color: string; b
   leadership: { icon: '🧭', title: 'Лидерство', color: moduleColors.leadership.strong, base: moduleColors.leadership.base },
 };
 
+const moodLabels: Record<string, string> = {
+  great: 'Отлично',
+  good: 'Хорошо',
+  ok: 'Нормально',
+  tired: 'Устал',
+  sad: 'Грустно',
+  angry: 'Злюсь',
+};
+
 const payloadRecord = (payload: unknown): Record<string, unknown> => payload && typeof payload === 'object' && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
 const payloadText = (payload: unknown, key: string) => typeof payloadRecord(payload)[key] === 'string' ? payloadRecord(payload)[key] as string : null;
 const payloadNumber = (payload: unknown, key: string) => typeof payloadRecord(payload)[key] === 'number' ? payloadRecord(payload)[key] as number : null;
@@ -66,10 +75,19 @@ const eventView = (event: TimelineEvent, actorName: string): EventView => {
       return { icon: category?.icon ?? '🌱', title: title || label, text: `${actorName} добавил новый момент в «${label}».`, color: category?.color ?? defaultVisual.color, base: category?.base ?? defaultVisual.base };
     }
     case 'meeting_created': return { icon: '📅', title: 'Запланирована встреча', text: title ? `${actorName} запланировал «${title}».` : `${actorName} добавил следующую встречу.`, color: colors.blue, base: colors.sky };
+    case 'meeting_completed': return { icon: '🤝', title: title ? `Встреча: ${title}` : 'Встреча состоялась', text: `${actorName} сохранил эту встречу в вашей общей истории.`, color: colors.green, base: colors.mint };
+    case 'mood_shared': {
+      const mood = payloadText(event.payload, 'mood');
+      const label = mood ? moodLabels[mood] : null;
+      return { icon: '♥', title: 'Как мы?', text: label ? `${actorName} поделился состоянием: «${label}».` : `${actorName} оставил короткий сигнал о своём состоянии.`, color: colors.teal, base: '#DDEDEF' };
+    }
     case 'mission_created': return { icon: '🎯', title: 'Новая миссия', text: title ? `${actorName} запустил миссию «${title}».` : `${actorName} добавил новую миссию.`, color: colors.orange, base: '#FFF0CF' };
     case 'mission_completed': return { icon: '✓', title: title ? `Миссия: ${title}` : 'Миссия выполнена', text: `${actorName} завершил шаг${xp !== null ? ` · +${xp} XP` : ''}.`, color: colors.green, base: colors.mint };
     case 'achievement_awarded': return { icon: '🏅', title: 'Новое достижение', text: title ? `Открыто достижение «${title}».` : 'Открыто новое достижение.', color: '#C98722', base: '#FFF0C2' };
-    case 'recognition_added': return { icon: '✦', title: 'Важный поступок', text: `${actorName} сохранил момент, который стоит помнить.`, color: colors.coral, base: colors.rose };
+    case 'recognition_added': {
+      const quality = payloadText(event.payload, 'quality');
+      return { icon: '✦', title: title || 'Я заметил', text: quality ? `${actorName} отметил качество «${quality}» и сохранил конкретный момент.` : `${actorName} заметил важный поступок другого участника команды.`, color: colors.purple, base: colors.lavender };
+    }
     default: return { icon: '✦', title: 'Момент команды', text: `${actorName} добавил новое событие.`, ...defaultVisual };
   }
 };
