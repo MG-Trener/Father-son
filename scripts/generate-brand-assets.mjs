@@ -15,6 +15,7 @@ const sources = {
   hero: source('ChatGPT Image 12 сент. 2026 г., 00_24_05 (5).png'),
   directionStrip: source('ChatGPT Image 12 сент. 2026 г., 00_25_22.png'),
   navStrip: source('ChatGPT Image 12 сент. 2026 г., 00_24_06 (7).png'),
+  utilityStrip: source('ChatGPT Image 12 сент. 2026 г., 00_24_41.png'),
   badgeSheet: source('ChatGPT Image 12 сент. 2026 г., 00_24_54.png'),
   decorSheet: source('ChatGPT Image 12 сент. 2026 г., 00_25_06.png'),
 };
@@ -74,6 +75,14 @@ await splitHorizontalStrip(
   ['home', 'growth', 'book', 'together', 'us'],
   'nav',
   196,
+);
+
+// Source order: calendar, microphone, checklist, mountain path, star in hands.
+await splitHorizontalStrip(
+  sources.utilityStrip,
+  ['calendar', 'voice', 'agreements', 'goal', 'recognition'],
+  'utility',
+  220,
 );
 
 async function splitGrid(file, names, columns, rows, prefix, targetSize) {
