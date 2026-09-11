@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  type ImageSourcePropType,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,8 +13,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { StoryHero } from '../components/StoryHero';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { notifyFamilyEvent } from '../lib/pushNotifications';
@@ -32,20 +34,22 @@ type RecognitionRow = {
   created_at: string;
 };
 
-const categories: { value: Category; icon: string; label: string }[] = [
-  { value: 'together', icon: '♥', label: 'Мы' },
-  { value: 'school', icon: '✎', label: 'Школа' },
-  { value: 'football', icon: '⚽', label: 'Футбол' },
-  { value: 'chess', icon: '♟', label: 'Шахматы' },
-  { value: 'english', icon: 'A', label: 'English' },
-  { value: 'leadership', icon: '★', label: 'Характер' },
+type CategoryItem = { value: Category; image: ImageSourcePropType; label: string };
+
+const categories: CategoryItem[] = [
+  { value: 'together', image: require('../../assets/generated/nav-together.png'), label: 'Мы' },
+  { value: 'school', image: require('../../assets/generated/direction-school.png'), label: 'Школа' },
+  { value: 'football', image: require('../../assets/generated/direction-football.png'), label: 'Футбол' },
+  { value: 'chess', image: require('../../assets/generated/direction-chess.png'), label: 'Шахматы' },
+  { value: 'english', image: require('../../assets/generated/direction-english.png'), label: 'English' },
+  { value: 'leadership', image: require('../../assets/generated/direction-leadership.png'), label: 'Характер' },
 ];
 
+const recognitionImage = require('../../assets/generated/utility-recognition.png');
 const qualities = ['Настойчивость', 'Доброта', 'Смелость', 'Самостоятельность', 'Внимательность', 'Юмор', 'Честность', 'Поддержка'];
 const starters = ['Я заметил…', 'Спасибо за…', 'Горжусь тем, как ты…', 'Мне понравилось, что ты…'];
 
-const categoryLabel = (value: Category) => categories.find((item) => item.value === value)?.label ?? 'Мы';
-const categoryIcon = (value: Category) => categories.find((item) => item.value === value)?.icon ?? '♥';
+const categoryMeta = (value: Category) => categories.find((item) => item.value === value) ?? categories[0]!;
 
 export default function RecognitionsScreen() {
   const { session } = useAuth();
@@ -164,19 +168,20 @@ export default function RecognitionsScreen() {
           <View style={styles.topCopy}><Text style={styles.topKicker}>БЕЗ БАЛЛОВ И РЕЙТИНГОВ</Text><Text style={styles.topTitle}>Я заметил</Text></View>
         </View>
 
-        <LinearGradient colors={['#553F74', '#8270A8', '#E0A55C']} style={[styles.hero, shadows.lift]}>
-          <View style={styles.heroGlow} />
-          <Text style={styles.heroIcon}>✦</Text>
-          <Text style={styles.heroTitle}>Хорошие вещи становятся важнее, когда их называют вслух.</Text>
-          <Text style={styles.heroText}>Не «молодец вообще», а конкретно: что ты увидел, почувствовал или за что благодарен.</Text>
-        </LinearGradient>
+        <StoryHero
+          kicker="ПОДДЕРЖКА · ПАПА & Я"
+          title="Хорошие вещи становятся важнее, когда их называют вслух."
+          subtitle="Не «молодец вообще», а конкретно: что ты увидел, почувствовал или за что благодарен."
+          variant="warm"
+          emblemImage={recognitionImage}
+        />
 
         {other ? (
           <View style={[styles.compose, shadows.soft]}>
             <View style={styles.toRow}>
               <View style={styles.toAvatar}><Text style={styles.toAvatarText}>{other.display_name.slice(0, 1).toUpperCase()}</Text></View>
               <View style={styles.toCopy}><Text style={styles.label}>ДЛЯ КОГО</Text><Text style={styles.toName}>{other.display_name}</Text></View>
-              <Text style={styles.toHeart}>♥</Text>
+              <View style={styles.toImageShell}><Image source={recognitionImage} style={styles.toImage} resizeMode="contain" /></View>
             </View>
 
             <Text style={styles.label}>ГДЕ ТЫ ЭТО ЗАМЕТИЛ</Text>
@@ -185,7 +190,7 @@ export default function RecognitionsScreen() {
                 const active = category === item.value;
                 return (
                   <Pressable key={item.value} onPress={() => setCategory(item.value)} style={[styles.categoryChip, active && styles.categoryChipActive]}>
-                    <Text style={[styles.categoryIcon, active && styles.categoryIconActive]}>{item.icon}</Text>
+                    <Image source={item.image} style={styles.categoryImage} resizeMode="contain" />
                     <Text style={[styles.categoryText, active && styles.categoryTextActive]}>{item.label}</Text>
                   </Pressable>
                 );
@@ -215,7 +220,7 @@ export default function RecognitionsScreen() {
             </Pressable>
           </View>
         ) : (
-          <View style={styles.empty}><Text style={styles.emptyText}>Когда второй участник подключится к семейной команде, здесь можно будет замечать хорошие моменты друг друга.</Text></View>
+          <View style={styles.empty}><Image source={recognitionImage} style={styles.emptyImage} resizeMode="contain" /><Text style={styles.emptyText}>Когда второй участник подключится к семейной команде, здесь можно будет замечать хорошие моменты друг друга.</Text></View>
         )}
 
         <View style={styles.sectionHead}><Text style={styles.sectionKicker}>НАША КОЛЛЕКЦИЯ</Text><Text style={styles.sectionTitle}>То, что мы друг в друге замечаем</Text></View>
@@ -224,20 +229,21 @@ export default function RecognitionsScreen() {
             const from = names.get(row.from_user_id) ?? 'Участник';
             const to = names.get(row.to_user_id) ?? 'Участник';
             const mine = row.from_user_id === me?.user_id;
+            const meta = categoryMeta(row.category);
             return (
               <View key={row.id} style={[styles.card, shadows.soft]}>
                 <View style={styles.cardTop}>
-                  <View style={styles.cardCategory}><Text style={styles.cardCategoryIcon}>{categoryIcon(row.category)}</Text><Text style={styles.cardCategoryText}>{categoryLabel(row.category)}</Text></View>
+                  <View style={styles.cardCategory}><Image source={meta.image} style={styles.cardCategoryImage} resizeMode="contain" /><Text style={styles.cardCategoryText}>{meta.label}</Text></View>
                   <Text style={styles.cardDate}>{new Date(row.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}</Text>
                 </View>
                 <Text style={styles.cardQuality}>{row.quality}</Text>
                 <Text style={styles.cardTitle}>{row.title}</Text>
                 <Text style={styles.cardNote}>{row.note}</Text>
-                <View style={styles.cardFooter}><Text style={styles.cardFrom}>{mine ? 'Ты' : from} → {row.to_user_id === me?.user_id ? 'тебе' : to}</Text><Text style={styles.cardSpark}>✦</Text></View>
+                <View style={styles.cardFooter}><Text style={styles.cardFrom}>{mine ? 'Ты' : from} → {row.to_user_id === me?.user_id ? 'тебе' : to}</Text><Image source={recognitionImage} style={styles.cardSparkImage} resizeMode="contain" /></View>
               </View>
             );
           })}
-          {!rows.length ? <View style={styles.empty}><Text style={styles.emptyText}>Пока здесь пусто. Первое настоящее «я заметил» часто ценнее длинного списка достижений.</Text></View> : null}
+          {!rows.length ? <View style={styles.empty}><Image source={recognitionImage} style={styles.emptyImage} resizeMode="contain" /><Text style={styles.emptyText}>Пока здесь пусто. Первое настоящее «я заметил» часто ценнее длинного списка достижений.</Text></View> : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -254,26 +260,21 @@ const styles = StyleSheet.create({
   topCopy: { flex: 1 },
   topKicker: { color: colors.purple, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
   topTitle: { color: colors.text, fontSize: 26, fontWeight: '900', marginTop: 2 },
-  hero: { minHeight: 225, borderRadius: radius.xl, padding: 22, justifyContent: 'flex-end', overflow: 'hidden' },
-  heroGlow: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: 'rgba(255,215,106,0.16)', right: -60, top: -75 },
-  heroIcon: { color: colors.sun, fontSize: 27, marginBottom: 14 },
-  heroTitle: { color: colors.white, fontSize: 23, lineHeight: 28, fontWeight: '900', maxWidth: '94%' },
-  heroText: { color: '#EEE8F2', fontSize: 12, lineHeight: 18, marginTop: 8, maxWidth: '92%' },
   compose: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 18 },
   toRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   toAvatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.purple, alignItems: 'center', justifyContent: 'center' },
   toAvatarText: { color: colors.white, fontSize: 18, fontWeight: '900' },
   toCopy: { flex: 1, marginLeft: 10 },
   toName: { color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 2 },
-  toHeart: { color: colors.coral, fontSize: 18 },
+  toImageShell: { width: 52, height: 52, borderRadius: 17, backgroundColor: '#FFF0D2', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  toImage: { width: 48, height: 48 },
   label: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1.1, marginTop: 4 },
   categoryRail: { gap: 7, paddingVertical: 10 },
-  categoryChip: { minHeight: 40, borderRadius: 20, backgroundColor: '#F1EEE7', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  categoryChipActive: { backgroundColor: colors.navy },
-  categoryIcon: { color: colors.teal, fontSize: 12, fontWeight: '900' },
-  categoryIconActive: { color: colors.sun },
-  categoryText: { color: colors.muted, fontSize: 10, fontWeight: '900' },
-  categoryTextActive: { color: colors.white },
+  categoryChip: { minHeight: 48, borderRadius: 24, backgroundColor: '#F1EEE7', paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: 'transparent' },
+  categoryChipActive: { backgroundColor: '#FFF6E8', borderColor: '#E9C778' },
+  categoryImage: { width: 34, height: 34 },
+  categoryText: { color: colors.muted, fontSize: 9, fontWeight: '900' },
+  categoryTextActive: { color: colors.navyDeep },
   qualityWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 9, marginBottom: 14 },
   qualityChip: { minHeight: 34, borderRadius: 17, backgroundColor: '#EEEAF4', paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center' },
   qualityChipActive: { backgroundColor: colors.purple },
@@ -298,15 +299,16 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.paper, borderRadius: radius.lg, padding: 15 },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardCategory: { flexDirection: 'row', gap: 5, alignItems: 'center' },
-  cardCategoryIcon: { color: colors.teal, fontSize: 11, fontWeight: '900' },
+  cardCategoryImage: { width: 32, height: 32 },
   cardCategoryText: { color: colors.teal, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   cardDate: { color: colors.mutedSoft, fontSize: 8, fontWeight: '700' },
-  cardQuality: { color: colors.purple, fontSize: 9, fontWeight: '900', marginTop: 13, textTransform: 'uppercase' },
+  cardQuality: { color: colors.purple, fontSize: 9, fontWeight: '900', marginTop: 9, textTransform: 'uppercase' },
   cardTitle: { color: colors.text, fontSize: 17, lineHeight: 21, fontWeight: '900', marginTop: 4 },
   cardNote: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 7 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 13, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.lineWarm },
   cardFrom: { color: colors.mutedSoft, fontSize: 8, fontWeight: '800' },
-  cardSpark: { color: colors.amber, fontSize: 13 },
-  empty: { borderRadius: radius.md, backgroundColor: '#EEEAE2', padding: 16 },
-  emptyText: { color: colors.muted, fontSize: 11, lineHeight: 16, textAlign: 'center' },
+  cardSparkImage: { width: 32, height: 32 },
+  empty: { borderRadius: radius.md, backgroundColor: '#EEEAE2', padding: 16, alignItems: 'center' },
+  emptyImage: { width: 72, height: 72 },
+  emptyText: { color: colors.muted, fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 5 },
 });
