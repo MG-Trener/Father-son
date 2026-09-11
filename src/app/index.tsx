@@ -7,7 +7,7 @@ import { colors } from '../theme';
 
 export default function Index() {
   const { session, loading: authLoading } = useAuth();
-  const { family, loading: familyLoading } = useFamily();
+  const { family, me, loading: familyLoading } = useFamily();
 
   if (authLoading || (session && familyLoading)) {
     return (
@@ -27,6 +27,10 @@ export default function Index() {
 
   if (!family) {
     return <Redirect href="/team-setup" />;
+  }
+
+  if (me && !me.onboarding_completed_at) {
+    return <Redirect href="/onboarding" />;
   }
 
   return <Redirect href="/(tabs)" />;
