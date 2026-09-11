@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, type ImageSourcePropType, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { StoryHero } from '../components/StoryHero';
 import { useFamily } from '../context/FamilyContext';
 import { colors, radius, shadows } from '../theme';
 
@@ -10,7 +11,7 @@ type DeckKey = 'school' | 'football' | 'future' | 'character' | 'fun' | 'us';
 
 type Deck = {
   key: DeckKey;
-  icon: string;
+  image: ImageSourcePropType;
   title: string;
   subtitle: string;
   colors: readonly [string, string];
@@ -19,7 +20,7 @@ type Deck = {
 
 const decks: readonly Deck[] = [
   {
-    key: 'school', icon: '✎', title: 'Школа', subtitle: 'Не только про оценки', colors: ['#4F78A5', '#78A3C3'],
+    key: 'school', image: require('../../assets/generated/direction-school.png'), title: 'Школа', subtitle: 'Не только про оценки', colors: ['#4F78A5', '#78A3C3'],
     questions: [
       'Что в школе сейчас даётся легче, чем год назад?',
       'Какой урок ты бы полностью переделал, если бы мог?',
@@ -32,7 +33,7 @@ const decks: readonly Deck[] = [
     ],
   },
   {
-    key: 'football', icon: '⚽', title: 'Футбол', subtitle: 'Игра, характер, команда', colors: ['#347B60', '#65A77F'],
+    key: 'football', image: require('../../assets/generated/direction-football.png'), title: 'Футбол', subtitle: 'Игра, характер, команда', colors: ['#347B60', '#65A77F'],
     questions: [
       'Какой момент на поле заставляет тебя чувствовать: «вот ради этого я играю»?',
       'Что труднее: проиграть самому или подвести команду?',
@@ -45,7 +46,7 @@ const decks: readonly Deck[] = [
     ],
   },
   {
-    key: 'future', icon: '↗', title: 'Мечты', subtitle: 'Без требования всё решить', colors: ['#7B65AC', '#A893CE'],
+    key: 'future', image: require('../../assets/generated/badge-adventure.png'), title: 'Мечты', subtitle: 'Без требования всё решить', colors: ['#7B65AC', '#A893CE'],
     questions: [
       'Что ты хотел бы обязательно попробовать до 15 лет?',
       'Если бы на год можно было переехать в любую страну — куда и зачем?',
@@ -58,7 +59,7 @@ const decks: readonly Deck[] = [
     ],
   },
   {
-    key: 'character', icon: '★', title: 'Характер', subtitle: 'Решения и внутренний стержень', colors: ['#C37A3F', '#E2A361'],
+    key: 'character', image: require('../../assets/generated/badge-courage.png'), title: 'Характер', subtitle: 'Решения и внутренний стержень', colors: ['#C37A3F', '#E2A361'],
     questions: [
       'Когда ты в последний раз сделал что-то правильно, хотя никто бы не узнал?',
       'Что для тебя сложнее: попросить помощи или признать ошибку?',
@@ -71,7 +72,7 @@ const decks: readonly Deck[] = [
     ],
   },
   {
-    key: 'fun', icon: '☺', title: 'Смешное', subtitle: 'Можно просто посмеяться', colors: ['#D08B45', '#E9B86A'],
+    key: 'fun', image: require('../../assets/generated/utility-recognition.png'), title: 'Смешное', subtitle: 'Можно просто посмеяться', colors: ['#D08B45', '#E9B86A'],
     questions: [
       'Если бы наша семья была футбольной командой, кто бы на какой позиции играл?',
       'Какое самое бесполезное суперумение ты хотел бы иметь?',
@@ -84,7 +85,7 @@ const decks: readonly Deck[] = [
     ],
   },
   {
-    key: 'us', icon: '♥', title: 'Папа & сын', subtitle: 'То, что обычно не спрашивают', colors: ['#A95A61', '#CF7E79'],
+    key: 'us', image: require('../../assets/generated/nav-together.png'), title: 'Папа & сын', subtitle: 'То, что обычно не спрашивают', colors: ['#A95A61', '#CF7E79'],
     questions: [
       'Какой наш общий момент ты хотел бы прожить ещё раз?',
       'Что я делаю как папа хорошо, а что можно делать по-другому?',
@@ -97,6 +98,9 @@ const decks: readonly Deck[] = [
     ],
   },
 ] as const;
+
+const voiceImage = require('../../assets/generated/utility-voice.png');
+const recognitionImage = require('../../assets/generated/utility-recognition.png');
 
 export default function ConversationCardsScreen() {
   const { members, me } = useFamily();
@@ -128,16 +132,13 @@ export default function ConversationCardsScreen() {
           <View style={styles.topCopy}><Text style={styles.topKicker}>БЕЗ ПРАВИЛЬНЫХ ОТВЕТОВ</Text><Text style={styles.topTitle}>Колода разговоров</Text></View>
         </View>
 
-        <LinearGradient colors={['#203D52', '#5C5E91', '#C47C61']} style={[styles.hero, shadows.lift]}>
-          <View style={styles.heroGlow} />
-          <View style={styles.cardsVisual}>
-            <View style={[styles.miniCard, styles.miniCardLeft]}><Text style={styles.miniCardText}>?</Text></View>
-            <View style={[styles.miniCard, styles.miniCardCenter]}><Text style={styles.miniCardText}>♥</Text></View>
-            <View style={[styles.miniCard, styles.miniCardRight]}><Text style={styles.miniCardText}>✦</Text></View>
-          </View>
-          <Text style={styles.heroTitle}>Иногда хороший вопрос делает для близости больше, чем длинный совет.</Text>
-          <Text style={styles.heroText}>Можно ответить вслух и забыть. А если ответ хочется сохранить — он попадёт в вашу общую историю.</Text>
-        </LinearGradient>
+        <StoryHero
+          kicker="РАЗГОВОР · ПАПА & Я"
+          title="Иногда хороший вопрос делает для близости больше, чем длинный совет."
+          subtitle="Можно ответить вслух и забыть. А если ответ хочется сохранить — он попадёт в вашу общую историю."
+          variant="team"
+          emblemImage={require('../../assets/generated/nav-together.png')}
+        />
 
         <Text style={styles.sectionKicker}>ВЫБЕРИ ТЕМУ</Text>
         <View style={styles.deckGrid}>
@@ -145,7 +146,7 @@ export default function ConversationCardsScreen() {
             const active = item.key === deckKey;
             return (
               <Pressable key={item.key} onPress={() => selectDeck(item.key)} style={[styles.deckChip, active && styles.deckChipActive]}>
-                <View style={[styles.deckIcon, active && styles.deckIconActive]}><Text style={[styles.deckIconText, active && styles.deckIconTextActive]}>{item.icon}</Text></View>
+                <View style={[styles.deckIcon, active && styles.deckIconActive]}><Image source={item.image} style={styles.deckImage} resizeMode="contain" /></View>
                 <View style={styles.deckCopy}><Text style={[styles.deckTitle, active && styles.deckTitleActive]}>{item.title}</Text><Text style={[styles.deckSubtitle, active && styles.deckSubtitleActive]}>{item.subtitle}</Text></View>
               </Pressable>
             );
@@ -153,7 +154,8 @@ export default function ConversationCardsScreen() {
         </View>
 
         <LinearGradient colors={deck.colors} style={[styles.questionCard, shadows.lift]}>
-          <View style={styles.questionTop}><Text style={styles.questionDeck}>{deck.icon}  {deck.title.toUpperCase()}</Text><Text style={styles.questionCount}>{questionIndex + 1}/{deck.questions.length}</Text></View>
+          <View style={styles.questionArt}><Image source={deck.image} style={styles.questionArtImage} resizeMode="contain" /></View>
+          <View style={styles.questionTop}><View style={styles.questionDeckWrap}><Image source={deck.image} style={styles.questionDeckImage} resizeMode="contain" /><Text style={styles.questionDeck}>{deck.title.toUpperCase()}</Text></View><Text style={styles.questionCount}>{questionIndex + 1}/{deck.questions.length}</Text></View>
           <Text style={styles.quote}>“</Text>
           <Text style={styles.question}>{question}</Text>
           <Text style={styles.forTwo}>для {me?.display_name ?? 'тебя'} и {other?.display_name ?? 'второго участника'}</Text>
@@ -161,10 +163,10 @@ export default function ConversationCardsScreen() {
         </LinearGradient>
 
         <View style={[styles.answerCard, shadows.soft]}>
-          <View style={styles.answerHead}><View style={styles.answerIcon}><Text style={styles.answerIconText}>∞</Text></View><View style={styles.answerCopy}><Text style={styles.answerTitle}>Хочется сохранить ответ?</Text><Text style={styles.answerText}>Он станет обычным семейным моментом, а не оценкой или заданием.</Text></View></View>
+          <View style={styles.answerHead}><View style={styles.answerIcon}><Image source={recognitionImage} style={styles.answerIconImage} resizeMode="contain" /></View><View style={styles.answerCopy}><Text style={styles.answerTitle}>Хочется сохранить ответ?</Text><Text style={styles.answerText}>Он станет обычным семейным моментом, а не оценкой или заданием.</Text></View></View>
           <View style={styles.answerActions}>
-            <Pressable style={styles.textButton} onPress={() => router.push({ pathname: '/reflection-new', params: { prompt: question } })}><Text style={styles.textButtonText}>✎ Текстом</Text></Pressable>
-            <Pressable style={styles.voiceButton} onPress={() => router.push({ pathname: '/voice-story-new', params: { prompt: question } })}><Text style={styles.voiceButtonText}>● Голосом</Text></Pressable>
+            <Pressable style={styles.textButton} onPress={() => router.push({ pathname: '/reflection-new', params: { prompt: question } })}><Image source={recognitionImage} style={styles.buttonImage} resizeMode="contain" /><Text style={styles.textButtonText}>Текстом</Text></Pressable>
+            <Pressable style={styles.voiceButton} onPress={() => router.push({ pathname: '/voice-story-new', params: { prompt: question } })}><Image source={voiceImage} style={styles.buttonImage} resizeMode="contain" /><Text style={styles.voiceButtonText}>Голосом</Text></Pressable>
           </View>
         </View>
 
@@ -183,32 +185,25 @@ const styles = StyleSheet.create({
   topCopy: { flex: 1 },
   topKicker: { color: colors.purple, fontSize: 8, fontWeight: '900', letterSpacing: 1.25 },
   topTitle: { color: colors.text, fontSize: 25, fontWeight: '900', marginTop: 2 },
-  hero: { minHeight: 280, borderRadius: radius.xl, padding: 22, justifyContent: 'flex-end', overflow: 'hidden' },
-  heroGlow: { position: 'absolute', width: 220, height: 220, borderRadius: 110, top: -80, right: -55, backgroundColor: 'rgba(255,255,255,0.10)' },
-  cardsVisual: { height: 72, marginBottom: 20, alignItems: 'center', justifyContent: 'center' },
-  miniCard: { position: 'absolute', width: 56, height: 70, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
-  miniCardLeft: { transform: [{ translateX: -42 }, { rotate: '-12deg' }] },
-  miniCardCenter: { zIndex: 2, backgroundColor: 'rgba(255,215,106,0.24)' },
-  miniCardRight: { transform: [{ translateX: 42 }, { rotate: '12deg' }] },
-  miniCardText: { color: colors.white, fontSize: 22, fontWeight: '900' },
-  heroTitle: { color: colors.white, fontSize: 23, lineHeight: 28, fontWeight: '900' },
-  heroText: { color: '#E5E2EF', fontSize: 11, lineHeight: 17, marginTop: 8 },
   sectionKicker: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
   deckGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  deckChip: { width: '48.5%', minHeight: 70, borderRadius: radius.md, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.lineWarm, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  deckChip: { width: '48.5%', minHeight: 78, borderRadius: radius.md, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.lineWarm, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 8 },
   deckChipActive: { backgroundColor: colors.navy, borderColor: colors.navy },
-  deckIcon: { width: 35, height: 35, borderRadius: 12, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' },
-  deckIconActive: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  deckIconText: { color: colors.teal, fontSize: 13, fontWeight: '900' },
-  deckIconTextActive: { color: colors.sun },
+  deckIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  deckIconActive: { backgroundColor: '#FFF3D9' },
+  deckImage: { width: 43, height: 43 },
   deckCopy: { flex: 1 },
   deckTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
   deckTitleActive: { color: colors.white },
   deckSubtitle: { color: colors.muted, fontSize: 7, lineHeight: 10, marginTop: 2 },
   deckSubtitleActive: { color: '#C9DADD' },
   questionCard: { minHeight: 330, borderRadius: radius.xl, padding: 22, overflow: 'hidden' },
+  questionArt: { position: 'absolute', right: -16, bottom: -8, width: 155, height: 155, opacity: 0.28 },
+  questionArtImage: { width: 150, height: 150 },
   questionTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  questionDeck: { color: 'rgba(255,255,255,0.78)', fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  questionDeckWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  questionDeckImage: { width: 34, height: 34 },
+  questionDeck: { color: 'rgba(255,255,255,0.88)', fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
   questionCount: { color: 'rgba(255,255,255,0.65)', fontSize: 9, fontWeight: '900' },
   quote: { color: 'rgba(255,255,255,0.20)', fontSize: 82, lineHeight: 82, fontWeight: '900', marginTop: 12 },
   question: { color: colors.white, fontSize: 25, lineHeight: 32, fontWeight: '900', marginTop: -18, maxWidth: '94%' },
@@ -217,15 +212,16 @@ const styles = StyleSheet.create({
   drawButtonText: { color: colors.white, fontSize: 10, fontWeight: '900' },
   answerCard: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 17 },
   answerHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  answerIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center' },
-  answerIconText: { color: colors.purple, fontSize: 18, fontWeight: '900' },
+  answerIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: '#FFF0D2', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  answerIconImage: { width: 48, height: 48 },
   answerCopy: { flex: 1 },
   answerTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
   answerText: { color: colors.muted, fontSize: 9, lineHeight: 13, marginTop: 3 },
   answerActions: { flexDirection: 'row', gap: 8, marginTop: 14 },
-  textButton: { flex: 1, minHeight: 46, borderRadius: radius.md, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' },
+  textButton: { flex: 1, minHeight: 50, borderRadius: radius.md, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   textButtonText: { color: colors.navy, fontSize: 10, fontWeight: '900' },
-  voiceButton: { flex: 1, minHeight: 46, borderRadius: radius.md, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
+  voiceButton: { flex: 1, minHeight: 50, borderRadius: radius.md, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   voiceButtonText: { color: colors.white, fontSize: 10, fontWeight: '900' },
+  buttonImage: { width: 34, height: 34 },
   footer: { color: colors.muted, fontSize: 9, lineHeight: 14, textAlign: 'center', paddingHorizontal: 26 },
 });
