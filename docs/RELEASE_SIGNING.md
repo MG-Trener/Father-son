@@ -2,30 +2,73 @@
 
 Приложение распространяется напрямую как APK, поэтому все версии, которые должны устанавливаться поверх уже установленной, обязаны использовать один и тот же Android signing key.
 
-## Рекомендуемый вариант: EAS-managed credentials
+## Текущий CI-вариант: локальный keystore + GitHub Actions Secrets
 
-Один раз на компьютере владельца проекта:
+Для автоматической публикации APK из `main` используется постоянный keystore, который создаётся один раз на компьютере владельца проекта и никогда не коммитится в Git.
+
+На Windows из корня репозитория запустите:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\create-android-release-keystore.ps1
+```
+
+Скрипт:
+
+- создаёт `papa-i-ya-release.keystore` локально;
+- требует пароли не короче 12 символов;
+- выводит Base64-представление keystore для GitHub Secret;
+- не добавляет keystore в репозиторий (`*.keystore` уже находится в `.gitignore`).
+
+После создания ключа добавьте в GitHub: **Settings → Secrets and variables → Actions → New repository secret**:
+
+- `ANDROID_KEYSTORE_BASE64` — Base64-строка, которую вывел скрипт;
+- `ANDROID_KEYSTORE_PASSWORD` — пароль keystore;
+- `ANDROID_KEY_ALIAS` — по умолчанию `papa-i-ya-release`;
+- `ANDROID_KEY_PASSWORD` — пароль ключа;
+- `SUPABASE_RELEASE_SECRET_KEY` — серверный Supabase secret key для публикации APK и записи `app_releases`.
+
+`SUPABASE_RELEASE_SECRET_KEY` нельзя помещать в `app.json`, `.env` мобильного приложения или любой `EXPO_PUBLIC_*` параметр.
+
+После добавления секретов следующий push в `main` выполняет цепочку:
+
+1. Expo Doctor и TypeScript.
+2. Expo prebuild.
+3. Временное восстановление keystore только внутри GitHub runner.
+4. Сборка APK с постоянной подписью.
+5. Проверка сертификата через `apksigner`.
+6. Создание versioned GitHub prerelease.
+7. Загрузка подписанного APK в приватный Supabase bucket `app-releases`.
+8. Запись новой версии в `app_releases`.
+9. Удаление keystore с runner.
+
+Клиентское приложение после этого увидит новую запись через `get_latest_app_release`, получит временную signed URL и предложит установку обновления.
+
+## Первый переход на постоянную подпись
+
+Если установленная на телефоне версия была собрана с debug/preview-ключом, Android не позволит установить поверх неё APK, подписанный новым production-ключом. Это штатное ограничение Android.
+
+Поэтому при первом переходе на постоянную подпись нужно один раз:
+
+1. убедиться, что важные данные приложения уже находятся в Supabase, а не только локально;
+2. удалить старую preview/debug-установку;
+3. установить первый APK с постоянной release-подписью;
+4. дальше все версии устанавливаются поверх неё без смены signing key.
+
+## Альтернативный вариант: EAS-managed credentials
+
+Можно использовать EAS-managed credentials. Один раз на компьютере владельца проекта:
 
 1. Установить/запустить EAS CLI и войти в Expo-аккаунт.
 2. В корне проекта выполнить `eas build --platform android --profile production`.
 3. При первом запросе Android credentials выбрать генерацию нового keystore через EAS.
-4. EAS сохранит keystore на своих серверах и будет повторно использовать его для следующих production-сборок этого Android package (`com.mgtrener.fatherson`).
-5. После первой подписанной production APK именно её нужно считать базовой устанавливаемой версией для будущих автообновлений.
+4. EAS сохранит keystore на своих серверах и будет повторно использовать его для следующих production-сборок package `com.mgtrener.fatherson`.
 
-Текущий `production` profile в `eas.json` намеренно создаёт APK, а не AAB, потому что приложение устанавливается напрямую, без Google Play.
+Не следует одновременно заводить два независимых production signing key. После выбора базового production-ключа он должен оставаться единственным для прямых APK-обновлений.
 
 ## Важно
 
-- Не коммитить keystore, `credentials.json`, пароли или ключи в Git.
+- Не коммитить keystore, `credentials.json`, пароли или секретные ключи в Git.
 - Не менять Android package `com.mgtrener.fatherson` после начала реального использования.
 - Не генерировать новый production keystore для каждого релиза.
-- Preview/debug APK, подписанный другим ключом, может не установиться поверх production APK. В таком случае тестовую сборку нужно удалить перед установкой production-базы.
 - Перед публикацией релиза увеличивать `expo.version` и `expo.android.versionCode`.
-
-## Резервная копия credentials
-
-После настройки EAS credentials владелец проекта может использовать `eas credentials -p android`, выбрать нужный профиль и скачать `credentials.json`/keystore для защищённой офлайн-резервной копии. Эти файлы нельзя добавлять в репозиторий.
-
-## Связь с автообновлением
-
-После появления постоянной подписи CI может публиковать APK в приватный Supabase bucket `app-releases`. Клиент получает временную signed URL и передаёт APK штатному Android installer. Android разрешит обновление поверх установленной версии только при совпадении подписи и package name.
+- Сделать защищённую офлайн-резервную копию keystore и паролей. Потеря production signing key лишит возможности выпускать обновления поверх уже установленных APK.
