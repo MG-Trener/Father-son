@@ -13,4 +13,5 @@ firebase-adminsdk-*.json
 *-firebase-adminsdk-*.json
 service-account*.json
 google-service-account*.json
+assets/splash-emblem.png
 .DS_Store
