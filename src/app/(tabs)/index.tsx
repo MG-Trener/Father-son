@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -9,11 +9,11 @@ import { supabase } from '../../lib/supabase';
 import { colors, moduleColors, radius, shadows } from '../../theme';
 
 const directions = [
-  { id: 'school', icon: '📘', title: 'Школа', detail: 'Знания и уверенность', color: moduleColors.school },
-  { id: 'football', icon: '⚽', title: 'Футбол', detail: 'Сила и характер', color: moduleColors.football },
-  { id: 'chess', icon: '♟', title: 'Шахматы', detail: 'Мыслить на шаг вперёд', color: moduleColors.chess },
-  { id: 'english', icon: 'EN', title: 'English', detail: 'Открывать мир', color: moduleColors.english },
-  { id: 'leadership', icon: '★', title: 'Лидерство', detail: 'Решения и ответственность', color: moduleColors.leadership },
+  { id: 'school', image: require('../../../assets/generated/direction-school.png'), title: 'Школа', detail: 'Знания и уверенность', color: moduleColors.school },
+  { id: 'football', image: require('../../../assets/generated/direction-football.png'), title: 'Футбол', detail: 'Сила и характер', color: moduleColors.football },
+  { id: 'chess', image: require('../../../assets/generated/direction-chess.png'), title: 'Шахматы', detail: 'Мыслить на шаг вперёд', color: moduleColors.chess },
+  { id: 'english', image: require('../../../assets/generated/direction-english.png'), title: 'English', detail: 'Открывать мир', color: moduleColors.english },
+  { id: 'leadership', image: require('../../../assets/generated/direction-leadership.png'), title: 'Лидерство', detail: 'Решения и ответственность', color: moduleColors.leadership },
 ] as const;
 
 const moodChoices = [
@@ -195,7 +195,9 @@ export default function HomeScreen() {
               <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
 
               <Pressable style={styles.meetingBar} onPress={() => router.push('/meeting-plan')}>
-                <View style={styles.meetingIcon}><Text style={styles.meetingIconText}>⌁</Text></View>
+                <View style={styles.meetingIcon}>
+                  <Image source={require('../../../assets/generated/utility-calendar.png')} style={styles.meetingIconImage} resizeMode="contain" />
+                </View>
                 <View style={styles.meetingCopy}>
                   <Text style={styles.meetingEyebrow}>СЛЕДУЮЩАЯ ВСТРЕЧА</Text>
                   <Text style={styles.meetingTitle}>{countdownText(nextMeeting)}</Text>
@@ -245,7 +247,9 @@ export default function HomeScreen() {
 
         <View style={styles.actionGrid}>
           <Pressable style={[styles.actionCard, styles.actionCardPrimary, shadows.soft]} onPress={() => void sendFiveMinutes()} disabled={actionBusy}>
-            <View style={styles.actionIconLight}><Text style={styles.actionIconLightText}>♥</Text></View>
+            <View style={styles.actionIconLight}>
+              <Image source={require('../../../assets/generated/nav-together.png')} style={styles.actionIconImage} resizeMode="contain" />
+            </View>
             <Text style={styles.actionKicker}>БЫСТРАЯ СВЯЗЬ</Text>
             <Text style={styles.actionTitleLight}>Есть 5 минут?</Text>
             <Text style={styles.actionTextLight}>{isChild ? 'Позвать папу поговорить или сыграть.' : `Показать ${childName}, что сейчас ты свободен для него.`}</Text>
@@ -279,7 +283,7 @@ export default function HomeScreen() {
               onPress={() => router.push({ pathname: '/growth-journal', params: { category: item.id } })}
             >
               <View style={[styles.directionIcon, { backgroundColor: item.color.strong }]}>
-                <Text style={styles.directionIconText}>{item.icon}</Text>
+                <Image source={item.image} style={styles.directionIconImage} resizeMode="contain" />
               </View>
               <Text style={styles.directionTitle}>{item.title}</Text>
               <Text style={styles.directionDetail}>{item.detail}</Text>
@@ -293,6 +297,7 @@ export default function HomeScreen() {
 
         <Pressable style={[styles.bookCard, shadows.soft]} onPress={() => router.push('/(tabs)/yearbook')}>
           <LinearGradient colors={['#F6E7CB', '#FFF9EE']} style={styles.bookGradient}>
+            <Image source={require('../../../assets/generated/nav-book.png')} style={styles.bookArt} resizeMode="contain" />
             <View style={styles.bookBadge}><Text style={styles.bookBadgeText}>КНИГА ГОДА</Text></View>
             <Text style={styles.bookTitle}>Не потерять то, что действительно важно</Text>
             <Text style={styles.bookText}>Миссии, достижения, голосовые истории и ваши ответы собираются в одну историю взросления.</Text>
@@ -312,7 +317,9 @@ export default function HomeScreen() {
               <Text style={styles.eyebrow}>НАШ РОСТ</Text>
               <Text style={styles.sectionTitle}>Команда в цифрах</Text>
             </View>
-            <View style={styles.growthHeart}><Text style={styles.growthHeartText}>♥</Text></View>
+            <View style={styles.growthHeart}>
+              <Image source={require('../../../assets/generated/badge-team.png')} style={styles.growthHeartImage} resizeMode="contain" />
+            </View>
           </View>
           <View style={styles.statsRow}>
             <View style={styles.statItem}><Text style={styles.statValue}>{completedMissions}</Text><Text style={styles.statLabel}>миссий</Text></View>
@@ -365,8 +372,8 @@ const styles = StyleSheet.create({
   heroTitle: { color: colors.white, fontSize: 32, lineHeight: 35, fontWeight: '900', letterSpacing: -1.2 },
   heroSubtitle: { color: '#F7F1E8', fontSize: 13, lineHeight: 19, fontWeight: '700', maxWidth: '88%', marginBottom: 8 },
   meetingBar: { minHeight: 78, backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 20, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  meetingIcon: { width: 45, height: 45, borderRadius: 15, backgroundColor: '#F8E0AA', alignItems: 'center', justifyContent: 'center' },
-  meetingIconText: { color: colors.navyDeep, fontSize: 28, fontWeight: '900', transform: [{ rotate: '-12deg' }] },
+  meetingIcon: { width: 45, height: 45, borderRadius: 15, backgroundColor: '#F8E0AA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  meetingIconImage: { width: 42, height: 42 },
   meetingCopy: { flex: 1 },
   meetingEyebrow: { color: '#899394', fontSize: 7, fontWeight: '900', letterSpacing: 1 },
   meetingTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 1 },
@@ -389,8 +396,8 @@ const styles = StyleSheet.create({
   actionCard: { flex: 1, minHeight: 225, borderRadius: 26, padding: 16, overflow: 'hidden' },
   actionCardPrimary: { backgroundColor: '#0E4252' },
   actionCardWarm: { backgroundColor: '#F0C46D' },
-  actionIconLight: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.13)' },
-  actionIconLightText: { color: '#FFD26A', fontSize: 20 },
+  actionIconLight: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0CB', overflow: 'hidden' },
+  actionIconImage: { width: 42, height: 42 },
   actionKicker: { color: '#9FC3CA', fontSize: 7.5, fontWeight: '900', letterSpacing: 1, marginTop: 19 },
   actionTitleLight: { color: colors.white, fontSize: 25, lineHeight: 28, fontWeight: '900', marginTop: 3, letterSpacing: -0.8 },
   actionTextLight: { color: '#D0E0E3', fontSize: 10, lineHeight: 15, fontWeight: '600', marginTop: 8 },
@@ -403,19 +410,20 @@ const styles = StyleSheet.create({
   actionAnswer: { color: '#3C3425', fontSize: 10, fontWeight: '900', marginTop: 'auto' },
   directionRow: { gap: 10, paddingRight: 8, paddingBottom: 2 },
   directionCard: { width: 150, minHeight: 176, borderRadius: 23, padding: 14, overflow: 'hidden' },
-  directionIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  directionIconText: { color: colors.white, fontSize: 19, fontWeight: '900' },
+  directionIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  directionIconImage: { width: 45, height: 45 },
   directionTitle: { color: colors.navyDeep, fontSize: 15, fontWeight: '900', marginTop: 12 },
   directionDetail: { color: '#657477', fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 3, minHeight: 27 },
   directionLine: { height: 6, borderRadius: 4, overflow: 'hidden', marginTop: 12 },
   directionLineFill: { width: '62%', height: '100%', borderRadius: 4 },
   directionOpen: { fontSize: 9, fontWeight: '900', marginTop: 10 },
   bookCard: { borderRadius: 27, overflow: 'hidden' },
-  bookGradient: { padding: 18 },
+  bookGradient: { padding: 18, overflow: 'hidden' },
+  bookArt: { position: 'absolute', right: 10, top: 6, width: 100, height: 100, opacity: 0.92 },
   bookBadge: { alignSelf: 'flex-start', backgroundColor: '#0D4050', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
   bookBadgeText: { color: '#FFD16A', fontSize: 7.5, fontWeight: '900', letterSpacing: 1.1 },
-  bookTitle: { color: colors.navyDeep, fontSize: 22, lineHeight: 26, fontWeight: '900', marginTop: 14, maxWidth: '88%', letterSpacing: -0.5 },
-  bookText: { color: '#6A6E69', fontSize: 10, lineHeight: 15, fontWeight: '600', marginTop: 7, maxWidth: '94%' },
+  bookTitle: { color: colors.navyDeep, fontSize: 22, lineHeight: 26, fontWeight: '900', marginTop: 14, maxWidth: '74%', letterSpacing: -0.5 },
+  bookText: { color: '#6A6E69', fontSize: 10, lineHeight: 15, fontWeight: '600', marginTop: 7, maxWidth: '88%' },
   bookFooter: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: 18 },
   bookStat: { color: colors.navyDeep, fontSize: 25, fontWeight: '900' },
   bookStatLabel: { color: '#8A8C84', fontSize: 8, fontWeight: '700', marginTop: 1 },
@@ -424,8 +432,8 @@ const styles = StyleSheet.create({
   bookButtonArrow: { color: colors.navyDeep, fontSize: 19, lineHeight: 19 },
   growthCard: { backgroundColor: colors.paper, borderRadius: 27, padding: 17, borderWidth: 1, borderColor: '#E9DFD0' },
   growthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  growthHeart: { width: 46, height: 46, borderRadius: 16, backgroundColor: '#E1F0E7', alignItems: 'center', justifyContent: 'center' },
-  growthHeartText: { color: colors.green, fontSize: 20 },
+  growthHeart: { width: 52, height: 52, borderRadius: 17, backgroundColor: '#E1F0E7', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  growthHeartImage: { width: 49, height: 49 },
   statsRow: { flexDirection: 'row', alignItems: 'stretch', marginTop: 18, backgroundColor: '#F6F1E8', borderRadius: 20, paddingVertical: 14 },
   statItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   statValue: { color: colors.navyDeep, fontSize: 21, fontWeight: '900' },
