@@ -121,8 +121,10 @@ export default function NotificationsScreen() {
     if (!client || !family || !me || !ids.length) return true;
     const unique = ids.filter((id) => !readIds.has(id));
     if (!unique.length) return true;
-    const rows = unique.map((eventId) => ({ event_id: eventId, family_id: family.id, user_id: me.user_id }));
-    const { error } = await client.from('activity_event_reads').insert(rows);
+    const { error } = await client.rpc('mark_activity_events_read', {
+      p_family_id: family.id,
+      p_event_ids: unique,
+    });
     if (error) {
       Alert.alert('Не удалось отметить прочитанным', error.message);
       return false;
