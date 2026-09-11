@@ -63,6 +63,7 @@ export default function HomeScreen() {
   const [interactions, setInteractions] = useState(0);
   const [completedMissions, setCompletedMissions] = useState(0);
   const [growthCount, setGrowthCount] = useState(0);
+  const [growthByCategory, setGrowthByCategory] = useState<Record<string, number>>({});
   const [nextMeeting, setNextMeeting] = useState<UpcomingMeeting | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
@@ -79,12 +80,13 @@ export default function HomeScreen() {
   const loadHomeData = useCallback(async () => {
     if (!supabase || !family) return;
 
-    const [moodsResult, interactionsResult, missionsResult, growthResult, meetingResult] = await Promise.all([
+    const [moodsResult, interactionsResult, missionsResult, growthResult, meetingResult, directionResults] = await Promise.all([
       supabase.from('moods').select('user_id,mood,created_at').eq('family_id', family.id).order('created_at', { ascending: false }).limit(20),
       supabase.from('activity_events').select('id', { count: 'exact', head: true }).eq('family_id', family.id).eq('category', 'together'),
       supabase.from('missions').select('id', { count: 'exact', head: true }).eq('family_id', family.id).eq('status', 'completed'),
       supabase.from('growth_entries').select('id', { count: 'exact', head: true }).eq('family_id', family.id),
       supabase.from('meetings').select('id,meeting_date,title').eq('family_id', family.id).eq('status', 'planned').gte('meeting_date', todayIso()).order('meeting_date', { ascending: true }).limit(1).maybeSingle(),
+      Promise.all(directions.map((direction) => supabase.from('growth_entries').select('id', { count: 'exact', head: true }).eq('family_id', family.id).eq('category', direction.id))),
     ]);
 
     if (!moodsResult.error) {
@@ -95,6 +97,12 @@ export default function HomeScreen() {
     if (!interactionsResult.error) setInteractions(interactionsResult.count ?? 0);
     if (!missionsResult.error) setCompletedMissions(missionsResult.count ?? 0);
     if (!growthResult.error) setGrowthCount(growthResult.count ?? 0);
+    const nextCounts: Record<string, number> = {};
+    directions.forEach((direction, index) => {
+      const result = directionResults[index];
+      nextCounts[direction.id] = result && !result.error ? result.count ?? 0 : 0;
+    });
+    setGrowthByCategory(nextCounts);
     if (!meetingResult.error) setNextMeeting((meetingResult.data as UpcomingMeeting | null) ?? null);
   }, [family]);
 
@@ -272,23 +280,27 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.directionRow}>
-          {directions.map((item) => (
-            <Pressable
-              key={item.id}
-              style={[styles.directionCard, { backgroundColor: item.color.base }, shadows.soft]}
-              onPress={() => router.push({ pathname: '/growth-journal', params: { category: item.id } })}
-            >
-              <View style={[styles.directionIcon, { backgroundColor: item.color.strong }]}>
-                <Text style={styles.directionIconText}>{item.icon}</Text>
-              </View>
-              <Text style={styles.directionTitle}>{item.title}</Text>
-              <Text style={styles.directionDetail}>{item.detail}</Text>
-              <View style={[styles.directionLine, { backgroundColor: item.color.glow }]}>
-                <View style={[styles.directionLineFill, { backgroundColor: item.color.strong }]} />
-              </View>
-              <Text style={[styles.directionOpen, { color: item.color.strong }]}>Открыть →</Text>
-            </Pressable>
-          ))}
+          {directions.map((item) => {
+            const count = growthByCategory[item.id] ?? 0;
+            return (
+              <Pressable
+                key={item.id}
+                style={[styles.directionCard, { backgroundColor: item.color.base }, shadows.soft]}
+                onPress={() => router.push({ pathname: '/growth-journal', params: { category: item.id } })}
+              >
+                <View style={[styles.directionIcon, { backgroundColor: item.color.strong }]}>
+                  <Text style={styles.directionIconText}>{item.icon}</Text>
+                </View>
+                <Text style={styles.directionTitle}>{item.title}</Text>
+                <Text style={styles.directionDetail}>{item.detail}</Text>
+                <View style={styles.directionMeta}>
+                  <Text style={[styles.directionCount, { color: item.color.strong }]}>{count}</Text>
+                  <Text style={styles.directionCountLabel}>моментов пути</Text>
+                </View>
+                <Text style={[styles.directionOpen, { color: item.color.strong }]}>Открыть →</Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
 
         <Pressable style={[styles.bookCard, shadows.soft]} onPress={() => router.push('/(tabs)/yearbook')}>
@@ -407,9 +419,10 @@ const styles = StyleSheet.create({
   directionIconText: { color: colors.white, fontSize: 19, fontWeight: '900' },
   directionTitle: { color: colors.navyDeep, fontSize: 15, fontWeight: '900', marginTop: 12 },
   directionDetail: { color: '#657477', fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 3, minHeight: 27 },
-  directionLine: { height: 6, borderRadius: 4, overflow: 'hidden', marginTop: 12 },
-  directionLineFill: { width: '62%', height: '100%', borderRadius: 4 },
-  directionOpen: { fontSize: 9, fontWeight: '900', marginTop: 10 },
+  directionMeta: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 11 },
+  directionCount: { fontSize: 18, fontWeight: '900' },
+  directionCountLabel: { color: '#657477', fontSize: 7.5, fontWeight: '800' },
+  directionOpen: { fontSize: 9, fontWeight: '900', marginTop: 'auto' },
   bookCard: { borderRadius: 27, overflow: 'hidden' },
   bookGradient: { padding: 18 },
   bookBadge: { alignSelf: 'flex-start', backgroundColor: '#0D4050', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
