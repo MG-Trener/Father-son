@@ -2,22 +2,36 @@
   "expo": {
     "name": "Папа & Я",
     "slug": "papa-i-ya",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "orientation": "portrait",
     "scheme": "papaiya",
     "userInterfaceStyle": "light",
+    "primaryColor": "#0A3143",
+    "icon": "./assets/generated/app-icon.png",
     "android": {
       "package": "com.mgtrener.fatherson",
-      "versionCode": 5,
+      "versionCode": 6,
+      "icon": "./assets/generated/app-icon.png",
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#F4F1E8"
+        "foregroundImage": "./assets/generated/app-icon.png",
+        "monochromeImage": "./assets/generated/app-icon-monochrome.png",
+        "backgroundColor": "#0A3143"
       }
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#071F2A",
+          "image": "./assets/generated/app-icon.png",
+          "imageWidth": 176,
+          "resizeMode": "contain"
+        }
+      ],
       [
         "expo-notifications",
         {

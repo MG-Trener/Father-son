@@ -1,9 +1,10 @@
 {
   "name": "papa-i-ya",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
+    "postinstall": "node scripts/generate-brand-assets.mjs",
     "start": "expo start",
     "android": "expo start --android",
     "web": "expo start --web",
@@ -23,6 +24,7 @@
     "expo-linking": "57.0.9",
     "expo-notifications": "57.0.17",
     "expo-router": "57.0.20",
+    "expo-splash-screen": "57.0.8",
     "expo-sqlite": "57.0.2",
     "expo-status-bar": "57.0.1",
     "react": "19.2.3",
@@ -35,6 +37,7 @@
   },
   "devDependencies": {
     "@types/react": "19.2.4",
+    "sharp": "0.35.4",
     "typescript": "6.0.3"
   }
 }
