@@ -54,12 +54,7 @@ export function TeamLoadingScene({ topInset = 0, bottomInset = 0 }: Props) {
               <View style={styles.loadingCopy}>
                 <Text style={styles.loadingText}>Собираем ваше пространство</Text>
                 <View style={styles.progressTrack}>
-                  <Animated.View
-                    style={[
-                      styles.progressFill,
-                      { transform: [{ scaleX: progress }], transformOrigin: 'left center' },
-                    ]}
-                  />
+                  <Animated.View style={[styles.progressFill, { transform: [{ scaleX: progress }] }]} />
                 </View>
               </View>
               <View style={styles.dots}>
