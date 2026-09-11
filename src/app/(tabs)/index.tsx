@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { ConnectionPulse } from '../../components/ConnectionPulse';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
 import { supabase } from '../../lib/supabase';
@@ -230,6 +231,7 @@ export default function HomeScreen() {
             <LinearGradient colors={gradients.connection} style={[styles.connectionCard, shadows.soft]}>
               <View style={styles.chatBubbleOne}><Text style={styles.chatBubbleText}>●</Text></View>
               <View style={styles.chatBubbleTwo} />
+              <View pointerEvents="none" style={{ position: 'absolute', top: 14, right: 14, opacity: 0.78 }}><ConnectionPulse size={68} color={colors.white} active={!actionBusy} /></View>
               <Text style={styles.connectionKicker}>БЫСТРАЯ СВЯЗЬ</Text>
               <Text style={styles.connectionTitle}>Есть{`\n`}5 минут?</Text>
               <Text style={styles.connectionText}>Позвать друг друга поговорить или сыграть</Text>

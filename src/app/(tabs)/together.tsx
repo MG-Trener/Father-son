@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { ConnectionPulse } from '../../components/ConnectionPulse';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
 import { notifyFamilyEvent } from '../../lib/pushNotifications';
@@ -226,6 +227,7 @@ export default function TogetherScreen() {
         {pendingSignal ? (
           <LinearGradient colors={gradients.connection} style={[styles.incomingCard, shadows.lift]}>
             <View style={styles.incomingBubble} />
+            {pendingSignal.event_type === 'five_minutes_ping' ? <View pointerEvents="none" style={{ position: 'absolute', top: 15, right: 15, opacity: 0.82 }}><ConnectionPulse size={72} color={colors.white} /></View> : null}
             <Text style={styles.incomingEyebrow}>ВХОДЯЩИЙ СИГНАЛ</Text>
             <Text style={styles.incomingTitle}>{pendingSignal.event_type === 'five_minutes_ping' ? `${pendingActor}: есть 5 минут?` : `${pendingActor}: мне нужен совет`}</Text>
             {pendingMessage ? <Text style={styles.incomingMessage}>{pendingMessage}</Text> : null}
@@ -240,6 +242,7 @@ export default function TogetherScreen() {
           <Pressable style={styles.quickPressable} disabled={busy} onPress={() => void sendSignal('five_minutes')}>
             <LinearGradient colors={gradients.connection} style={[styles.quickCard, shadows.soft]}>
               <View style={styles.quickDecorOne} /><View style={styles.quickDecorTwo} />
+              <View pointerEvents="none" style={{ position: 'absolute', top: 13, right: 14, opacity: 0.78 }}><ConnectionPulse size={66} color={colors.white} active={!busy} /></View>
               <Text style={styles.quickIcon}>⏱</Text>
               <Text style={styles.quickTitle}>Есть{`\n`}5 минут?</Text>
               <Text style={styles.quickText}>Позвать друг друга на короткую связь</Text>
