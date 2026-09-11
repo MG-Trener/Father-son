@@ -12,6 +12,11 @@ const tools: HubTool[] = [
     route: '/week-review', base: '#E5F0F2', ink: '#2D6D73',
   },
   {
+    image: require('../../assets/generated/badge-courage.png'), eyebrow: '11 → 18', title: 'Гербы пути',
+    text: 'Долгосрочные вехи без рейтинга, обнуления и гонки за сериями.',
+    route: '/achievements', base: '#FFF1E8', ink: '#8D5246',
+  },
+  {
     image: require('../../assets/generated/nav-book.png'), eyebrow: 'ПАМЯТЬ', title: 'Книга года',
     text: 'Посмотреть, как отдельные недели складываются в большую историю взросления.',
     route: '/(tabs)/yearbook', base: '#FFF0CF', ink: '#956719',
