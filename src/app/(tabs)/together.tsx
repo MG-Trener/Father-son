@@ -8,22 +8,32 @@ export default function TogetherTab() {
     <View style={styles.root}>
       <TogetherV2 />
       <View style={[styles.quickDock, shadows.lift]}>
-        <Pressable style={[styles.quickButton, styles.cardsButton]} onPress={() => router.push('/conversation-cards')}>
-          <Text style={styles.cardsIcon}>?</Text>
-          <Text style={styles.cardsText}>Карточки</Text>
+        <Pressable style={styles.todayButton} onPress={() => router.push('/today')}>
+          <View style={styles.todayIcon}><Text style={styles.todayIconText}>☀</Text></View>
+          <View style={styles.todayCopy}>
+            <Text style={styles.todayKicker}>СЕГОДНЯ</Text>
+            <Text style={styles.todayText}>Что важно прямо сейчас</Text>
+          </View>
+          <Text style={styles.todayArrow}>›</Text>
         </Pressable>
-        <Pressable style={[styles.quickButton, styles.ritualButton]} onPress={() => router.push('/rituals')}>
-          <Text style={styles.ritualIcon}>∞</Text>
-          <Text style={styles.ritualText}>Ритуалы</Text>
-        </Pressable>
-        <Pressable style={[styles.quickButton, styles.recognitionButton]} onPress={() => router.push('/recognitions')}>
-          <Text style={styles.recognitionIcon}>✦</Text>
-          <Text style={styles.recognitionText}>Я заметил</Text>
-        </Pressable>
-        <Pressable style={[styles.quickButton, styles.pulseButton]} onPress={() => router.push('/mood-check-in')}>
-          <Text style={styles.pulseIcon}>♥</Text>
-          <Text style={styles.pulseText}>Как мы?</Text>
-        </Pressable>
+        <View style={styles.toolGrid}>
+          <Pressable style={[styles.quickButton, styles.cardsButton]} onPress={() => router.push('/conversation-cards')}>
+            <Text style={styles.cardsIcon}>?</Text>
+            <Text style={styles.cardsText}>Карточки</Text>
+          </Pressable>
+          <Pressable style={[styles.quickButton, styles.ritualButton]} onPress={() => router.push('/rituals')}>
+            <Text style={styles.ritualIcon}>∞</Text>
+            <Text style={styles.ritualText}>Ритуалы</Text>
+          </Pressable>
+          <Pressable style={[styles.quickButton, styles.recognitionButton]} onPress={() => router.push('/recognitions')}>
+            <Text style={styles.recognitionIcon}>✦</Text>
+            <Text style={styles.recognitionText}>Я заметил</Text>
+          </Pressable>
+          <Pressable style={[styles.quickButton, styles.pulseButton]} onPress={() => router.push('/mood-check-in')}>
+            <Text style={styles.pulseIcon}>♥</Text>
+            <Text style={styles.pulseText}>Как мы?</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -35,18 +45,33 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 14,
     bottom: 12,
-    width: 196,
+    width: 212,
     padding: 6,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,253,249,0.96)',
+    backgroundColor: 'rgba(255,253,249,0.97)',
     borderWidth: 1,
     borderColor: '#E8E0D4',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 5,
   },
+  todayButton: {
+    minHeight: 48,
+    borderRadius: 17,
+    backgroundColor: colors.navyDeep,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  todayIcon: { width: 31, height: 31, borderRadius: 11, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
+  todayIconText: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
+  todayCopy: { flex: 1 },
+  todayKicker: { color: '#9FC3CA', fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
+  todayText: { color: colors.white, fontSize: 9, fontWeight: '900', marginTop: 1 },
+  todayArrow: { color: colors.sun, fontSize: 19, fontWeight: '900' },
+  toolGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
   quickButton: {
-    width: 89,
+    width: 97,
     minHeight: 38,
     paddingHorizontal: 9,
     borderRadius: 16,
