@@ -93,6 +93,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="yearbook"
+        options={{
+          title: 'Книга',
+          tabBarIcon: ({ focused }) => <TabGlyph symbol="▤" focused={focused} accent={colors.amber} />,
+        }}
+      />
+      <Tabs.Screen
         name="together"
         options={{
           title: 'Вместе',
