@@ -7,49 +7,51 @@ export default function DevelopmentTab() {
   return (
     <View style={styles.root}>
       <DevelopmentV2 />
-      <Pressable style={[styles.launcher, shadows.lift]} onPress={() => router.push('/week-tools')}>
-        <View style={styles.icon}>
-          <Image source={require('../../../assets/generated/badge-planner.png')} style={styles.iconImage} resizeMode="contain" />
-        </View>
-        <View style={styles.copy}>
-          <Text style={styles.kicker}>ЭТА НЕДЕЛЯ</Text>
-          <Text style={styles.text}>Фокус и итог</Text>
-        </View>
-        <Text style={styles.arrow}>›</Text>
-      </Pressable>
+      <View style={styles.quickActions}>
+        <Pressable style={[styles.compactAction, styles.badgesAction, shadows.lift]} onPress={() => router.push('/achievements')}>
+          <Image source={require('../../../assets/generated/badge-courage.png')} style={styles.compactImage} resizeMode="contain" />
+          <View>
+            <Text style={styles.badgesKicker}>11 → 18</Text>
+            <Text style={styles.badgesText}>Гербы</Text>
+          </View>
+        </Pressable>
+
+        <Pressable style={[styles.compactAction, styles.weekAction, shadows.lift]} onPress={() => router.push('/week-tools')}>
+          <Image source={require('../../../assets/generated/badge-planner.png')} style={styles.compactImage} resizeMode="contain" />
+          <View>
+            <Text style={styles.weekKicker}>ЭТА НЕДЕЛЯ</Text>
+            <Text style={styles.weekText}>Фокус и итог</Text>
+          </View>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  launcher: {
+  quickActions: {
     position: 'absolute',
-    right: 16,
+    right: 14,
     bottom: 14,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  compactAction: {
     minHeight: 54,
     borderRadius: 20,
-    backgroundColor: '#FFF8E9',
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 7,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     borderWidth: 1,
-    borderColor: '#EBCB86',
   },
-  icon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    backgroundColor: colors.navyDeep,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  iconImage: { width: 36, height: 36 },
-  copy: { minWidth: 95 },
-  kicker: { color: '#A56E16', fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
-  text: { color: colors.navyDeep, fontSize: 10, fontWeight: '900', marginTop: 1 },
-  arrow: { color: '#A56E16', fontSize: 20, fontWeight: '900' },
+  badgesAction: { backgroundColor: '#FFF0E7', borderColor: '#E8C3B2' },
+  weekAction: { backgroundColor: '#FFF8E9', borderColor: '#EBCB86' },
+  compactImage: { width: 38, height: 38 },
+  badgesKicker: { color: '#8D5246', fontSize: 6, fontWeight: '900', letterSpacing: 0.7 },
+  badgesText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900', marginTop: 1 },
+  weekKicker: { color: '#A56E16', fontSize: 6, fontWeight: '900', letterSpacing: 0.7 },
+  weekText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900', marginTop: 1 },
 });
