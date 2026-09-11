@@ -61,6 +61,7 @@ export default function TabsLayout() {
 
   if (isSupabaseConfigured && !session) return <Redirect href="/sign-in" />;
   if (isSupabaseConfigured && session && !family) return <Redirect href="/team-setup" />;
+  if (isSupabaseConfigured && session && family && me && !me.onboarding_completed_at) return <Redirect href="/onboarding" />;
 
   return (
     <Tabs
