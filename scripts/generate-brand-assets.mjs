@@ -10,14 +10,14 @@ const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
 const source = (name) => path.join(sourceDir, name);
 
 const sources = {
-  appIcon: source('ChatGPT Image 12 сент. 2026 г., 00_25_42.png'),
-  splash: source('ChatGPT Image 12 сент. 2026 г., 00_24_04 (4).png'),
-  hero: source('ChatGPT Image 12 сент. 2026 г., 00_24_05 (5).png'),
-  directionStrip: source('ChatGPT Image 12 сент. 2026 г., 00_25_22.png'),
-  navStrip: source('ChatGPT Image 12 сент. 2026 г., 00_24_06 (7).png'),
-  utilityStrip: source('ChatGPT Image 12 сент. 2026 г., 00_24_41.png'),
-  badgeSheet: source('ChatGPT Image 12 сент. 2026 г., 00_24_54.png'),
-  decorSheet: source('ChatGPT Image 12 сент. 2026 г., 00_25_06.png'),
+  appIcon: source('app-icon.png'),
+  splash: source('splash.png'),
+  hero: source('family-hero.png'),
+  directionStrip: source('growth-directions.png'),
+  navStrip: source('navigation-icons.png'),
+  utilityStrip: source('utility-icons.png'),
+  badgeSheet: source('achievement-badges.png'),
+  decorSheet: source('decor-atlas.png'),
 };
 
 await fs.mkdir(outDir, { recursive: true });
@@ -139,4 +139,4 @@ await sharp(Buffer.from(monochromeSvg))
   .png({ compressionLevel: 9 })
   .toFile(path.join(outDir, 'app-icon-monochrome.png'));
 
-console.log('Generated Papa & Ya assets from the committed 12 Sep 2026 brand source images');
+console.log('Generated Papa & Ya assets from normalized brand source files');
