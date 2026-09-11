@@ -41,7 +41,7 @@
 - `nav-us.png`
 - `utility-calendar.png`
 - `utility-voice.png`
-- `utility-agreement.png`
+- `utility-agreements.png`
 - `utility-goal.png`
 - `utility-recognition.png`
 - `badge-school.png`
