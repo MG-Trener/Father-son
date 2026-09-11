@@ -1,0 +1,68 @@
+name: Apply connection pulse
+
+on:
+  push:
+    branches: [connection-pulse-ui]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v7
+        with:
+          ref: connection-pulse-ui
+
+      - name: Patch Home and Together
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, got {count}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'src/app/(tabs)/index.tsx',
+              "import { router } from 'expo-router';\n",
+              "import { router } from 'expo-router';\nimport { ConnectionPulse } from '../../components/ConnectionPulse';\n",
+          )
+          replace_once(
+              'src/app/(tabs)/index.tsx',
+              "              <View style={styles.chatBubbleOne}><Text style={styles.chatBubbleText}>●</Text></View>\n              <View style={styles.chatBubbleTwo} />\n",
+              "              <View style={styles.chatBubbleOne}><Text style={styles.chatBubbleText}>●</Text></View>\n              <View style={styles.chatBubbleTwo} />\n              <View pointerEvents=\"none\" style={{ position: 'absolute', top: 14, right: 14, opacity: 0.78 }}><ConnectionPulse size={68} color={colors.white} active={!actionBusy} /></View>\n",
+          )
+
+          replace_once(
+              'src/app/(tabs)/together.tsx',
+              "import { router } from 'expo-router';\n",
+              "import { router } from 'expo-router';\nimport { ConnectionPulse } from '../../components/ConnectionPulse';\n",
+          )
+          replace_once(
+              'src/app/(tabs)/together.tsx',
+              "              <View style={styles.quickDecorOne} /><View style={styles.quickDecorTwo} />\n              <Text style={styles.quickIcon}>⏱</Text>\n",
+              "              <View style={styles.quickDecorOne} /><View style={styles.quickDecorTwo} />\n              <View pointerEvents=\"none\" style={{ position: 'absolute', top: 13, right: 14, opacity: 0.78 }}><ConnectionPulse size={66} color={colors.white} active={!busy} /></View>\n              <Text style={styles.quickIcon}>⏱</Text>\n",
+          )
+          replace_once(
+              'src/app/(tabs)/together.tsx',
+              "            <View style={styles.incomingBubble} />\n            <Text style={styles.incomingEyebrow}>ВХОДЯЩИЙ СИГНАЛ</Text>\n",
+              "            <View style={styles.incomingBubble} />\n            {pendingSignal.event_type === 'five_minutes_ping' ? <View pointerEvents=\"none\" style={{ position: 'absolute', top: 15, right: 15, opacity: 0.82 }}><ConnectionPulse size={72} color={colors.white} /></View> : null}\n            <Text style={styles.incomingEyebrow}>ВХОДЯЩИЙ СИГНАЛ</Text>\n",
+          )
+
+      - name: Remove one-time workflow and commit result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/apply-connection-pulse.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/'(tabs)'/index.tsx src/app/'(tabs)'/together.tsx src/components/ConnectionPulse.tsx
+          git commit -m "Animate five-minute connection signals"
+          git push origin HEAD:connection-pulse-ui
