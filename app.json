@@ -2,13 +2,13 @@
   "expo": {
     "name": "Папа & Я",
     "slug": "papa-i-ya",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "orientation": "portrait",
     "scheme": "papaiya",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.mgtrener.fatherson",
-      "versionCode": 4,
+      "versionCode": 5,
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES"
       ],
