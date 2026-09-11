@@ -5,71 +5,108 @@ import sharp from 'sharp';
 const root = process.cwd();
 const sourceDir = path.join(root, 'assets', 'brand-source');
 const outDir = path.join(root, 'assets', 'generated');
-const atlasPath = path.join(sourceDir, 'brand-atlas.webp');
-
-await fs.mkdir(outDir, { recursive: true });
-await fs.access(atlasPath);
-
 const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
-const atlas = () => sharp(atlasPath, { failOn: 'none' });
 
-// The source atlas keeps the generated visual system in one optimized file.
-// Coordinates are intentionally fixed so install/build output is deterministic.
-const regions = {
-  icon: { left: 0, top: 0, width: 512, height: 512 },
-  hero: { left: 512, top: 0, width: 688, height: 516 },
-  splash: { left: 0, top: 512, width: 338, height: 601 },
+const source = (name) => path.join(sourceDir, name);
+
+const sources = {
+  appIcon: source('ChatGPT Image 12 сент. 2026 г., 00_25_42.png'),
+  splash: source('ChatGPT Image 12 сент. 2026 г., 00_24_04 (4).png'),
+  hero: source('ChatGPT Image 12 сент. 2026 г., 00_24_05 (5).png'),
+  directionStrip: source('ChatGPT Image 12 сент. 2026 г., 00_25_22.png'),
+  navStrip: source('ChatGPT Image 12 сент. 2026 г., 00_24_06 (7).png'),
+  badgeSheet: source('ChatGPT Image 12 сент. 2026 г., 00_24_54.png'),
+  decorSheet: source('ChatGPT Image 12 сент. 2026 г., 00_25_06.png'),
 };
 
-await atlas()
-  .extract(regions.icon)
-  .resize(1024, 1024, { fit: 'cover' })
-  .png({ compressionLevel: 9, palette: true, quality: 94 })
+await fs.mkdir(outDir, { recursive: true });
+await Promise.all(Object.values(sources).map((file) => fs.access(file)));
+
+const png = (file) => sharp(file, { failOn: 'none' });
+
+await png(sources.appIcon)
+  .resize(1024, 1024, { fit: 'cover', position: 'centre' })
+  .png({ compressionLevel: 9, quality: 94 })
   .toFile(path.join(outDir, 'app-icon.png'));
 
-await atlas()
-  .extract(regions.hero)
-  .resize(1200, 900, { fit: 'cover' })
-  .png({ compressionLevel: 9, palette: true, quality: 91, colours: 256 })
+await png(sources.hero)
+  .resize(1600, 900, { fit: 'cover', position: 'centre' })
+  .png({ compressionLevel: 9, quality: 92 })
   .toFile(path.join(outDir, 'family-hero.png'));
 
-await atlas()
-  .extract(regions.splash)
-  .resize(540, 960, { fit: 'cover' })
-  .png({ compressionLevel: 9, palette: true, quality: 91, colours: 256 })
+await png(sources.splash)
+  .resize(1080, 1920, { fit: 'cover', position: 'centre' })
+  .png({ compressionLevel: 9, quality: 92 })
   .toFile(path.join(outDir, 'splash-screen.png'));
 
-const directionIcons = [
-  ['school', { left: 349, top: 566, width: 109, height: 143 }],
-  ['football', { left: 458, top: 522, width: 120, height: 144 }],
-  ['chess', { left: 578, top: 543, width: 118, height: 131 }],
-  ['english', { left: 701, top: 567, width: 114, height: 134 }],
-  ['leadership', { left: 819, top: 550, width: 112, height: 122 }],
-];
+async function splitHorizontalStrip(file, names, prefix, targetSize) {
+  const metadata = await png(file).metadata();
+  if (!metadata.width || !metadata.height) throw new Error(`Cannot read strip metadata: ${file}`);
 
-for (const [name, region] of directionIcons) {
-  await atlas()
-    .extract(region)
-    .resize(220, 220, { fit: 'contain', background: transparent })
-    .png({ compressionLevel: 9 })
-    .toFile(path.join(outDir, `direction-${name}.png`));
+  for (let index = 0; index < names.length; index += 1) {
+    const left = Math.floor((metadata.width * index) / names.length);
+    const right = Math.floor((metadata.width * (index + 1)) / names.length);
+    const width = Math.max(1, right - left);
+
+    await png(file)
+      .extract({ left, top: 0, width, height: metadata.height })
+      .trim({ threshold: 8 })
+      .resize(targetSize, targetSize, { fit: 'contain', background: transparent })
+      .png({ compressionLevel: 9 })
+      .toFile(path.join(outDir, `${prefix}-${names[index]}.png`));
+  }
 }
 
-const navIcons = [
-  ['home', { left: 346, top: 771, width: 103, height: 134 }],
-  ['growth', { left: 462, top: 754, width: 108, height: 150 }],
-  ['book', { left: 578, top: 718, width: 120, height: 189 }],
-  ['together', { left: 706, top: 719, width: 109, height: 172 }],
-  ['us', { left: 822, top: 768, width: 107, height: 101 }],
-];
+await splitHorizontalStrip(
+  sources.directionStrip,
+  ['school', 'football', 'chess', 'english', 'leadership'],
+  'direction',
+  256,
+);
 
-for (const [name, region] of navIcons) {
-  await atlas()
-    .extract(region)
-    .resize(180, 180, { fit: 'contain', background: transparent })
-    .png({ compressionLevel: 9 })
-    .toFile(path.join(outDir, `nav-${name}.png`));
+// Source order: home, growth/path, book, heart/together, family/us.
+await splitHorizontalStrip(
+  sources.navStrip,
+  ['home', 'growth', 'book', 'together', 'us'],
+  'nav',
+  196,
+);
+
+async function splitGrid(file, names, columns, rows, prefix, targetSize) {
+  const metadata = await png(file).metadata();
+  if (!metadata.width || !metadata.height) throw new Error(`Cannot read grid metadata: ${file}`);
+  if (names.length !== columns * rows) throw new Error('Grid names count must match columns × rows');
+
+  for (let index = 0; index < names.length; index += 1) {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const left = Math.floor((metadata.width * column) / columns);
+    const right = Math.floor((metadata.width * (column + 1)) / columns);
+    const top = Math.floor((metadata.height * row) / rows);
+    const bottom = Math.floor((metadata.height * (row + 1)) / rows);
+
+    await png(file)
+      .extract({ left, top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) })
+      .trim({ threshold: 8 })
+      .resize(targetSize, targetSize, { fit: 'contain', background: transparent })
+      .png({ compressionLevel: 9 })
+      .toFile(path.join(outDir, `${prefix}-${names[index]}.png`));
+  }
 }
+
+await splitGrid(
+  sources.badgeSheet,
+  ['school', 'football', 'chess', 'english', 'adventure', 'team', 'courage', 'planner'],
+  4,
+  2,
+  'badge',
+  320,
+);
+
+await png(sources.decorSheet)
+  .resize(1448, 1086, { fit: 'inside', withoutEnlargement: true })
+  .png({ compressionLevel: 9, quality: 90 })
+  .toFile(path.join(outDir, 'decor-atlas.png'));
 
 const monochromeSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
@@ -85,4 +122,4 @@ await sharp(Buffer.from(monochromeSvg))
   .png({ compressionLevel: 9 })
   .toFile(path.join(outDir, 'app-icon-monochrome.png'));
 
-console.log('Generated Papa & Ya visual assets from assets/brand-source/brand-atlas.webp');
+console.log('Generated Papa & Ya assets from the committed 12 Sep 2026 brand source images');
