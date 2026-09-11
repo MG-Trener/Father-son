@@ -7,30 +7,39 @@ export default function DevelopmentTab() {
   return (
     <View style={styles.root}>
       <DevelopmentV2 />
-      <View style={styles.dock}>
-        <Pressable style={[styles.tool, styles.review, shadows.lift]} onPress={() => router.push('/week-review')}>
-          <Text style={styles.reviewIcon}>▤</Text>
-          <View><Text style={styles.reviewKicker}>ЭТА НЕДЕЛЯ</Text><Text style={styles.reviewText}>Итог недели</Text></View>
-        </Pressable>
-        <Pressable style={[styles.tool, styles.focus, shadows.lift]} onPress={() => router.push('/weekly-focus')}>
-          <Text style={styles.focusIcon}>◎</Text>
-          <View><Text style={styles.focusKicker}>ОРИЕНТИР</Text><Text style={styles.focusText}>Фокус недели</Text></View>
-        </Pressable>
-      </View>
+      <Pressable style={[styles.launcher, shadows.lift]} onPress={() => router.push('/week-tools')}>
+        <View style={styles.icon}><Text style={styles.iconText}>◎</Text></View>
+        <View style={styles.copy}>
+          <Text style={styles.kicker}>ЭТА НЕДЕЛЯ</Text>
+          <Text style={styles.text}>Фокус и итог</Text>
+        </View>
+        <Text style={styles.arrow}>›</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  dock: { position: 'absolute', right: 16, bottom: 14, alignItems: 'flex-end', gap: 7 },
-  tool: { minHeight: 43, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1 },
-  review: { backgroundColor: '#E5F0F2', borderColor: '#C7DEE2' },
-  focus: { backgroundColor: colors.navyDeep, borderColor: 'rgba(255,255,255,0.12)' },
-  reviewIcon: { width: 24, color: colors.teal, fontSize: 15, fontWeight: '900', textAlign: 'center' },
-  focusIcon: { width: 24, color: colors.sun, fontSize: 15, fontWeight: '900', textAlign: 'center' },
-  reviewKicker: { color: colors.teal, fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
-  reviewText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900', marginTop: 1 },
-  focusKicker: { color: '#AFC7CA', fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
-  focusText: { color: colors.white, fontSize: 10, fontWeight: '900', marginTop: 1 },
+  launcher: {
+    position: 'absolute',
+    right: 16,
+    bottom: 14,
+    minHeight: 50,
+    borderRadius: 19,
+    backgroundColor: '#E5F0F2',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#C7DEE2',
+  },
+  icon: { width: 32, height: 32, borderRadius: 11, backgroundColor: colors.navyDeep, alignItems: 'center', justifyContent: 'center' },
+  iconText: { color: colors.sun, fontSize: 14, fontWeight: '900' },
+  copy: { minWidth: 95 },
+  kicker: { color: colors.teal, fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
+  text: { color: colors.navyDeep, fontSize: 10, fontWeight: '900', marginTop: 1 },
+  arrow: { color: colors.teal, fontSize: 20, fontWeight: '900' },
 });
