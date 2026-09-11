@@ -35,8 +35,9 @@ const interestingTypes = new Set([
   'mood_shared',
   'ritual_moment_added',
   'weekly_focus_added',
-  'family_agreement_proposed',
-  'family_agreement_confirmed',
+  'agreement_proposed',
+  'agreement_activated',
+  'agreement_archived',
   'achievement_awarded',
   'mission_completed',
 ]);
@@ -57,8 +58,9 @@ const viewFor = (event: EventRow, actorName: string): EventView => {
     case 'mood_shared': return { icon: '☁', title: `${actorName} поделился состоянием`, text: 'Можно просто заметить это — не обязательно сразу задавать вопросы.', base: '#E6F0F2', ink: colors.teal };
     case 'ritual_moment_added': return { icon: '∞', title: title || 'Ваш ритуал случился', text: `${actorName} отметил этот момент сегодня.`, base: '#FFF0CF', ink: '#9A6A1B' };
     case 'weekly_focus_added': return { icon: '◎', title: 'Новый фокус недели', text: title ? `${actorName}: «${title}».` : `${actorName} выбрал ориентир на неделю.`, base: '#DCEFFF', ink: '#2E6286' };
-    case 'family_agreement_proposed': return { icon: '🤝', title: 'Новая договорённость', text: title ? `${actorName} предлагает: «${title}».` : `${actorName} предложил новую договорённость.`, base: '#FFF0CF', ink: '#956719' };
-    case 'family_agreement_confirmed': return { icon: '✓', title: 'Вы договорились', text: title ? `«${title}» теперь подтверждена обоими.` : 'Договорённость подтверждена обоими.', base: colors.mint, ink: colors.green };
+    case 'agreement_proposed': return { icon: '🤝', title: 'Новая договорённость', text: title ? `${actorName} предлагает: «${title}».` : `${actorName} предложил новую договорённость.`, base: '#FFF0CF', ink: '#956719' };
+    case 'agreement_activated': return { icon: '✓', title: 'Вы договорились', text: title ? `«${title}» теперь подтверждена обоими.` : 'Договорённость подтверждена обоими.', base: colors.mint, ink: colors.green };
+    case 'agreement_archived': return { icon: '○', title: 'Договорённость завершена', text: title ? `${actorName} убрал «${title}» из действующих.` : `${actorName} завершил одну из прежних договорённостей.`, base: colors.sandWarm, ink: colors.muted };
     case 'achievement_awarded': return { icon: '🏅', title: title || 'Новая веха', text: 'В пути появилась новая заметная точка.', base: '#FFF0C2', ink: '#C98722' };
     case 'mission_completed': return { icon: '✓', title: title || 'Шаг завершён', text: `${actorName} завершил один из текущих шагов.`, base: colors.mint, ink: colors.green };
     default: return { icon: '✦', title: 'Новый момент', text: `${actorName} добавил событие в вашу историю.`, base: '#E6F0F2', ink: colors.teal };
@@ -148,9 +150,10 @@ export default function NotificationsScreen() {
       case 'mood_shared': router.push('/mood-check-in'); return;
       case 'ritual_moment_added': router.push('/rituals'); return;
       case 'weekly_focus_added': router.push('/weekly-focus'); return;
-      case 'family_agreement_proposed':
-      case 'family_agreement_confirmed': router.push('/agreements'); return;
-      case 'voice_story_added': router.push('/(tabs)/history'); return;
+      case 'agreement_proposed':
+      case 'agreement_activated':
+      case 'agreement_archived': router.push('/agreements'); return;
+      case 'voice_story_added': router.push('/voice-stories'); return;
       case 'achievement_awarded':
       case 'mission_completed': router.push('/(tabs)/development'); return;
       default: router.push('/(tabs)/history');
