@@ -18,11 +18,19 @@ type DeliveryRow = {
   status: string
 }
 
+type NotificationCopy = {
+  title: string
+  body: string
+  type: string
+  url: string
+}
+
 const supportedEventTypes = new Set([
   'five_minutes_ping',
   'advice_requested',
   'connection_response',
   'voice_story_added',
+  'recognition_added',
 ])
 
 const payloadText = (payload: Record<string, unknown> | null, key: string) => {
@@ -30,12 +38,13 @@ const payloadText = (payload: Record<string, unknown> | null, key: string) => {
   return typeof value === 'string' ? value : null
 }
 
-const notificationCopy = (event: EventRow, actorName: string) => {
+const notificationCopy = (event: EventRow, actorName: string): NotificationCopy => {
   if (event.event_type === 'five_minutes_ping') {
     return {
       title: `${actorName}: есть 5 минут?`,
       body: 'Открой «Папа & Я» и ответь: «Я рядом» или «Чуть позже».',
       type: 'connection_signal',
+      url: '/together',
     }
   }
 
@@ -45,6 +54,7 @@ const notificationCopy = (event: EventRow, actorName: string) => {
       title: `${actorName}: мне нужен совет`,
       body: message || 'Есть тема, которую хочется обсудить вместе.',
       type: 'connection_signal',
+      url: '/together',
     }
   }
 
@@ -54,6 +64,18 @@ const notificationCopy = (event: EventRow, actorName: string) => {
       title: `${actorName} оставил голосовую историю`,
       body: title || 'Новый голосовой момент появился в вашей общей истории.',
       type: 'voice_story',
+      url: '/voice-stories',
+    }
+  }
+
+  if (event.event_type === 'recognition_added') {
+    const title = payloadText(event.payload, 'title')
+    const quality = payloadText(event.payload, 'quality')
+    return {
+      title: `${actorName}: я заметил ✦`,
+      body: title || (quality ? `Отметил в тебе: ${quality}.` : 'Сохранил важный момент про тебя.'),
+      type: 'recognition',
+      url: '/recognitions',
     }
   }
 
@@ -64,6 +86,7 @@ const notificationCopy = (event: EventRow, actorName: string) => {
       ? 'Ответ на твой запрос: можно связаться сейчас.'
       : 'Ответ на твой запрос: вернётся к разговору немного позже.',
     type: 'connection_response',
+    url: '/together',
   }
 }
 
@@ -114,6 +137,17 @@ export default {
     let recipientUserId: string | null = null
     if (event.event_type === 'connection_response') {
       recipientUserId = payloadText(event.payload, 'requester_user_id')
+    } else if (event.event_type === 'recognition_added') {
+      recipientUserId = payloadText(event.payload, 'to_user_id')
+      if (recipientUserId) {
+        const { data: recipientMember } = await ctx.supabaseAdmin
+          .from('family_members')
+          .select('user_id')
+          .eq('family_id', event.family_id)
+          .eq('user_id', recipientUserId)
+          .maybeSingle()
+        if (!recipientMember) recipientUserId = null
+      }
     } else {
       const { data: recipient } = await ctx.supabaseAdmin
         .from('family_members')
@@ -126,7 +160,7 @@ export default {
       recipientUserId = recipient?.user_id ?? null
     }
 
-    if (!recipientUserId) {
+    if (!recipientUserId || recipientUserId === callerId) {
       return Response.json({ ok: true, delivered: 0, reason: 'NO_RECIPIENT' })
     }
 
@@ -196,7 +230,7 @@ export default {
         title: copy.title,
         body: copy.body,
         data: {
-          url: '/together',
+          url: copy.url,
           type: copy.type,
           event_id: event.id,
           family_id: event.family_id,
