@@ -2,6 +2,7 @@ node_modules/
 .expo/
 dist/
 web-build/
+assets/generated/
 .env
 .env.*.local
 *.jks
