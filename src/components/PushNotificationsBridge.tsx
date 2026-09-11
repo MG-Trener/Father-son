@@ -12,8 +12,8 @@ const pushEventTypes = new Set([
   'connection_response',
   'voice_story_added',
   'recognition_added',
-  'family_agreement_proposed',
-  'family_agreement_confirmed',
+  'agreement_proposed',
+  'agreement_activated',
 ]);
 
 const openNotification = async (response: Notifications.NotificationResponse | null) => {
