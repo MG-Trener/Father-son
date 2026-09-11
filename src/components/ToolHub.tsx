@@ -30,7 +30,9 @@ export function ToolHub({ kicker, title, subtitle, emblem, emblemImage, tools }:
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Назад" onPress={() => router.back()} style={styles.back}>
+            <Text style={styles.backText}>‹</Text>
+          </Pressable>
           <View><Text style={styles.topKicker}>{kicker}</Text><Text style={styles.topTitle}>{title}</Text></View>
         </View>
 
@@ -46,11 +48,13 @@ export function ToolHub({ kicker, title, subtitle, emblem, emblemImage, tools }:
         <View style={styles.grid}>
           {tools.map((tool) => (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${tool.title}. ${tool.text}`}
               key={tool.title}
               onPress={() => router.push(tool.route)}
               style={[styles.card, tool.wide && styles.cardWide, { backgroundColor: tool.base, borderColor: `${tool.ink}22` }, shadows.soft]}
             >
-              <View style={[styles.icon, { backgroundColor: tool.image ? 'rgba(255,255,255,0.60)' : tool.ink }]}> 
+              <View style={[styles.icon, { backgroundColor: tool.image ? 'rgba(255,255,255,0.60)' : tool.ink }]}>
                 {tool.image ? <Image source={tool.image} style={styles.iconImage} resizeMode="contain" /> : <Text style={styles.iconText}>{tool.icon}</Text>}
               </View>
               <Text style={[styles.eyebrow, { color: tool.ink }]}>{tool.eyebrow}</Text>
