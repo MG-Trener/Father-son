@@ -1,0 +1,43 @@
+name: Validate connection pulse UI
+
+on:
+  push:
+    branches: [connection-pulse-ui]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v7
+        with:
+          ref: connection-pulse-ui
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Remove one-time validation workflow
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/validate-connection-pulse.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Remove one-time pulse validation workflow"
+          git push origin HEAD:connection-pulse-ui
