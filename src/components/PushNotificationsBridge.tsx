@@ -11,6 +11,9 @@ const pushEventTypes = new Set([
   'advice_requested',
   'connection_response',
   'voice_story_added',
+  'recognition_added',
+  'family_agreement_proposed',
+  'family_agreement_confirmed',
 ]);
 
 const openNotification = async (response: Notifications.NotificationResponse | null) => {
@@ -18,7 +21,13 @@ const openNotification = async (response: Notifications.NotificationResponse | n
 
   const url = response.notification.request.content.data?.url;
   if (url === '/together') {
-    router.push('/together');
+    router.push('/(tabs)/together');
+  } else if (url === '/voice-stories') {
+    router.push('/voice-stories');
+  } else if (url === '/recognitions') {
+    router.push('/recognitions');
+  } else if (url === '/agreements') {
+    router.push('/agreements');
   }
 
   await Notifications.clearLastNotificationResponseAsync();
