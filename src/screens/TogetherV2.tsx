@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -38,6 +39,16 @@ type RecentEvent = {
   payload: unknown;
 };
 
+const artwork = {
+  together: require('../../assets/generated/nav-together.png'),
+  recognition: require('../../assets/generated/utility-recognition.png'),
+  calendar: require('../../assets/generated/utility-calendar.png'),
+  voice: require('../../assets/generated/utility-voice.png'),
+  goal: require('../../assets/generated/utility-goal.png'),
+  team: require('../../assets/generated/badge-team.png'),
+  book: require('../../assets/generated/nav-book.png'),
+} as const;
+
 const questions = [
   'Что сегодня было лучше, чем ты ожидал?',
   'Если бы у нас был свободный день только вдвоём — что бы мы сделали?',
@@ -69,6 +80,14 @@ const timeLabel = (value: string) => {
   const now = new Date();
   const sameDay = date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
   return sameDay ? date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+};
+
+const eventArtwork = (eventType: string) => {
+  if (eventType === 'voice_story_added') return artwork.voice;
+  if (eventType === 'reflection_added') return artwork.recognition;
+  if (eventType === 'advice_requested') return artwork.recognition;
+  if (eventType === 'five_minutes_ping' || eventType === 'connection_response') return artwork.together;
+  return artwork.goal;
 };
 
 export default function TogetherV2() {
@@ -166,7 +185,7 @@ export default function TogetherV2() {
       const eventId = rpcEventId(data);
       if (eventId) void notifyFamilyEvent(eventId);
       await load();
-      Alert.alert(response === 'here' ? 'Я рядом 🤝' : 'Ответ отправлен', response === 'here' ? 'Можно созвониться или написать прямо сейчас.' : 'Второй участник увидит, что ты ответишь чуть позже.');
+      Alert.alert(response === 'here' ? 'Я рядом' : 'Ответ отправлен', response === 'here' ? 'Можно созвониться или написать прямо сейчас.' : 'Второй участник увидит, что ты ответишь чуть позже.');
     } catch (caught) {
       Alert.alert('Не удалось ответить', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
     } finally {
@@ -226,12 +245,12 @@ export default function TogetherV2() {
           subtitle={isChild
             ? `Здесь можно позвать папу, спросить совет, придумать тему для разговора или сохранить то, что хочется помнить.`
             : `Не только контроль и советы. Это место, где ${myName} и ${otherName} остаются частью жизни друг друга каждый день.`}
-          emblem="♥"
           variant="warm"
+          emblemImage={artwork.together}
           footer={(
             <View style={styles.heroPeople}>
               <View><Text style={styles.heroName}>{myName}</Text><Text style={styles.heroRole}>{isChild ? 'сын' : 'папа'}</Text></View>
-              <View style={styles.heroBridge}><View style={styles.heroLine} /><View style={styles.heroStar}><Text style={styles.heroStarText}>✦</Text></View><View style={styles.heroLine} /></View>
+              <View style={styles.heroBridge}><View style={styles.heroLine} /><View style={styles.heroStar}><Image source={artwork.together} style={styles.heroStarImage} resizeMode="contain" /></View><View style={styles.heroLine} /></View>
               <View style={styles.heroPersonRight}><Text style={styles.heroName}>{otherName}</Text><Text style={styles.heroRole}>{isChild ? 'папа' : 'сын'}</Text></View>
             </View>
           )}
@@ -240,11 +259,13 @@ export default function TogetherV2() {
         {pendingSignal ? (
           <LinearGradient colors={['#FFCF69', '#F5A34B', '#E97B5A']} style={[styles.incoming, shadows.lift]}>
             <View style={styles.signalGlow} />
-            <Text style={styles.signalKicker}>СИГНАЛ ОТ {pendingActor.toUpperCase()}</Text>
-            <Text style={styles.signalTitle}>{pendingSignal.event_type === 'five_minutes_ping' ? 'Есть 5 минут?' : 'Мне нужен твой совет'}</Text>
+            <View style={styles.signalHeader}>
+              <View style={styles.signalImageShell}><Image source={pendingSignal.event_type === 'advice_requested' ? artwork.recognition : artwork.together} style={styles.signalImage} resizeMode="contain" /></View>
+              <View style={styles.signalCopy}><Text style={styles.signalKicker}>СИГНАЛ ОТ {pendingActor.toUpperCase()}</Text><Text style={styles.signalTitle}>{pendingSignal.event_type === 'five_minutes_ping' ? 'Есть 5 минут?' : 'Мне нужен твой совет'}</Text></View>
+            </View>
             {pendingMessage ? <Text style={styles.signalMessage}>{pendingMessage}</Text> : null}
             <View style={styles.signalActions}>
-              <Pressable style={styles.hereButton} disabled={busy} onPress={() => void respond('here')}><Text style={styles.hereText}>🤝 Я рядом</Text></Pressable>
+              <Pressable style={styles.hereButton} disabled={busy} onPress={() => void respond('here')}><Text style={styles.hereText}>Я рядом</Text></Pressable>
               <Pressable style={styles.laterButton} disabled={busy} onPress={() => void respond('later')}><Text style={styles.laterText}>Чуть позже</Text></Pressable>
             </View>
           </LinearGradient>
@@ -257,30 +278,36 @@ export default function TogetherV2() {
         <View style={styles.actionGrid}>
           <Pressable style={styles.actionPressable} disabled={busy} onPress={() => void sendSignal('five_minutes')}>
             <LinearGradient colors={['#FFF1C8', '#FFD786']} style={[styles.actionCard, shadows.soft]}>
-              <Text style={styles.actionIcon}>✦</Text><Text style={styles.actionTitle}>Есть 5 минут?</Text><Text style={styles.actionText}>Позвать {otherName}</Text>
+              <View style={styles.actionImageShell}><Image source={artwork.together} style={styles.actionImage} resizeMode="contain" /></View>
+              <Text style={styles.actionTitle}>Есть 5 минут?</Text><Text style={styles.actionText}>Позвать {otherName}</Text>
             </LinearGradient>
           </Pressable>
           <Pressable style={styles.actionPressable} onPress={() => setAdviceOpen((value) => !value)}>
             <LinearGradient colors={['#DFF0F3', '#B9DDE4']} style={[styles.actionCard, shadows.soft]}>
-              <Text style={styles.actionIcon}>💬</Text><Text style={styles.actionTitle}>Нужен совет</Text><Text style={styles.actionText}>Можно без длинных объяснений</Text>
+              <View style={styles.actionImageShell}><Image source={artwork.recognition} style={styles.actionImage} resizeMode="contain" /></View>
+              <Text style={styles.actionTitle}>Нужен совет</Text><Text style={styles.actionText}>Можно без длинных объяснений</Text>
             </LinearGradient>
           </Pressable>
           <Pressable style={styles.actionPressable} onPress={() => router.push('/meeting-plan')}>
             <LinearGradient colors={['#E3F0E6', '#C8E4D0']} style={[styles.actionCard, shadows.soft]}>
-              <Text style={styles.actionIcon}>🗓️</Text><Text style={styles.actionTitle}>Наша встреча</Text><Text style={styles.actionText}>Запланировать время вместе</Text>
+              <View style={styles.actionImageShell}><Image source={artwork.calendar} style={styles.actionImage} resizeMode="contain" /></View>
+              <Text style={styles.actionTitle}>Наша встреча</Text><Text style={styles.actionText}>Запланировать время вместе</Text>
             </LinearGradient>
           </Pressable>
           <Pressable style={styles.actionPressable} onPress={() => router.push('/voice-story-new')}>
             <LinearGradient colors={['#EEE8FA', '#D9CEF2']} style={[styles.actionCard, shadows.soft]}>
-              <Text style={styles.actionIcon}>🎙️</Text><Text style={styles.actionTitle}>Голосом</Text><Text style={styles.actionText}>Оставить историю друг другу</Text>
+              <View style={styles.actionImageShell}><Image source={artwork.voice} style={styles.actionImage} resizeMode="contain" /></View>
+              <Text style={styles.actionTitle}>Голосом</Text><Text style={styles.actionText}>Оставить историю друг другу</Text>
             </LinearGradient>
           </Pressable>
         </View>
 
         {adviceOpen ? (
           <View style={[styles.adviceCard, shadows.soft]}>
-            <Text style={styles.kicker}>ЗАПРОС СОВЕТА</Text>
-            <Text style={styles.sectionTitle}>О чём?</Text>
+            <View style={styles.adviceHeader}>
+              <View><Text style={styles.kicker}>ЗАПРОС СОВЕТА</Text><Text style={styles.sectionTitle}>О чём?</Text></View>
+              <Image source={artwork.recognition} style={styles.adviceImage} resizeMode="contain" />
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topicRow}>
               {adviceTopics.map((topic) => (
                 <Pressable key={topic} onPress={() => setAdviceTopic(topic)} style={[styles.topicChip, adviceTopic === topic && styles.topicChipActive]}>
@@ -303,7 +330,7 @@ export default function TogetherV2() {
         ) : null}
 
         <LinearGradient colors={['#6D63A8', '#8E80C4', '#C3B8E7']} style={[styles.questionCard, shadows.soft]}>
-          <View style={styles.quoteMark}><Text style={styles.quoteMarkText}>“</Text></View>
+          <View style={styles.questionArtwork}><Image source={artwork.together} style={styles.questionArtworkImage} resizeMode="contain" /></View>
           <Text style={styles.questionKicker}>ВОПРОС ДЛЯ НАС ДВОИХ</Text>
           <Text style={styles.question}>{question}</Text>
           <View style={styles.questionActions}>
@@ -314,7 +341,7 @@ export default function TogetherV2() {
 
         {mission ? (
           <View style={[styles.missionCard, shadows.soft]}>
-            <View style={styles.missionTop}><Text style={styles.missionIcon}>🏕️</Text><View style={styles.missionCopy}><Text style={styles.kicker}>ОБЩАЯ МИССИЯ</Text><Text style={styles.missionTitle}>{mission.title}</Text></View><View style={styles.xp}><Text style={styles.xpText}>+{mission.xp_reward}</Text></View></View>
+            <View style={styles.missionTop}><View style={styles.missionImageShell}><Image source={artwork.team} style={styles.missionImage} resizeMode="contain" /></View><View style={styles.missionCopy}><Text style={styles.kicker}>ОБЩАЯ МИССИЯ</Text><Text style={styles.missionTitle}>{mission.title}</Text></View><View style={styles.xp}><Text style={styles.xpText}>+{mission.xp_reward}</Text></View></View>
             {mission.description ? <Text style={styles.missionText}>{mission.description}</Text> : null}
             <Pressable disabled={busy} style={[styles.missionButton, busy && styles.disabled]} onPress={() => void completeMission()}><Text style={styles.missionButtonText}>Мы это сделали ✓</Text></Pressable>
           </View>
@@ -324,11 +351,13 @@ export default function TogetherV2() {
           <View style={styles.sectionHead}><View><Text style={styles.kicker}>СЛЕДЫ НАШЕГО ДНЯ</Text><Text style={styles.sectionTitle}>Последние моменты</Text></View><Pressable onPress={() => router.push('/(tabs)/yearbook')}><Text style={styles.link}>В книгу →</Text></Pressable></View>
           {events.slice(0, 6).map((event, index) => (
             <View key={event.id} style={[styles.eventRow, index > 0 && styles.eventBorder]}>
-              <View style={styles.eventDot} />
+              <View style={styles.eventImageShell}><Image source={eventArtwork(event.event_type)} style={styles.eventImage} resizeMode="contain" /></View>
               <View style={styles.eventCopy}><Text style={styles.eventTitle}>{eventSummary(event)}</Text><Text style={styles.eventTime}>{timeLabel(event.occurred_at)}</Text></View>
             </View>
           ))}
-          {!events.length ? <Text style={styles.emptyText}>Первые сигналы, ответы и истории появятся здесь.</Text> : null}
+          {!events.length ? (
+            <View style={styles.emptyState}><Image source={artwork.book} style={styles.emptyImage} resizeMode="contain" /><Text style={styles.emptyText}>Первые сигналы, ответы и истории появятся здесь.</Text></View>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -345,13 +374,17 @@ const styles = StyleSheet.create({
   heroPersonRight: { alignItems: 'flex-end' },
   heroBridge: { flex: 1, flexDirection: 'row', alignItems: 'center', marginHorizontal: 12 },
   heroLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.28)' },
-  heroStar: { width: 27, height: 27, borderRadius: 14, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
-  heroStarText: { color: colors.navyDeep, fontWeight: '900' },
+  heroStar: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  heroStarImage: { width: 31, height: 31 },
   incoming: { borderRadius: radius.xl, padding: 19, overflow: 'hidden' },
   signalGlow: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.16)', right: -38, top: -60 },
+  signalHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  signalImageShell: { width: 58, height: 58, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.56)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  signalImage: { width: 54, height: 54 },
+  signalCopy: { flex: 1 },
   signalKicker: { color: '#62401D', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   signalTitle: { color: colors.navyDeep, fontSize: 25, fontWeight: '900', marginTop: 5 },
-  signalMessage: { color: '#65472C', fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 7 },
+  signalMessage: { color: '#65472C', fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 10 },
   signalActions: { flexDirection: 'row', gap: 8, marginTop: 15 },
   hereButton: { flex: 1, minHeight: 45, borderRadius: 15, backgroundColor: colors.navyDeep, alignItems: 'center', justifyContent: 'center' },
   hereText: { color: colors.white, fontSize: 11, fontWeight: '900' },
@@ -362,11 +395,14 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 3, letterSpacing: -0.4 },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   actionPressable: { width: '48.5%' },
-  actionCard: { minHeight: 142, borderRadius: radius.lg, padding: 15 },
-  actionIcon: { fontSize: 28 },
-  actionTitle: { color: colors.navyDeep, fontSize: 15, fontWeight: '900', marginTop: 13 },
+  actionCard: { minHeight: 154, borderRadius: radius.lg, padding: 15 },
+  actionImageShell: { width: 56, height: 56, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.62)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  actionImage: { width: 52, height: 52 },
+  actionTitle: { color: colors.navyDeep, fontSize: 15, fontWeight: '900', marginTop: 10 },
   actionText: { color: '#5E7479', fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 4 },
   adviceCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: '#E8DED0' },
+  adviceHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  adviceImage: { width: 62, height: 62 },
   topicRow: { gap: 7, paddingTop: 13, paddingBottom: 10 },
   topicChip: { paddingHorizontal: 11, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: '#F1ECE3' },
   topicChipActive: { backgroundColor: colors.navyDeep },
@@ -377,17 +413,18 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: colors.white, fontSize: 11, fontWeight: '900' },
   disabled: { opacity: 0.55 },
   questionCard: { borderRadius: radius.xl, padding: 19, overflow: 'hidden' },
-  quoteMark: { position: 'absolute', right: 15, top: -5 },
-  quoteMarkText: { color: 'rgba(255,255,255,0.18)', fontSize: 95, fontWeight: '900' },
+  questionArtwork: { position: 'absolute', right: 11, top: 7, width: 84, height: 84, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  questionArtworkImage: { width: 77, height: 77, opacity: 0.82 },
   questionKicker: { color: '#E9E4FA', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  question: { color: colors.white, fontSize: 21, lineHeight: 27, fontWeight: '900', marginTop: 12, maxWidth: '89%' },
+  question: { color: colors.white, fontSize: 21, lineHeight: 27, fontWeight: '900', marginTop: 12, maxWidth: '79%' },
   questionActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 },
   questionButton: { backgroundColor: colors.white, paddingHorizontal: 16, paddingVertical: 10, borderRadius: radius.pill },
   questionButtonText: { color: '#5C5294', fontSize: 10, fontWeight: '900' },
   anotherQuestion: { color: '#F2EFFB', fontSize: 9, fontWeight: '900' },
   missionCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: '#E8DED0' },
   missionTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  missionIcon: { fontSize: 31 },
+  missionImageShell: { width: 62, height: 62, borderRadius: 19, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  missionImage: { width: 58, height: 58 },
   missionCopy: { flex: 1 },
   missionTitle: { color: colors.navyDeep, fontSize: 16, fontWeight: '900', marginTop: 2 },
   xp: { backgroundColor: '#FFF0C7', borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 6 },
@@ -397,11 +434,14 @@ const styles = StyleSheet.create({
   missionButtonText: { color: colors.white, fontSize: 11, fontWeight: '900' },
   timelineCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: '#E8DED0' },
   link: { color: colors.teal, fontSize: 10, fontWeight: '900' },
-  eventRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  eventRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10 },
   eventBorder: { borderTopWidth: 1, borderTopColor: '#EEE7DC' },
-  eventDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.amber },
+  eventImageShell: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F6EFE3', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  eventImage: { width: 41, height: 41 },
   eventCopy: { flex: 1 },
   eventTitle: { color: colors.navyDeep, fontSize: 11, fontWeight: '800' },
   eventTime: { color: colors.muted, fontSize: 8, marginTop: 2 },
-  emptyText: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 14 },
+  emptyState: { alignItems: 'center', paddingTop: 16 },
+  emptyImage: { width: 72, height: 72 },
+  emptyText: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 8, textAlign: 'center' },
 });
