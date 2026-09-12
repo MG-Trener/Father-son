@@ -10,7 +10,7 @@ const secretKey = required('SUPABASE_RELEASE_SECRET_KEY');
 const version = required('VERSION');
 const versionCode = Number(required('VERSION_CODE'));
 const downloadUrl = required('DOWNLOAD_URL');
-const sha256 = required('SHA256');
+const sha256 = required('SHA256').trim().toLowerCase();
 const sizeBytes = Number(required('SIZE_BYTES'));
 const releasesRepo = process.env.RELEASES_REPO || 'MG-Trener/Father-son-releases';
 const expectedPrefix = `https://github.com/${releasesRepo}/releases/download/`;
@@ -20,6 +20,9 @@ if (!Number.isInteger(versionCode) || versionCode <= 0) {
 }
 if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
   throw new Error(`Invalid SIZE_BYTES: ${process.env.SIZE_BYTES}`);
+}
+if (!/^[0-9a-f]{64}$/.test(sha256)) {
+  throw new Error(`Invalid SHA256: ${process.env.SHA256}`);
 }
 if (!downloadUrl.startsWith(expectedPrefix)) {
   throw new Error(`DOWNLOAD_URL must point to public release repository ${releasesRepo}: ${downloadUrl}`);
@@ -83,7 +86,14 @@ if (String(latest.version_name) !== version || Number(latest.version_code) !== v
 if (latest.download_url !== downloadUrl) {
   throw new Error(`Update feed download_url mismatch: ${latest.download_url}`);
 }
+if (String(latest.sha256 || '').trim().toLowerCase() !== sha256) {
+  throw new Error(`Update feed sha256 mismatch: ${latest.sha256}`);
+}
+if (Number(latest.size_bytes) !== sizeBytes) {
+  throw new Error(`Update feed size_bytes mismatch: ${latest.size_bytes}`);
+}
 if (latest.storage_bucket || latest.storage_path) {
   throw new Error('Update feed still references Supabase Storage');
 }
 console.log(`Update feed verified: ${latest.version_name} (${latest.version_code}) -> ${releasesRepo}`);
+console.log(`Integrity metadata verified: sha256=${sha256}, size=${sizeBytes}`);
