@@ -16,6 +16,7 @@ const sources = {
   directionStrip: source('growth-directions.png'),
   navStrip: source('navigation-icons.png'),
   utilityStrip: source('utility-icons.png'),
+  featureStrip: source('feature-icons.png'),
   badgeSheet: source('achievement-badges.png'),
   decorSheet: source('decor-atlas.png'),
 };
@@ -82,6 +83,14 @@ await splitHorizontalStrip(
   sources.utilityStrip,
   ['calendar', 'voice', 'agreements', 'goal', 'recognition'],
   'utility',
+  220,
+);
+
+// Source order: home, shared path/star, book, heart/path, father-and-child.
+await splitHorizontalStrip(
+  sources.featureStrip,
+  ['home', 'path', 'book', 'together', 'family'],
+  'feature',
   220,
 );
 
