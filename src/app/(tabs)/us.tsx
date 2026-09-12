@@ -10,7 +10,7 @@ export default function UsTab() {
       <View style={styles.quickBar}>
         <Pressable style={[styles.launcher, styles.monthLauncher, shadows.lift]} onPress={() => router.push('/month-together')}>
           <View style={[styles.icon, styles.monthIcon]}>
-            <Image source={require('../../../assets/generated/feature-path.png')} style={styles.iconImage} resizeMode="contain" />
+            <Image source={require('../../../assets/generated/badge-planner.png')} style={styles.iconImage} resizeMode="contain" />
           </View>
           <View style={styles.copy}>
             <Text style={[styles.kicker, styles.monthKicker]}>ЭТОТ МЕСЯЦ</Text>
@@ -21,7 +21,7 @@ export default function UsTab() {
 
         <Pressable style={[styles.launcher, styles.teamLauncher, shadows.lift]} onPress={() => router.push('/team-tools')}>
           <View style={styles.icon}>
-            <Image source={require('../../../assets/generated/feature-family.png')} style={styles.iconImage} resizeMode="contain" />
+            <Image source={require('../../../assets/generated/badge-team.png')} style={styles.iconImage} resizeMode="contain" />
           </View>
           <View style={styles.copy}>
             <Text style={styles.kicker}>КОМАНДА</Text>
