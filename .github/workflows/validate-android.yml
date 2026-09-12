@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: validate-android-${{ github.ref }}
@@ -21,6 +21,7 @@ concurrency:
 env:
   EXPO_PUBLIC_SUPABASE_URL: https://kyptvbnnyqlmwkiobtvq.supabase.co
   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_7d-vT92P448Prlv7DURaIw_r8127lra
+  RELEASES_REPO: MG-Trener/Father-son-releases
 
 jobs:
   validate:
@@ -57,9 +58,21 @@ jobs:
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       SUPABASE_RELEASE_SECRET_KEY: ${{ secrets.SUPABASE_RELEASE_SECRET_KEY }}
+      RELEASES_REPO_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Require access to public release repository
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          gh repo view "$RELEASES_REPO" --json nameWithOwner,visibility >/dev/null
+          echo "Public release repository access verified: $RELEASES_REPO"
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -164,7 +177,7 @@ jobs:
           SHA256="$(sha256sum "$APK" | awk '{print $1}')"
           SIZE_BYTES="$(stat -c%s "$APK")"
           RELEASE_ASSET="papa-i-ya-${VERSION}.apk"
-          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/android-v${VERSION_CODE}/${RELEASE_ASSET}"
+          DOWNLOAD_URL="https://github.com/${RELEASES_REPO}/releases/download/android-v${VERSION_CODE}/${RELEASE_ASSET}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
@@ -173,10 +186,10 @@ jobs:
           echo "download_url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
           echo "APK size: $SIZE_BYTES bytes"
 
-      - name: Publish versioned GitHub release
+      - name: Publish versioned public GitHub release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
           VERSION: ${{ steps.release_meta.outputs.version }}
           VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
           SHA256: ${{ steps.release_meta.outputs.sha256 }}
@@ -186,8 +199,8 @@ jobs:
           set -euo pipefail
           TAG="android-v${VERSION_CODE}"
           APK="android/app/build/outputs/apk/release/app-release.apk"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists. Increase versionCode and version before publishing another app build."
+          if gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1; then
+            echo "Release $TAG already exists in $RELEASES_REPO. Increase versionCode and version before publishing another app build."
             exit 1
           fi
           cp "$APK" "$RELEASE_ASSET"
@@ -197,12 +210,14 @@ jobs:
           ARM64-сборка для современных Android-телефонов.
           SHA-256: ${SHA256}
           Подписано постоянным release-ключом; подходит для последующих обновлений.
-          APK хранится в GitHub Releases. Supabase используется только для БД и метаданных обновления.
+          Исходный код хранится в приватном репозитории. Здесь публикуется только APK.
+          Source commit: ${GITHUB_SHA}
 
           Канал: release.
           EOF
           gh release create "$TAG" "$RELEASE_ASSET" \
-            --target "$GITHUB_SHA" \
+            --repo "$RELEASES_REPO" \
+            --target main \
             --title "Папа & Я ${VERSION}" \
             --notes-file release-notes.md \
             --latest
