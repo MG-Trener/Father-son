@@ -7,6 +7,11 @@ const tools: HubTool[] = [
     route: '/month-together', base: '#E6F0F2', ink: '#2D6D73', wide: true,
   },
   {
+    image: require('../../assets/generated/feature-path.png'), eyebrow: 'ПУТЬ 11 → 18', title: 'Карта взросления',
+    text: 'Восемь глав пути Артура: ориентиры, общие моменты и большая история без дедлайнов.',
+    route: '/path-map', base: '#E8F1F2', ink: '#2D6D73', wide: true,
+  },
+  {
     image: require('../../assets/generated/utility-calendar.png'), eyebrow: 'НЕ ПРОПУСТИТЬ', title: 'События',
     text: 'Важные действия второго участника остаются здесь, даже если push был пропущен.',
     route: '/notifications', base: '#F7E8EE', ink: '#9B5660', wide: true,
