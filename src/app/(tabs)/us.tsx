@@ -9,7 +9,7 @@ export default function UsTab() {
       <UsV2 />
       <Pressable style={[styles.launcher, shadows.lift]} onPress={() => router.push('/team-tools')}>
         <View style={styles.icon}>
-          <Image source={require('../../../assets/generated/nav-us.png')} style={styles.iconImage} resizeMode="contain" />
+          <Image source={require('../../../assets/generated/feature-family.png')} style={styles.iconImage} resizeMode="contain" />
         </View>
         <View style={styles.copy}>
           <Text style={styles.kicker}>НАША КОМАНДА</Text>
