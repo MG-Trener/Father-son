@@ -2,17 +2,17 @@ import { ToolHub, type HubTool } from '../components/ToolHub';
 
 const tools: HubTool[] = [
   {
-    image: require('../../assets/generated/feature-family.png'), eyebrow: 'ЭТОТ МЕСЯЦ', title: 'Месяц вместе',
+    image: require('../../assets/generated/badge-team.png'), eyebrow: 'ЭТОТ МЕСЯЦ', title: 'Месяц вместе',
     text: 'Спокойный обзор встреч, голосов, признаний и шагов — без рейтингов и серий.',
     route: '/month-together', base: '#E6F0F2', ink: '#2D6D73', wide: true,
   },
   {
-    image: require('../../assets/generated/feature-path.png'), eyebrow: 'ПУТЬ 11 → 18', title: 'Карта взросления',
+    image: require('../../assets/generated/badge-adventure.png'), eyebrow: 'ПУТЬ 11 → 18', title: 'Карта взросления',
     text: 'Восемь глав пути Артура: ориентиры, общие моменты и большая история без дедлайнов.',
     route: '/path-map', base: '#E8F1F2', ink: '#2D6D73', wide: true,
   },
   {
-    image: require('../../assets/generated/utility-calendar.png'), eyebrow: 'НЕ ПРОПУСТИТЬ', title: 'События',
+    image: require('../../assets/generated/badge-planner.png'), eyebrow: 'НЕ ПРОПУСТИТЬ', title: 'События',
     text: 'Важные действия второго участника остаются здесь, даже если push был пропущен.',
     route: '/notifications', base: '#F7E8EE', ink: '#9B5660', wide: true,
   },
@@ -49,7 +49,7 @@ export default function TeamToolsScreen() {
       kicker="НАША КОМАНДА"
       title="Всё, что касается нас"
       subtitle="Здесь собраны не ежедневные действия, а вещи про вашу команду, договорённости, историю и память."
-      emblemImage={require('../../assets/generated/feature-family.png')}
+      emblemImage={require('../../assets/generated/badge-team.png')}
       tools={tools}
     />
   );
