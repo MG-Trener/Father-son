@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Application from 'expo-application';
+import * as Crypto from 'expo-crypto';
 import * as Device from 'expo-device';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
@@ -32,6 +33,48 @@ const currentCode = Number(Application.nativeBuildVersion ?? 0) || 0;
 
 const stringOrNull = (value: unknown) => typeof value === 'string' && value.length > 0 ? value : null;
 const positiveNumberOrNull = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+
+const normalizedSha256 = (value: string | null) => {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(normalized) ? normalized : null;
+};
+
+const bytesToHex = (buffer: ArrayBuffer) => Array.from(new Uint8Array(buffer))
+  .map((byte) => byte.toString(16).padStart(2, '0'))
+  .join('');
+
+const deleteQuietly = (file: File) => {
+  try {
+    if (file.exists) file.delete();
+  } catch {
+    // Cache cleanup must not hide the integrity error that caused it.
+  }
+};
+
+async function verifyDownloadedApk(file: File, release: AppRelease) {
+  if (release.size_bytes && file.size !== release.size_bytes) {
+    deleteQuietly(file);
+    throw new Error('APK_SIZE_MISMATCH');
+  }
+
+  if (!release.sha256) return;
+
+  const expectedSha256 = normalizedSha256(release.sha256);
+  if (!expectedSha256) {
+    deleteQuietly(file);
+    throw new Error('APK_SHA256_INVALID');
+  }
+
+  const bytes = await file.bytes();
+  const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes);
+  const actualSha256 = bytesToHex(digest);
+
+  if (actualSha256 !== expectedSha256) {
+    deleteQuietly(file);
+    throw new Error('APK_SHA256_MISMATCH');
+  }
+}
 
 export async function checkForAppUpdate(): Promise<UpdateStatus> {
   const fallback: UpdateStatus = {
@@ -116,7 +159,8 @@ export async function installReleaseApk(release: AppRelease) {
 
   const downloaded = await File.downloadFileAsync(downloadUrl, directory, { idempotent: true });
   if (!downloaded.exists || downloaded.size <= 0) throw new Error('APK_DOWNLOAD_FAILED');
-  if (release.size_bytes && downloaded.size !== release.size_bytes) throw new Error('APK_SIZE_MISMATCH');
+
+  await verifyDownloadedApk(downloaded, release);
 
   await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
     data: downloaded.contentUri,
