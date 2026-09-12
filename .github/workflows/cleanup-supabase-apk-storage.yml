@@ -1,0 +1,64 @@
+name: Cleanup Supabase APK Storage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cleanup-supabase-apk-storage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EXPO_PUBLIC_SUPABASE_URL: https://kyptvbnnyqlmwkiobtvq.supabase.co
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_RELEASE_SECRET_KEY: ${{ secrets.SUPABASE_RELEASE_SECRET_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install Supabase client
+        run: npm install --ignore-scripts --no-audit --no-fund @supabase/supabase-js@2.116.0
+
+      - name: Remove legacy APK objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_RELEASE_SECRET_KEY"
+          node --input-type=module <<'NODE'
+          import { createClient } from '@supabase/supabase-js';
+
+          const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+          const key = process.env.SUPABASE_RELEASE_SECRET_KEY;
+          const supabase = createClient(url, key, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+
+          const paths = [
+            'android/6/papa-i-ya-0.3.2.apk',
+            'android/8/papa-i-ya-0.3.4.apk',
+          ];
+
+          const { data, error } = await supabase.storage.from('app-releases').remove(paths);
+          if (error) throw error;
+          console.log('Removed:', data?.map((item) => item.name).join(', ') || 'no objects returned');
+
+          const { data: folders, error: listError } = await supabase.storage.from('app-releases').list('android');
+          if (listError) throw listError;
+          const remaining = folders ?? [];
+          console.log(`Remaining entries under android/: ${remaining.length}`);
+          if (remaining.length > 0) {
+            console.log(remaining.map((item) => item.name).join('\n'));
+          }
+          NODE
