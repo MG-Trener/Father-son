@@ -49,6 +49,31 @@ begin
 end $$;
 
 do $$
+declare
+  row record;
+begin
+  for row in
+    select c.relname as table_name,
+           has_table_privilege('anon', c.oid, 'SELECT') as can_select,
+           has_table_privilege('anon', c.oid, 'INSERT') as can_insert,
+           has_table_privilege('anon', c.oid, 'UPDATE') as can_update,
+           has_table_privilege('anon', c.oid, 'DELETE') as can_delete
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relkind in ('r', 'p')
+  loop
+    if row.table_name = 'app_releases' then
+      if not row.can_select or row.can_insert or row.can_update or row.can_delete then
+        raise exception 'SECURITY_INVARIANT_FAILED: anon may only SELECT app_releases';
+      end if;
+    elsif row.can_select or row.can_insert or row.can_update or row.can_delete then
+      raise exception 'SECURITY_INVARIANT_FAILED: anon has table privileges on %', row.table_name;
+    end if;
+  end loop;
+end $$;
+
+do $$
 begin
   if exists (
     with public_functions as (
