@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -60,7 +60,7 @@ jobs:
       RELEASES_REPO_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Require access to public release repository
         if: github.ref == 'refs/heads/main'
