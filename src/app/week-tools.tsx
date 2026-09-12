@@ -7,7 +7,7 @@ const tools: HubTool[] = [
     route: '/weekly-focus', base: '#DCEFFF', ink: '#2E6286', wide: true,
   },
   {
-    image: require('../../assets/generated/utility-agreements.png'), eyebrow: 'ОГЛЯНУТЬСЯ', title: 'Итог недели',
+    image: require('../../assets/generated/feature-path.png'), eyebrow: 'ОГЛЯНУТЬСЯ', title: 'Итог недели',
     text: 'Что осталось от недели: настроение, ритуалы, признания и сохранённые моменты.',
     route: '/week-review', base: '#E5F0F2', ink: '#2D6D73',
   },
@@ -17,7 +17,7 @@ const tools: HubTool[] = [
     route: '/achievements', base: '#FFF1E8', ink: '#8D5246',
   },
   {
-    image: require('../../assets/generated/nav-book.png'), eyebrow: 'ПАМЯТЬ', title: 'Книга года',
+    image: require('../../assets/generated/feature-book.png'), eyebrow: 'ПАМЯТЬ', title: 'Книга года',
     text: 'Посмотреть, как отдельные недели складываются в большую историю взросления.',
     route: '/(tabs)/yearbook', base: '#FFF0CF', ink: '#956719',
   },
@@ -34,7 +34,7 @@ export default function WeekToolsScreen() {
       kicker="РАЗВИТИЕ"
       title="Эта неделя"
       subtitle="Не план на идеальную жизнь, а несколько спокойных инструментов, которые помогают замечать движение и возвращаться к важному."
-      emblemImage={require('../../assets/generated/badge-planner.png')}
+      emblemImage={require('../../assets/generated/feature-path.png')}
       tools={tools}
     />
   );
