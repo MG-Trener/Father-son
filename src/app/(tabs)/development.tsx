@@ -17,7 +17,7 @@ export default function DevelopmentTab() {
         </Pressable>
 
         <Pressable style={[styles.compactAction, styles.weekAction, shadows.lift]} onPress={() => router.push('/week-tools')}>
-          <Image source={require('../../../assets/generated/badge-planner.png')} style={styles.compactImage} resizeMode="contain" />
+          <Image source={require('../../../assets/generated/feature-path.png')} style={styles.compactImage} resizeMode="contain" />
           <View>
             <Text style={styles.weekKicker}>ЭТА НЕДЕЛЯ</Text>
             <Text style={styles.weekText}>Фокус и итог</Text>
