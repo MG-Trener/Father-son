@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/repair-current-release.yml'
-      - '.github/scripts/publish-supabase-release.mjs'
+      - '.github/scripts/publish-release-metadata.mjs'
   workflow_dispatch:
 
 permissions:
@@ -40,12 +40,12 @@ jobs:
           VERSION_CODE="$(node -p "require('./app.json').expo.android.versionCode")"
           TAG="android-v${VERSION_CODE}"
           ASSET="papa-i-ya-${VERSION}.apk"
-          STORAGE_PATH="android/${VERSION_CODE}/${ASSET}"
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ASSET}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
-          echo "storage_path=$STORAGE_PATH" >> "$GITHUB_OUTPUT"
+          echo "download_url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
 
       - name: Download published APK from GitHub Release
         env:
@@ -84,9 +84,10 @@ jobs:
           cat > release-notes.md <<EOF
           Android-версия «Папа & Я» ${VERSION} (versionCode ${VERSION_CODE}).
 
-          Оптимизированная ARM64-сборка для современных Android-телефонов.
+          ARM64-сборка для современных Android-телефонов.
           SHA-256: ${SHA256}
           Подписано постоянным release-ключом; подходит для последующих обновлений.
+          APK хранится в GitHub Releases. Supabase используется только для БД и метаданных обновления.
 
           Канал: release.
           EOF
@@ -96,12 +97,11 @@ jobs:
             --prerelease=false \
             --latest
 
-      - name: Publish APK and update feed in Supabase
+      - name: Publish current release metadata in Supabase
         env:
-          APK_PATH: release-download/${{ steps.meta.outputs.asset }}
           VERSION: ${{ steps.meta.outputs.version }}
           VERSION_CODE: ${{ steps.meta.outputs.version_code }}
-          STORAGE_PATH: ${{ steps.meta.outputs.storage_path }}
+          DOWNLOAD_URL: ${{ steps.meta.outputs.download_url }}
           SHA256: ${{ steps.apk.outputs.sha256 }}
           SIZE_BYTES: ${{ steps.apk.outputs.size_bytes }}
-        run: node .github/scripts/publish-supabase-release.mjs
+        run: node .github/scripts/publish-release-metadata.mjs
