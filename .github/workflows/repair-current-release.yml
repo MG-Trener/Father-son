@@ -105,14 +105,14 @@ jobs:
           EOF
 
           if gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK#$ASSET" --repo "$RELEASES_REPO" --clobber
+            gh release upload "$TAG" "$APK" --repo "$RELEASES_REPO" --clobber
             gh release edit "$TAG" --repo "$RELEASES_REPO" \
               --title "Папа & Я ${VERSION}" \
               --notes-file release-notes.md \
               --prerelease=false \
               --latest
           else
-            gh release create "$TAG" "$APK#$ASSET" \
+            gh release create "$TAG" "$APK" \
               --repo "$RELEASES_REPO" \
               --target main \
               --title "Папа & Я ${VERSION}" \
