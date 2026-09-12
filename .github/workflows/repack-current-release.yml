@@ -59,10 +59,11 @@ jobs:
         run: |
           cat >> android/gradle.properties <<'EOF'
           android.enableMinifyInReleaseBuilds=true
+          android.enableProguardInReleaseBuilds=true
           android.enableShrinkResourcesInReleaseBuilds=true
           android.enableBundleCompression=true
           EOF
-          echo "Enabled R8, resource shrinking and JS bundle compression for the release APK."
+          echo "Enabled R8/ProGuard, resource shrinking and JS bundle compression for the release APK."
 
       - name: Configure persistent release signing
         shell: bash
