@@ -7,12 +7,12 @@ const tools: HubTool[] = [
     route: '/weekly-focus', base: '#DCEFFF', ink: '#2E6286', wide: true,
   },
   {
-    image: require('../../assets/generated/feature-path.png'), eyebrow: '11 → 18', title: 'Карта взросления',
+    image: require('../../assets/generated/badge-adventure.png'), eyebrow: '11 → 18', title: 'Карта взросления',
     text: 'Восемь спокойных глав пути: ориентиры, общие моменты и большая история без дедлайнов.',
     route: '/path-map', base: '#E8F1F2', ink: '#2D6D73', wide: true,
   },
   {
-    image: require('../../assets/generated/feature-path.png'), eyebrow: 'ОГЛЯНУТЬСЯ', title: 'Итог недели',
+    image: require('../../assets/generated/badge-planner.png'), eyebrow: 'ОГЛЯНУТЬСЯ', title: 'Итог недели',
     text: 'Что осталось от недели: настроение, ритуалы, признания и сохранённые моменты.',
     route: '/week-review', base: '#E5F0F2', ink: '#2D6D73',
   },
@@ -27,7 +27,7 @@ const tools: HubTool[] = [
     route: '/(tabs)/yearbook', base: '#FFF0CF', ink: '#956719',
   },
   {
-    image: require('../../assets/generated/badge-adventure.png'), eyebrow: 'ХРОНОЛОГИЯ', title: 'История пути',
+    image: require('../../assets/generated/badge-team.png'), eyebrow: 'ХРОНОЛОГИЯ', title: 'История пути',
     text: 'Все сохранённые события по времени — без оценок и сравнений.',
     route: '/(tabs)/history', base: '#EDE8F7', ink: '#66579C', wide: true,
   },
@@ -39,7 +39,7 @@ export default function WeekToolsScreen() {
       kicker="РАЗВИТИЕ"
       title="Эта неделя"
       subtitle="Не план на идеальную жизнь, а несколько спокойных инструментов, которые помогают замечать движение и возвращаться к важному."
-      emblemImage={require('../../assets/generated/feature-path.png')}
+      emblemImage={require('../../assets/generated/badge-adventure.png')}
       tools={tools}
     />
   );
