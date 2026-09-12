@@ -3,15 +3,20 @@
 ## Схема
 
 1. `main` проходит Expo Doctor, TypeScript, `expo prebuild` и `assembleRelease`.
-2. CI сохраняет APK как GitHub Actions artifact.
-3. Перед публикацией CI проверяет сертификат APK через `apksigner`.
-4. Если APK всё ещё подписан `Android Debug`, публикация в канал обновлений блокируется.
-5. Когда настроен постоянный Android release key и `SUPABASE_RELEASE_SECRET_KEY`, CI загружает APK в приватный Supabase Storage bucket `app-releases`.
-6. В `app_releases` сохраняются `version_name`, `version_code`, `storage_path`, `sha256` и `size_bytes`.
+2. Перед публикацией CI проверяет сертификат APK через `apksigner`.
+3. Подписанный APK публикуется только в GitHub Releases как versioned asset `papa-i-ya-<version>.apk`.
+4. Supabase Storage для APK не используется.
+5. В таблице `app_releases` Supabase сохраняются только метаданные: `version_name`, `version_code`, `download_url`, `sha256`, `size_bytes`, дата публикации и статус релиза.
+6. `download_url` указывает на GitHub Release asset.
 7. Приложение проверяет `get_latest_app_release` при запуске.
-8. Для приватного APK авторизованный пользователь получает signed URL сроком на 10 минут.
-9. APK скачивается в cache приложения, проверяется ожидаемый размер и передаётся системному Android installer.
-10. Android всегда оставляет пользователю финальное подтверждение установки обновления.
+8. Если доступна новая версия, клиент использует `download_url`, проверяет ожидаемый размер APK и передаёт файл системному Android installer.
+9. Android всегда оставляет пользователю финальное подтверждение установки обновления.
+
+## Где что хранится
+
+- GitHub Releases — APK-файлы и история выпусков.
+- Supabase Database — каталог версий и метаданные обновлений.
+- Supabase Storage — не используется для APK.
 
 ## Обязательная постоянная подпись
 
@@ -19,16 +24,20 @@
 
 Рекомендуемый долгосрочный вариант — EAS-managed Android credentials либо собственный release keystore, хранящийся вне Git и передаваемый CI через защищённые secrets. Keystore и его пароли нельзя коммитить в репозиторий.
 
-CI дополнительно проверяет сертификат собранного APK и отказывается публиковать debug-signed сборку в `app-releases`. Это защищает от случайного выпуска APK, который Android потом не сможет поставить поверх production-версии.
+CI проверяет сертификат собранного APK и отказывается публиковать debug-signed сборку как production release.
 
-## GitHub secret
+## GitHub и Supabase secrets
 
-Для автоматической публикации файла из `main` workflow ожидает секрет:
+Для release workflow используются:
 
-`SUPABASE_RELEASE_SECRET_KEY`
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+- `SUPABASE_RELEASE_SECRET_KEY` — только для записи метаданных в `app_releases`; APK через этот ключ не загружается.
 
-Если секрет не настроен, сборка не падает: APK остаётся обычным GitHub Actions artifact, а публикация в Supabase безопасно пропускается.
+`SUPABASE_RELEASE_SECRET_KEY` нельзя помещать в `app.json`, `.env` мобильного приложения или любой `EXPO_PUBLIC_*` параметр.
 
-## Storage
+## Важно для приватного репозитория
 
-Bucket `app-releases` приватный. Мобильный клиент не имеет прав загружать или заменять APK. Авторизованному приложению разрешено только чтение релизных объектов, необходимое для генерации короткоживущей signed URL.
+Релизный APK физически хранится только в GitHub Releases. У текущего репозитория приватная видимость, поэтому прямой GitHub asset URL требует GitHub-доступ. Если понадобится полностью автоматическая загрузка APK из приложения без GitHub-аутентификации, правильный вариант — отдельный публичный release-only репозиторий только для APK, при этом исходный код `Father-son` может оставаться приватным.
