@@ -58,9 +58,11 @@ async function verifyDownloadedApk(file: File, release: AppRelease) {
     throw new Error('APK_SIZE_MISMATCH');
   }
 
-  if (!release.sha256) return;
-
   const expectedSha256 = normalizedSha256(release.sha256);
+  if (!release.sha256) {
+    deleteQuietly(file);
+    throw new Error('APK_SHA256_MISSING');
+  }
   if (!expectedSha256) {
     deleteQuietly(file);
     throw new Error('APK_SHA256_INVALID');
