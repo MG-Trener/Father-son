@@ -2,6 +2,11 @@ import { ToolHub, type HubTool } from '../components/ToolHub';
 
 const tools: HubTool[] = [
   {
+    image: require('../../assets/generated/feature-family.png'), eyebrow: 'ЭТОТ МЕСЯЦ', title: 'Месяц вместе',
+    text: 'Спокойный обзор встреч, голосов, признаний и шагов — без рейтингов и серий.',
+    route: '/month-together', base: '#E6F0F2', ink: '#2D6D73', wide: true,
+  },
+  {
     image: require('../../assets/generated/utility-calendar.png'), eyebrow: 'НЕ ПРОПУСТИТЬ', title: 'События',
     text: 'Важные действия второго участника остаются здесь, даже если push был пропущен.',
     route: '/notifications', base: '#F7E8EE', ink: '#9B5660', wide: true,
