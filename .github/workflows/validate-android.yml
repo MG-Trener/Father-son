@@ -163,14 +163,14 @@ jobs:
           VERSION_CODE="$(node -p "require('./app.json').expo.android.versionCode")"
           SHA256="$(sha256sum "$APK" | awk '{print $1}')"
           SIZE_BYTES="$(stat -c%s "$APK")"
-          STORAGE_PATH="android/${VERSION_CODE}/papa-i-ya-${VERSION}.apk"
           RELEASE_ASSET="papa-i-ya-${VERSION}.apk"
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/android-v${VERSION_CODE}/${RELEASE_ASSET}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "size_bytes=$SIZE_BYTES" >> "$GITHUB_OUTPUT"
-          echo "storage_path=$STORAGE_PATH" >> "$GITHUB_OUTPUT"
           echo "release_asset=$RELEASE_ASSET" >> "$GITHUB_OUTPUT"
+          echo "download_url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
           echo "APK size: $SIZE_BYTES bytes"
 
       - name: Publish versioned GitHub release
@@ -194,9 +194,10 @@ jobs:
           cat > release-notes.md <<EOF
           Android-версия «Папа & Я» ${VERSION} (versionCode ${VERSION_CODE}).
 
-          Оптимизированная ARM64-сборка для современных Android-телефонов.
+          ARM64-сборка для современных Android-телефонов.
           SHA-256: ${SHA256}
           Подписано постоянным release-ключом; подходит для последующих обновлений.
+          APK хранится в GitHub Releases. Supabase используется только для БД и метаданных обновления.
 
           Канал: release.
           EOF
@@ -206,16 +207,15 @@ jobs:
             --notes-file release-notes.md \
             --latest
 
-      - name: Publish APK and update feed in Supabase
+      - name: Publish release metadata in Supabase
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
-          APK_PATH: android/app/build/outputs/apk/release/app-release.apk
           VERSION: ${{ steps.release_meta.outputs.version }}
           VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
-          STORAGE_PATH: ${{ steps.release_meta.outputs.storage_path }}
+          DOWNLOAD_URL: ${{ steps.release_meta.outputs.download_url }}
           SHA256: ${{ steps.release_meta.outputs.sha256 }}
           SIZE_BYTES: ${{ steps.release_meta.outputs.size_bytes }}
-        run: node .github/scripts/publish-supabase-release.mjs
+        run: node .github/scripts/publish-release-metadata.mjs
 
       - name: Clean signing material
         if: always()
