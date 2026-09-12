@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,6 +26,13 @@ import { useFamily } from '../context/FamilyContext';
 import { notifyFamilyEvent } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
 import { colors, gradients, radius, shadows } from '../theme';
+
+const artwork = {
+  voice: require('../../assets/generated/utility-voice.png'),
+  recognition: require('../../assets/generated/utility-recognition.png'),
+  together: require('../../assets/generated/nav-together.png'),
+  goal: require('../../assets/generated/utility-goal.png'),
+} as const;
 
 const MAX_DURATION_MS = 20 * 60 * 1000;
 const MIN_DURATION_MS = 500;
@@ -214,9 +222,12 @@ export default function VoiceStoryNewScreen() {
           <View style={styles.heroOrb} />
           <View style={styles.heroRing} />
           <View style={styles.heroTopRow}>
-            <View>
-              <Text style={styles.heroKicker}>ГОЛОСОВАЯ КАПСУЛА</Text>
-              <Text style={styles.heroTitle}>{recorderState.isRecording ? 'Сейчас звучит настоящий момент.' : isReady ? 'Этот момент уже можно сохранить.' : 'Расскажи так, как рассказал бы при встрече.'}</Text>
+            <View style={styles.heroHeading}>
+              <View style={styles.heroArtworkShell}><Image source={artwork.voice} style={styles.heroArtwork} resizeMode="contain" /></View>
+              <View style={styles.heroHeadingCopy}>
+                <Text style={styles.heroKicker}>ГОЛОСОВАЯ КАПСУЛА</Text>
+                <Text style={styles.heroTitle}>{recorderState.isRecording ? 'Сейчас звучит настоящий момент.' : isReady ? 'Этот момент уже можно сохранить.' : 'Расскажи так, как рассказал бы при встрече.'}</Text>
+              </View>
             </View>
             <View style={[styles.stateBadge, recorderState.isRecording && styles.stateBadgeRecording]}>
               <Text style={styles.stateDot}>{recorderState.isRecording ? '●' : isReady ? '✓' : '○'}</Text>
@@ -261,7 +272,7 @@ export default function VoiceStoryNewScreen() {
 
         {prompt ? (
           <View style={[styles.promptCard, shadows.soft]}>
-            <View style={styles.promptIcon}><Text style={styles.promptIconText}>?</Text></View>
+            <View style={styles.promptIcon}><Image source={artwork.recognition} style={styles.promptIconImage} resizeMode="contain" /></View>
             <View style={styles.promptBody}>
               <Text style={styles.promptEyebrow}>ВОПРОС ДЛЯ РАЗГОВОРА</Text>
               <Text style={styles.promptText}>{prompt}</Text>
@@ -296,7 +307,7 @@ export default function VoiceStoryNewScreen() {
 
         <View style={[styles.fieldCard, shadows.soft]}>
           <View style={styles.fieldHeading}>
-            <View style={styles.fieldIcon}><Text style={styles.fieldIconText}>✦</Text></View>
+            <View style={styles.fieldIcon}><Image source={artwork.together} style={styles.fieldIconImage} resizeMode="contain" /></View>
             <View style={styles.fieldHeadingText}>
               <Text style={styles.label}>Дай этому моменту имя</Text>
               <Text style={styles.fieldHint}>Необязательно — можно оставить только голос.</Text>
@@ -335,7 +346,7 @@ export default function VoiceStoryNewScreen() {
         <View style={styles.routeFooter}>
           <View style={styles.routeDot} />
           <View style={styles.routeLine} />
-          <View style={styles.routeVoice}><Text style={styles.routeVoiceText}>◉</Text></View>
+          <View style={styles.routeVoice}><Image source={artwork.goal} style={styles.routeVoiceImage} resizeMode="contain" /></View>
           <View style={styles.routeLine} />
           <View style={styles.routeDotFuture} />
         </View>
@@ -352,12 +363,16 @@ const styles = StyleSheet.create({
   backButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   backText: { color: colors.navyDeep, fontSize: 31, lineHeight: 33, marginTop: -3 },
   topTitle: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
-  hero: { minHeight: 430, borderRadius: radius.xl, padding: 20, overflow: 'hidden', alignItems: 'center' },
+  hero: { minHeight: 445, borderRadius: radius.xl, padding: 20, overflow: 'hidden', alignItems: 'center' },
   heroOrb: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,215,106,0.09)', top: -86, right: -56 },
   heroRing: { position: 'absolute', width: 130, height: 130, borderRadius: 65, borderWidth: 2, borderColor: 'rgba(255,255,255,0.09)', bottom: 44, left: -58 },
   heroTopRow: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  heroHeading: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
+  heroHeadingCopy: { flex: 1 },
+  heroArtworkShell: { width: 62, height: 62, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  heroArtwork: { width: 54, height: 54 },
   heroKicker: { color: colors.sun, fontSize: 8, fontWeight: '900', letterSpacing: 1.6 },
-  heroTitle: { color: colors.white, fontSize: 21, lineHeight: 26, fontWeight: '900', letterSpacing: -0.4, marginTop: 5, maxWidth: 230 },
+  heroTitle: { color: colors.white, fontSize: 19, lineHeight: 24, fontWeight: '900', letterSpacing: -0.35, marginTop: 5, maxWidth: 205 },
   stateBadge: { minWidth: 62, paddingHorizontal: 9, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.12)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   stateBadgeRecording: { backgroundColor: 'rgba(233,111,95,0.20)' },
   stateDot: { color: colors.sun, fontSize: 9, fontWeight: '900' },
@@ -377,8 +392,8 @@ const styles = StyleSheet.create({
   recordIcon: { color: colors.navyDeep, fontSize: 24, fontWeight: '900' },
   recordLabel: { color: colors.white, fontSize: 11, fontWeight: '900', marginTop: 7 },
   promptCard: { backgroundColor: '#FFF0CF', borderRadius: radius.xl, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderWidth: 1, borderColor: '#F4DBA3' },
-  promptIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  promptIconText: { color: colors.navyDeep, fontSize: 17, fontWeight: '900' },
+  promptIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: '#FFF7E6', alignItems: 'center', justifyContent: 'center' },
+  promptIconImage: { width: 40, height: 40 },
   promptBody: { flex: 1 },
   promptEyebrow: { color: '#8A5D12', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   promptText: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '800', marginTop: 4 },
@@ -397,8 +412,8 @@ const styles = StyleSheet.create({
   resetButtonText: { color: colors.muted, fontSize: 10, fontWeight: '900' },
   fieldCard: { backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 17, gap: 10 },
   fieldHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  fieldIcon: { width: 39, height: 39, borderRadius: 13, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center' },
-  fieldIconText: { color: colors.purple, fontSize: 16, fontWeight: '900' },
+  fieldIcon: { width: 48, height: 48, borderRadius: 15, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center' },
+  fieldIconImage: { width: 42, height: 42 },
   fieldHeadingText: { flex: 1 },
   label: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' },
   fieldHint: { color: colors.muted, fontSize: 9, marginTop: 2 },
@@ -419,7 +434,7 @@ const styles = StyleSheet.create({
   routeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.tealBright },
   routeDotFuture: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.lineWarm },
   routeLine: { flex: 1, height: 2, backgroundColor: colors.lineWarm },
-  routeVoice: { width: 31, height: 31, borderRadius: 12, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  routeVoiceText: { color: colors.navyDeep, fontSize: 13, fontWeight: '900' },
+  routeVoice: { width: 38, height: 38, borderRadius: 13, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center' },
+  routeVoiceImage: { width: 34, height: 34 },
   footerText: { color: colors.muted, fontSize: 9, lineHeight: 14, textAlign: 'center', paddingHorizontal: 30 },
 });
