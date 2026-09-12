@@ -1,11 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ImageSourcePropType, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, gradients, radius, shadows } from '../theme';
+
+const artwork = {
+  family: require('../../assets/generated/feature-family.png'),
+  together: require('../../assets/generated/feature-together.png'),
+  path: require('../../assets/generated/feature-path.png'),
+  home: require('../../assets/generated/feature-home.png'),
+  voice: require('../../assets/generated/utility-voice.png'),
+  recognition: require('../../assets/generated/utility-recognition.png'),
+  calendar: require('../../assets/generated/utility-calendar.png'),
+  goal: require('../../assets/generated/utility-goal.png'),
+  agreements: require('../../assets/generated/utility-agreements.png'),
+  achievement: require('../../assets/generated/badge-planner.png'),
+  mission: require('../../assets/generated/badge-adventure.png'),
+} as const satisfies Record<string, ImageSourcePropType>;
 
 type EventRow = {
   id: string;
@@ -17,11 +31,10 @@ type EventRow = {
 };
 
 type EventView = {
-  icon: string;
+  image: ImageSourcePropType;
   title: string;
   text: string;
   base: string;
-  ink: string;
 };
 
 const interestingTypes = new Set([
@@ -48,22 +61,22 @@ const payloadText = (payload: unknown, key: string) => typeof payloadRecord(payl
 const viewFor = (event: EventRow, actorName: string): EventView => {
   const title = payloadText(event.payload, 'title');
   switch (event.event_type) {
-    case 'five_minutes_ping': return { icon: '♥', title: `${actorName}: есть 5 минут?`, text: 'Есть повод ненадолго выйти на связь.', base: '#FFF0CF', ink: '#9A6A1B' };
-    case 'advice_requested': return { icon: '🧭', title: `${actorName} просит совета`, text: payloadText(event.payload, 'message') ?? 'Есть тема, которую хочется обсудить вместе.', base: '#F8E1E5', ink: '#9B5660' };
-    case 'connection_response': return { icon: '🤝', title: `${actorName} ответил`, text: payloadText(event.payload, 'response') === 'here' ? 'Сейчас можно связаться.' : 'Вернётся к разговору чуть позже.', base: colors.mint, ink: colors.green };
-    case 'voice_story_added': return { icon: '🎙', title: title || 'Новая голосовая история', text: `${actorName} сохранил голосовой момент в вашей общей истории.`, base: '#DDEDEF', ink: colors.teal };
-    case 'recognition_added': return { icon: '✦', title: title || 'Я заметил', text: `${actorName} сохранил важный момент про тебя.`, base: colors.lavender, ink: colors.purple };
-    case 'meeting_created': return { icon: '📅', title: 'Появилась новая встреча', text: title ? `${actorName} запланировал «${title}».` : `${actorName} добавил встречу.`, base: colors.sky, ink: colors.blue };
-    case 'meeting_completed': return { icon: '⌁', title: 'Встреча осталась в истории', text: title ? `«${title}» отмечена как состоявшаяся.` : 'Совместный момент сохранён.', base: colors.mint, ink: colors.green };
-    case 'mood_shared': return { icon: '☁', title: `${actorName} поделился состоянием`, text: 'Можно просто заметить это — не обязательно сразу задавать вопросы.', base: '#E6F0F2', ink: colors.teal };
-    case 'ritual_moment_added': return { icon: '∞', title: title || 'Ваш ритуал случился', text: `${actorName} отметил этот момент сегодня.`, base: '#FFF0CF', ink: '#9A6A1B' };
-    case 'weekly_focus_added': return { icon: '◎', title: 'Новый фокус недели', text: title ? `${actorName}: «${title}».` : `${actorName} выбрал ориентир на неделю.`, base: '#DCEFFF', ink: '#2E6286' };
-    case 'agreement_proposed': return { icon: '🤝', title: 'Новая договорённость', text: title ? `${actorName} предлагает: «${title}».` : `${actorName} предложил новую договорённость.`, base: '#FFF0CF', ink: '#956719' };
-    case 'agreement_activated': return { icon: '✓', title: 'Вы договорились', text: title ? `«${title}» теперь подтверждена обоими.` : 'Договорённость подтверждена обоими.', base: colors.mint, ink: colors.green };
-    case 'agreement_archived': return { icon: '○', title: 'Договорённость завершена', text: title ? `${actorName} убрал «${title}» из действующих.` : `${actorName} завершил одну из прежних договорённостей.`, base: colors.sandWarm, ink: colors.muted };
-    case 'achievement_awarded': return { icon: '🏅', title: title || 'Новая веха', text: 'В пути появилась новая заметная точка.', base: '#FFF0C2', ink: '#C98722' };
-    case 'mission_completed': return { icon: '✓', title: title || 'Шаг завершён', text: `${actorName} завершил один из текущих шагов.`, base: colors.mint, ink: colors.green };
-    default: return { icon: '✦', title: 'Новый момент', text: `${actorName} добавил событие в вашу историю.`, base: '#E6F0F2', ink: colors.teal };
+    case 'five_minutes_ping': return { image: artwork.together, title: `${actorName}: есть 5 минут?`, text: 'Есть повод ненадолго выйти на связь.', base: '#FFF0CF' };
+    case 'advice_requested': return { image: artwork.recognition, title: `${actorName} просит совета`, text: payloadText(event.payload, 'message') ?? 'Есть тема, которую хочется обсудить вместе.', base: '#F8E1E5' };
+    case 'connection_response': return { image: artwork.family, title: `${actorName} ответил`, text: payloadText(event.payload, 'response') === 'here' ? 'Сейчас можно связаться.' : 'Вернётся к разговору чуть позже.', base: colors.mint };
+    case 'voice_story_added': return { image: artwork.voice, title: title || 'Новая голосовая история', text: `${actorName} сохранил голосовой момент в вашей общей истории.`, base: '#DDEDEF' };
+    case 'recognition_added': return { image: artwork.recognition, title: title || 'Я заметил', text: `${actorName} сохранил важный момент про тебя.`, base: colors.lavender };
+    case 'meeting_created': return { image: artwork.calendar, title: 'Появилась новая встреча', text: title ? `${actorName} запланировал «${title}».` : `${actorName} добавил встречу.`, base: colors.sky };
+    case 'meeting_completed': return { image: artwork.calendar, title: 'Встреча осталась в истории', text: title ? `«${title}» отмечена как состоявшаяся.` : 'Совместный момент сохранён.', base: colors.mint };
+    case 'mood_shared': return { image: artwork.together, title: `${actorName} поделился состоянием`, text: 'Можно просто заметить это — не обязательно сразу задавать вопросы.', base: '#E6F0F2' };
+    case 'ritual_moment_added': return { image: artwork.goal, title: title || 'Ваш ритуал случился', text: `${actorName} отметил этот момент сегодня.`, base: '#FFF0CF' };
+    case 'weekly_focus_added': return { image: artwork.goal, title: 'Новый фокус недели', text: title ? `${actorName}: «${title}».` : `${actorName} выбрал ориентир на неделю.`, base: '#DCEFFF' };
+    case 'agreement_proposed': return { image: artwork.agreements, title: 'Новая договорённость', text: title ? `${actorName} предлагает: «${title}».` : `${actorName} предложил новую договорённость.`, base: '#FFF0CF' };
+    case 'agreement_activated': return { image: artwork.agreements, title: 'Вы договорились', text: title ? `«${title}» теперь подтверждена обоими.` : 'Договорённость подтверждена обоими.', base: colors.mint };
+    case 'agreement_archived': return { image: artwork.agreements, title: 'Договорённость завершена', text: title ? `${actorName} убрал «${title}» из действующих.` : `${actorName} завершил одну из прежних договорённостей.`, base: colors.sandWarm };
+    case 'achievement_awarded': return { image: artwork.achievement, title: title || 'Новая веха', text: 'В пути появилась новая заметная точка.', base: '#FFF0C2' };
+    case 'mission_completed': return { image: artwork.mission, title: title || 'Шаг завершён', text: `${actorName} завершил один из текущих шагов.`, base: colors.mint };
+    default: return { image: artwork.path, title: 'Новый момент', text: `${actorName} добавил событие в вашу историю.`, base: '#E6F0F2' };
   }
 };
 
@@ -175,6 +188,7 @@ export default function NotificationsScreen() {
 
         <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}>
           <View style={styles.heroGlow} />
+          <View style={styles.heroArtworkShell}><Image source={artwork.family} style={styles.heroArtwork} resizeMode="contain" /></View>
           <Text style={styles.heroKicker}>ВНУТРИ ПРИЛОЖЕНИЯ</Text>
           <Text style={styles.heroTitle}>{unread.length ? `${unread.length} ${unread.length === 1 ? 'новое событие' : 'новых событий'}` : 'Всё важное уже просмотрено'}</Text>
           <Text style={styles.heroText}>Push может потеряться среди уведомлений Android. Здесь важные действия второго человека остаются, пока ты сам их не увидишь.</Text>
@@ -195,7 +209,7 @@ export default function NotificationsScreen() {
               const view = viewFor(event, actor);
               return (
                 <Pressable key={event.id} onPress={() => void openEvent(event)} style={[styles.eventCard, !isRead && styles.eventUnread, shadows.soft]}>
-                  <View style={[styles.eventIcon, { backgroundColor: view.base }]}><Text style={[styles.eventIconText, { color: view.ink }]}>{view.icon}</Text></View>
+                  <View style={[styles.eventIcon, { backgroundColor: view.base }]}><Image source={view.image} style={styles.eventIconImage} resizeMode="contain" /></View>
                   <View style={styles.eventCopy}>
                     <View style={styles.eventTop}><Text style={styles.eventDate}>{when(event.occurred_at)}</Text>{!isRead ? <View style={styles.newDot} /> : null}</View>
                     <Text style={styles.eventTitle}>{view.title}</Text>
@@ -207,7 +221,11 @@ export default function NotificationsScreen() {
             })}
           </View>
         ) : (
-          <View style={[styles.empty, shadows.soft]}><Text style={styles.emptyIcon}>☀</Text><Text style={styles.emptyTitle}>Пока тихо</Text><Text style={styles.emptyText}>Когда второй участник сохранит важный момент, ответит, предложит встречу или договорённость — это появится здесь.</Text></View>
+          <View style={[styles.empty, shadows.soft]}>
+            <View style={styles.emptyIconShell}><Image source={artwork.home} style={styles.emptyIcon} resizeMode="contain" /></View>
+            <Text style={styles.emptyTitle}>Пока тихо</Text>
+            <Text style={styles.emptyText}>Когда второй участник сохранит важный момент, ответит, предложит встречу или договорённость — это появится здесь.</Text>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -229,6 +247,8 @@ const styles = StyleSheet.create({
   unreadCount: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' },
   hero: { minHeight: 245, borderRadius: radius.xl, padding: 21, overflow: 'hidden' },
   heroGlow: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: 'rgba(255,215,106,0.10)', right: -65, top: -70 },
+  heroArtworkShell: { position: 'absolute', right: 16, top: 14, width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  heroArtwork: { width: 68, height: 68 },
   heroKicker: { color: colors.sun, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   heroTitle: { color: colors.white, fontSize: 26, lineHeight: 31, fontWeight: '900', marginTop: 11, maxWidth: '92%' },
   heroText: { color: '#D8E6E7', fontSize: 10.5, lineHeight: 16, marginTop: 8, maxWidth: '92%' },
@@ -241,8 +261,8 @@ const styles = StyleSheet.create({
   list: { gap: 9 },
   eventCard: { minHeight: 102, backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.lineWarm, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 10 },
   eventUnread: { backgroundColor: '#FFFDF5', borderColor: '#E6C97F' },
-  eventIcon: { width: 45, height: 45, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  eventIconText: { fontSize: 17, fontWeight: '900' },
+  eventIcon: { width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  eventIconImage: { width: 45, height: 45 },
   eventCopy: { flex: 1 },
   eventTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   eventDate: { color: colors.mutedSoft, fontSize: 7.5, fontWeight: '900', textTransform: 'uppercase' },
@@ -251,7 +271,8 @@ const styles = StyleSheet.create({
   eventText: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 3 },
   eventArrow: { color: colors.mutedSoft, fontSize: 23 },
   empty: { minHeight: 210, backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 20, alignItems: 'center', justifyContent: 'center' },
-  emptyIcon: { fontSize: 32 },
+  emptyIconShell: { width: 74, height: 74, borderRadius: 24, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' },
+  emptyIcon: { width: 66, height: 66 },
   emptyTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 9 },
   emptyText: { color: colors.muted, fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 5, maxWidth: '88%' },
 });
