@@ -59,4 +59,15 @@ Production уже имеет историю migrations, начинающуюся
 
 На production 13 сентября 2026 выполнен `supabase/tests/baseline_manifest.sql`: результат `baseline_manifest_ok`.
 
+Кроме того, каждый bootstrap-файл был отдельно выполнен против production внутри транзакции `BEGIN ... ROLLBACK`, поэтому проверка не оставляла изменений. Получены результаты:
+
+```text
+core_schema_sql_ok
+core_security_sql_ok
+core_rpcs_sql_ok
+seed_catalog_sql_ok
+```
+
+Это подтверждает синтаксис, имена объектов и зависимости относительно текущей Supabase/PostgreSQL-среды. Проверка `001` на production использует `IF NOT EXISTS`, поэтому она не заменяет испытание фактического создания объектов с нуля.
+
 Полный тест развёртывания baseline + всей migration chain на **чистой** Supabase development branch ещё должен быть выполнен отдельно. Создание Supabase branch является тарифицируемой операцией и требует явного подтверждения стоимости владельцем проекта, поэтому автоматически branch не создавался.
