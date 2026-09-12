@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useAuth } from './AuthContext';
@@ -45,6 +46,7 @@ export function FamilyProvider({ children }: PropsWithChildren) {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState<string | null>(null);
+  const familySignalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clear = useCallback(() => {
     setFamily(null);
@@ -112,7 +114,15 @@ export function FamilyProvider({ children }: PropsWithChildren) {
   }, [authLoading, refresh]);
 
   const signalFamilyDataChanged = useCallback(() => {
-    setFamily((current) => (current ? { ...current } : current));
+    if (familySignalTimer.current) clearTimeout(familySignalTimer.current);
+    familySignalTimer.current = setTimeout(() => {
+      familySignalTimer.current = null;
+      setFamily((current) => (current ? { ...current } : current));
+    }, 80);
+  }, []);
+
+  useEffect(() => () => {
+    if (familySignalTimer.current) clearTimeout(familySignalTimer.current);
   }, []);
 
   const familyId = family?.id ?? null;
@@ -125,9 +135,42 @@ export function FamilyProvider({ children }: PropsWithChildren) {
     const onFamilyChange = () => {
       signalFamilyDataChanged();
     };
+    const onTeamChange = () => {
+      void refresh();
+    };
 
     const channel = client
       .channel(`family-live-${familyId}-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'families',
+          filter: `id=eq.${familyId}`,
+        },
+        onTeamChange,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'family_members',
+          filter: `family_id=eq.${familyId}`,
+        },
+        onTeamChange,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'family_members',
+          filter: `family_id=eq.${familyId}`,
+        },
+        onTeamChange,
+      )
       .on(
         'postgres_changes',
         {
@@ -193,7 +236,7 @@ export function FamilyProvider({ children }: PropsWithChildren) {
     return () => {
       void client.removeChannel(channel);
     };
-  }, [familyId, signalFamilyDataChanged, userId]);
+  }, [familyId, refresh, signalFamilyDataChanged, userId]);
 
   const value = useMemo<FamilyContextValue>(
     () => ({ family, me, members, loading, error, refresh }),
