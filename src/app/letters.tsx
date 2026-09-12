@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
+
+const artwork = {
+  book: require('../../assets/generated/feature-book.png'),
+  path: require('../../assets/generated/feature-path.png'),
+  family: require('../../assets/generated/feature-family.png'),
+  goal: require('../../assets/generated/utility-goal.png'),
+} as const;
 
 type FutureLetter = {
   id: string;
@@ -66,7 +73,7 @@ export default function LettersScreen() {
       return;
     }
     if (!isUnlocked(letter)) {
-      Alert.alert('Письмо запечатано 🔒', `Оно откроется ${prettyDate(letter.unlock_at)}. До этого момента даже текст не загружается в приложение.`);
+      Alert.alert('Письмо ещё запечатано', `Оно откроется ${prettyDate(letter.unlock_at)}. До этого момента даже текст не загружается в приложение.`);
       return;
     }
     if (me?.user_id !== letter.author_user_id && me?.user_id !== letter.recipient_user_id) {
@@ -91,7 +98,7 @@ export default function LettersScreen() {
 
         <LinearGradient colors={['#183C55', '#315E71', '#D49A4B']} style={[styles.hero, shadows.lift]}>
           <View style={styles.heroGlow} />
-          <Text style={styles.heroEnvelope}>✉️</Text>
+          <View style={styles.heroArtworkShell}><Image source={artwork.path} style={styles.heroArtwork} resizeMode="contain" /></View>
           <Text style={styles.heroTitle}>{isChild ? 'Некоторые слова лучше сохранить надолго' : 'Слова, которые дождутся своего времени'}</Text>
           <Text style={styles.heroText}>{isChild
             ? 'Напиши себе будущему или папе. После запечатывания письмо нельзя подсмотреть раньше даты открытия.'
@@ -106,7 +113,7 @@ export default function LettersScreen() {
             <View style={styles.list}>
               {drafts.map((letter) => (
                 <Pressable key={letter.id} style={[styles.draftCard, shadows.soft]} onPress={() => openLetter(letter)}>
-                  <View style={styles.draftIcon}><Text style={styles.draftIconText}>✎</Text></View>
+                  <View style={styles.draftIcon}><Image source={artwork.book} style={styles.draftIconImage} resizeMode="contain" /></View>
                   <View style={styles.cardCopy}><Text style={styles.cardTitle}>{letter.title}</Text><Text style={styles.cardMeta}>Для {names.get(letter.recipient_user_id) ?? 'адресата'} · открыть {prettyDate(letter.unlock_at)}</Text></View>
                   <Text style={styles.chevron}>›</Text>
                 </Pressable>
@@ -124,7 +131,9 @@ export default function LettersScreen() {
               const accessible = me?.user_id === letter.author_user_id || me?.user_id === letter.recipient_user_id;
               return (
                 <Pressable key={letter.id} style={[styles.letterCard, unlocked && accessible && styles.letterReady, shadows.soft]} onPress={() => openLetter(letter)}>
-                  <View style={[styles.seal, unlocked && accessible && styles.sealReady]}><Text style={styles.sealText}>{unlocked && accessible ? '✦' : '🔒'}</Text></View>
+                  <View style={[styles.seal, unlocked && accessible && styles.sealReady]}>
+                    <Image source={unlocked && accessible ? artwork.family : artwork.goal} style={styles.sealImage} resizeMode="contain" />
+                  </View>
                   <View style={styles.cardCopy}>
                     <Text style={styles.cardEyebrow}>{names.get(letter.author_user_id) ?? 'Автор'} → {names.get(letter.recipient_user_id) ?? 'Адресат'}</Text>
                     <Text style={styles.cardTitle}>{letter.title}</Text>
@@ -136,7 +145,7 @@ export default function LettersScreen() {
             })}
             {!sealed.length ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyIcon}>📮</Text>
+                <View style={styles.emptyIconShell}><Image source={artwork.book} style={styles.emptyIcon} resizeMode="contain" /></View>
                 <Text style={styles.emptyTitle}>Первый конверт ещё впереди</Text>
                 <Text style={styles.emptyText}>Письмо можно запечатать на конкретную дату. После этого содержимое действительно закрывается до срока.</Text>
               </View>
@@ -145,7 +154,7 @@ export default function LettersScreen() {
         </View>
 
         <View style={[styles.ruleCard, shadows.soft]}>
-          <Text style={styles.ruleIcon}>🔐</Text>
+          <View style={styles.ruleIconShell}><Image source={artwork.family} style={styles.ruleIcon} resizeMode="contain" /></View>
           <View style={styles.ruleCopy}><Text style={styles.ruleTitle}>Настоящая печать</Text><Text style={styles.ruleText}>После запечатывания текст письма недоступен через приложение до даты открытия. Конверт остаётся видимым, содержание — нет.</Text></View>
         </View>
       </ScrollView>
@@ -167,7 +176,8 @@ const styles = StyleSheet.create({
   addText: { color: colors.white, fontSize: 22, fontWeight: '800' },
   hero: { minHeight: 250, borderRadius: radius.xl, padding: 20, overflow: 'hidden', justifyContent: 'flex-end' },
   heroGlow: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,220,130,0.13)', right: -55, top: -80 },
-  heroEnvelope: { fontSize: 42, position: 'absolute', right: 22, top: 22 },
+  heroArtworkShell: { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', position: 'absolute', right: 18, top: 18 },
+  heroArtwork: { width: 66, height: 66 },
   heroTitle: { color: colors.white, fontSize: 26, lineHeight: 29, fontWeight: '900', maxWidth: '88%' },
   heroText: { color: '#E4ECEC', fontSize: 10, lineHeight: 15, marginTop: 8, maxWidth: '91%' },
   heroButton: { alignSelf: 'flex-start', backgroundColor: colors.white, paddingHorizontal: 15, paddingVertical: 11, borderRadius: 15, marginTop: 16 },
@@ -177,23 +187,25 @@ const styles = StyleSheet.create({
   list: { gap: 9 },
   draftCard: { minHeight: 76, borderRadius: 22, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: '#E8DFD1', padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
   draftIcon: { width: 43, height: 43, borderRadius: 15, backgroundColor: '#E7F0F2', alignItems: 'center', justifyContent: 'center' },
-  draftIconText: { color: colors.teal, fontSize: 18, fontWeight: '900' },
+  draftIconImage: { width: 36, height: 36 },
   letterCard: { minHeight: 93, borderRadius: 24, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: '#E8DFD1', padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   letterReady: { borderColor: '#D9B56F', backgroundColor: '#FFFBF1' },
   seal: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#EFE9DF', alignItems: 'center', justifyContent: 'center' },
-  sealReady: { backgroundColor: colors.amber },
-  sealText: { fontSize: 20 },
+  sealReady: { backgroundColor: '#FFF2D6' },
+  sealImage: { width: 42, height: 42 },
   cardCopy: { flex: 1 },
   cardEyebrow: { color: colors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 0.6, textTransform: 'uppercase' },
   cardTitle: { color: colors.navyDeep, fontSize: 13, lineHeight: 17, fontWeight: '900', marginTop: 2 },
   cardMeta: { color: colors.muted, fontSize: 8, lineHeight: 12, marginTop: 4 },
   chevron: { color: colors.navy, fontSize: 24, fontWeight: '700' },
   empty: { alignItems: 'center', paddingVertical: 25, paddingHorizontal: 18, backgroundColor: '#FFFDF8', borderRadius: 24, borderWidth: 1, borderColor: '#E8DFD1' },
-  emptyIcon: { fontSize: 35 },
+  emptyIconShell: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#F4EAD8', alignItems: 'center', justifyContent: 'center' },
+  emptyIcon: { width: 62, height: 62 },
   emptyTitle: { color: colors.navyDeep, fontSize: 14, fontWeight: '900', marginTop: 7 },
   emptyText: { color: colors.muted, fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 4 },
-  ruleCard: { backgroundColor: '#173C4A', borderRadius: radius.xl, padding: 17, flexDirection: 'row', gap: 12 },
-  ruleIcon: { fontSize: 27 },
+  ruleCard: { backgroundColor: '#173C4A', borderRadius: radius.xl, padding: 17, flexDirection: 'row', gap: 12, alignItems: 'center' },
+  ruleIconShell: { width: 50, height: 50, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  ruleIcon: { width: 43, height: 43 },
   ruleCopy: { flex: 1 },
   ruleTitle: { color: colors.white, fontSize: 13, fontWeight: '900' },
   ruleText: { color: '#D5E2E3', fontSize: 9, lineHeight: 14, marginTop: 3 },
