@@ -1,0 +1,202 @@
+name: Repair Current Android Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repair-current-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  EXPO_PUBLIC_SUPABASE_URL: https://kyptvbnnyqlmwkiobtvq.supabase.co
+  EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_7d-vT92P448Prlv7DURaIw_r8127lra
+
+jobs:
+  repair-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SUPABASE_RELEASE_SECRET_KEY: ${{ secrets.SUPABASE_RELEASE_SECRET_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Resolve current release
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          VERSION_CODE="$(node -p "require('./app.json').expo.android.versionCode")"
+          TAG="android-v${VERSION_CODE}"
+          ASSET="papa-i-ya-${VERSION}.apk"
+          STORAGE_PATH="android/${VERSION_CODE}/${ASSET}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+          echo "storage_path=$STORAGE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Download published APK from GitHub Release
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          ASSET: ${{ steps.meta.outputs.asset }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-download
+          gh release download "$TAG" --pattern "$ASSET" --dir release-download
+          test -s "release-download/$ASSET"
+
+      - name: Prepare release metadata
+        id: apk
+        env:
+          ASSET: ${{ steps.meta.outputs.asset }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="release-download/$ASSET"
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          SIZE_BYTES="$(stat -c%s "$APK")"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=$SIZE_BYTES" >> "$GITHUB_OUTPUT"
+          echo "Recovered APK size: $SIZE_BYTES bytes"
+
+      - name: Promote GitHub Release to latest stable
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+          SHA256: ${{ steps.apk.outputs.sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<EOF
+          Android-версия «Папа & Я» ${VERSION} (versionCode ${VERSION_CODE}).
+
+          Оптимизированная ARM64-сборка для современных Android-телефонов.
+          SHA-256: ${SHA256}
+          Подписано постоянным release-ключом; подходит для последующих обновлений.
+
+          Канал: release.
+          EOF
+          gh release edit "$TAG" \
+            --title "Папа & Я ${VERSION}" \
+            --notes-file release-notes.md \
+            --prerelease=false \
+            --latest
+
+      - name: Publish APK to private Supabase Storage
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+          ASSET: ${{ steps.meta.outputs.asset }}
+          STORAGE_PATH: ${{ steps.meta.outputs.storage_path }}
+          SHA256: ${{ steps.apk.outputs.sha256 }}
+          SIZE_BYTES: ${{ steps.apk.outputs.size_bytes }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$SUPABASE_RELEASE_SECRET_KEY" ]; then
+            echo "SUPABASE_RELEASE_SECRET_KEY is missing."
+            exit 1
+          fi
+
+          APK="release-download/$ASSET"
+          BASE_URL="$EXPO_PUBLIC_SUPABASE_URL"
+
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-delay 2 --retry-all-errors \
+            --request POST \
+            "$BASE_URL/storage/v1/object/app-releases/$STORAGE_PATH" \
+            --header "apikey: $SUPABASE_RELEASE_SECRET_KEY" \
+            --header "Content-Type: application/vnd.android.package-archive" \
+            --header "x-upsert: true" \
+            --data-binary "@$APK"
+
+          RELEASE_JSON="$(node -e '
+            const row = {
+              platform: "android",
+              channel: "preview",
+              version_name: process.env.VERSION,
+              version_code: Number(process.env.VERSION_CODE),
+              minimum_supported_code: 1,
+              title: `Папа & Я ${process.env.VERSION}`,
+              notes: "ARM64 Android-релиз из main, подписанный постоянным release-ключом.",
+              download_url: null,
+              storage_bucket: "app-releases",
+              storage_path: process.env.STORAGE_PATH,
+              sha256: process.env.SHA256,
+              size_bytes: Number(process.env.SIZE_BYTES),
+              is_enabled: true,
+              published_at: new Date().toISOString(),
+            };
+            process.stdout.write(JSON.stringify(row));
+          ')"
+
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-delay 2 --retry-all-errors \
+            --request POST \
+            "$BASE_URL/rest/v1/app_releases?on_conflict=platform,channel,version_code" \
+            --header "apikey: $SUPABASE_RELEASE_SECRET_KEY" \
+            --header "Content-Type: application/json" \
+            --header "Prefer: resolution=merge-duplicates,return=minimal" \
+            --data "$RELEASE_JSON"
+
+      - name: Verify private Storage object
+        env:
+          STORAGE_PATH: ${{ steps.meta.outputs.storage_path }}
+          SIZE_BYTES: ${{ steps.apk.outputs.size_bytes }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          INFO="$(curl --fail-with-body --silent --show-error \
+            "$EXPO_PUBLIC_SUPABASE_URL/storage/v1/object/info/app-releases/$STORAGE_PATH" \
+            --header "apikey: $SUPABASE_RELEASE_SECRET_KEY")"
+          INFO="$INFO" SIZE_BYTES="$SIZE_BYTES" node - <<'NODE'
+          const info = JSON.parse(process.env.INFO || '{}');
+          const actual = Number(info?.metadata?.size ?? info?.metadata?.contentLength ?? 0);
+          const expected = Number(process.env.SIZE_BYTES || 0);
+          if (actual && expected && actual !== expected) {
+            throw new Error(`Storage size mismatch: ${actual} != ${expected}`);
+          }
+          console.log('Private Storage object verified.');
+          NODE
+
+      - name: Verify app update feed as client
+        env:
+          EXPECTED_VERSION: ${{ steps.meta.outputs.version }}
+          EXPECTED_CODE: ${{ steps.meta.outputs.version_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESULT="$(curl --fail-with-body --silent --show-error \
+            --request POST \
+            "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/get_latest_app_release" \
+            --header "apikey: $EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"p_platform":"android","p_channel":"preview"}')"
+          RESULT="$RESULT" EXPECTED_VERSION="$EXPECTED_VERSION" EXPECTED_CODE="$EXPECTED_CODE" node - <<'NODE'
+          const rows = JSON.parse(process.env.RESULT || '[]');
+          const row = Array.isArray(rows) ? rows[0] : rows;
+          if (!row) throw new Error('Update feed returned no release');
+          if (String(row.version_name) !== process.env.EXPECTED_VERSION) {
+            throw new Error(`Update feed version mismatch: ${row.version_name}`);
+          }
+          if (Number(row.version_code) !== Number(process.env.EXPECTED_CODE)) {
+            throw new Error(`Update feed code mismatch: ${row.version_code}`);
+          }
+          if (!row.storage_bucket || !row.storage_path) {
+            throw new Error('Update feed is missing Storage coordinates');
+          }
+          console.log(`Update feed verified: ${row.version_name} (${row.version_code})`);
+          NODE
