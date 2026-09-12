@@ -1,12 +1,12 @@
-name: Preview Brand Branch
+name: Preview Feature Branch
 
 on:
   push:
-    branches: [big-update-shared-plans]
+    branches-ignore: [main]
   workflow_dispatch:
 
 concurrency:
-  group: preview-brand-${{ github.ref }}
+  group: preview-feature-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -61,7 +61,7 @@ jobs:
       - name: Upload preview APK
         uses: actions/upload-artifact@v4
         with:
-          name: papa-i-ya-brand-preview-${{ github.sha }}
+          name: papa-i-ya-feature-preview-${{ github.sha }}
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14
