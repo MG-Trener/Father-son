@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ImageBackground, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, type ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, radius, shadows } from '../theme';
 
@@ -7,7 +7,8 @@ type StoryHeroProps = {
   kicker: string;
   title: string;
   subtitle: string;
-  emblem: string;
+  emblem?: string;
+  emblemImage?: ImageSourcePropType;
   variant?: 'adventure' | 'warm' | 'book' | 'team';
   footer?: ReactNode;
 };
@@ -19,7 +20,16 @@ const overlays = {
   team: ['rgba(5,33,45,0.94)', 'rgba(8,55,67,0.76)', 'rgba(28,92,93,0.38)'],
 } as const;
 
-export function StoryHero({ kicker, title, subtitle, emblem, variant = 'adventure', footer }: StoryHeroProps) {
+const variantEmblems: Record<NonNullable<StoryHeroProps['variant']>, ImageSourcePropType> = {
+  adventure: require('../../assets/generated/badge-adventure.png'),
+  warm: require('../../assets/generated/badge-courage.png'),
+  book: require('../../assets/generated/nav-book.png'),
+  team: require('../../assets/generated/badge-team.png'),
+};
+
+export function StoryHero({ kicker, title, subtitle, emblem, emblemImage, variant = 'adventure', footer }: StoryHeroProps) {
+  const image = emblemImage ?? variantEmblems[variant];
+
   return (
     <View style={[styles.shell, shadows.lift]}>
       <ImageBackground
@@ -37,7 +47,9 @@ export function StoryHero({ kicker, title, subtitle, emblem, variant = 'adventur
           <View style={styles.sunHalo} />
           <View style={styles.topRow}>
             <Text style={styles.kicker}>{kicker}</Text>
-            <View style={styles.emblem}><Text style={styles.emblemText}>{emblem}</Text></View>
+            <View style={styles.emblem}>
+              {image ? <Image source={image} style={styles.emblemImage} resizeMode="contain" /> : <Text style={styles.emblemText}>{emblem}</Text>}
+            </View>
           </View>
           <View style={styles.copy}>
             <Text style={styles.title}>{title}</Text>
@@ -77,15 +89,17 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   kicker: { color: '#D7E5E5', fontSize: 9, fontWeight: '900', letterSpacing: 1.2, flex: 1 },
   emblem: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    width: 54,
+    height: 54,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.20)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  emblemImage: { width: 49, height: 49 },
   emblemText: { color: colors.white, fontSize: 22, fontWeight: '900' },
   copy: { marginTop: 54, maxWidth: '84%' },
   title: { color: colors.white, fontSize: 31, lineHeight: 33, fontWeight: '900', letterSpacing: -1 },

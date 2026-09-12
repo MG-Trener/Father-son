@@ -2,7 +2,7 @@
   "expo": {
     "name": "Папа & Я",
     "slug": "papa-i-ya",
-    "version": "0.3.4",
+    "version": "0.4.1",
     "orientation": "portrait",
     "scheme": "papaiya",
     "userInterfaceStyle": "light",
@@ -10,7 +10,7 @@
     "icon": "./assets/generated/app-icon.png",
     "android": {
       "package": "com.mgtrener.fatherson",
-      "versionCode": 8,
+      "versionCode": 15,
       "icon": "./assets/generated/app-icon.png",
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES"
@@ -27,8 +27,8 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#071F2A",
-          "image": "./assets/generated/app-icon.png",
-          "imageWidth": 176,
+          "image": "./assets/generated/splash-screen.png",
+          "imageWidth": 360,
           "resizeMode": "contain"
         }
       ],

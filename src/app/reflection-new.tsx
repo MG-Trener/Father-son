@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,6 +19,14 @@ import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, gradients, radius, shadows } from '../theme';
 
+const artwork = {
+  book: require('../../assets/generated/nav-book.png'),
+  together: require('../../assets/generated/nav-together.png'),
+  voice: require('../../assets/generated/utility-voice.png'),
+  recognition: require('../../assets/generated/utility-recognition.png'),
+  goal: require('../../assets/generated/utility-goal.png'),
+} as const;
+
 export default function ReflectionNewScreen() {
   const params = useLocalSearchParams<{ prompt?: string; mode?: string }>();
   const { session } = useAuth();
@@ -30,6 +39,7 @@ export default function ReflectionNewScreen() {
     : params.mode === 'story'
       ? 'Что сегодня хочется сохранить друг для друга?'
       : 'Что хочется сказать сейчас?';
+  const displayPrompt = prompt.replace(/\s*·\s*Книга года\s+\d+\s*$/i, '').trim();
   const isStory = params.mode === 'story';
 
   const other = useMemo(
@@ -80,10 +90,10 @@ export default function ReflectionNewScreen() {
             <View style={styles.heroOrb} />
             <View style={styles.heroRing} />
             <View style={styles.memoryBadge}>
-              <Text style={styles.memoryIcon}>{isStory ? '✦' : '∞'}</Text>
+              <Image source={isStory ? artwork.book : artwork.together} style={styles.memoryImage} resizeMode="contain" />
             </View>
             <Text style={styles.heroKicker}>{isStory ? 'СОХРАНИТЬ МОМЕНТ' : 'МЕЖДУ НАМИ'}</Text>
-            <Text style={styles.heroTitle}>{prompt}</Text>
+            <Text style={styles.heroTitle}>{displayPrompt}</Text>
             <Text style={styles.heroCopy}>Не отчёт и не обязанность. Просто одна мысль, которую будет интересно услышать или перечитать позже.</Text>
           </LinearGradient>
 
@@ -98,7 +108,7 @@ export default function ReflectionNewScreen() {
           >
             <LinearGradient colors={gradients.team} style={styles.voiceGradient}>
               <View style={styles.voiceVisual}>
-                <View style={styles.micCircle}><Text style={styles.micIcon}>●</Text></View>
+                <View style={styles.micCircle}><Image source={artwork.voice} style={styles.micImage} resizeMode="contain" /></View>
                 <View style={styles.waveform}>
                   {[14, 26, 38, 22, 46, 30, 18, 36, 24].map((height, index) => (
                     <View key={`${height}-${index}`} style={[styles.waveBar, { height }]} />
@@ -116,7 +126,7 @@ export default function ReflectionNewScreen() {
 
           <View style={[styles.editorCard, shadows.soft]}>
             <View style={styles.editorHeader}>
-              <View style={styles.editorIcon}><Text style={styles.editorIconText}>✎</Text></View>
+              <View style={styles.editorIcon}><Image source={artwork.recognition} style={styles.editorIconImage} resizeMode="contain" /></View>
               <View style={styles.editorHeaderText}>
                 <Text style={styles.editorKicker}>ТЕКСТОМ</Text>
                 <Text style={styles.editorTitle}>{isStory ? 'Написать историю' : 'Оставить ответ'}</Text>
@@ -154,7 +164,7 @@ export default function ReflectionNewScreen() {
           <View style={styles.timelineHint}>
             <View style={styles.timelineDot} />
             <View style={styles.timelineLine} />
-            <View style={styles.timelineStar}><Text style={styles.timelineStarText}>✦</Text></View>
+            <View style={styles.timelineStar}><Image source={artwork.goal} style={styles.timelineImage} resizeMode="contain" /></View>
             <View style={styles.timelineLine} />
             <View style={styles.timelineDotFuture} />
           </View>
@@ -176,8 +186,8 @@ const styles = StyleSheet.create({
   hero: { minHeight: 285, borderRadius: radius.xl, padding: 22, overflow: 'hidden', justifyContent: 'flex-end' },
   heroOrb: { position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(255,255,255,0.10)', top: -62, right: -46 },
   heroRing: { position: 'absolute', width: 105, height: 105, borderRadius: 53, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)', top: 38, right: 34 },
-  memoryBadge: { width: 54, height: 54, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
-  memoryIcon: { color: colors.white, fontSize: 25, fontWeight: '900' },
+  memoryBadge: { width: 64, height: 64, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  memoryImage: { width: 54, height: 54 },
   heroKicker: { color: '#F4EEFF', fontSize: 9, fontWeight: '900', letterSpacing: 1.7 },
   heroTitle: { color: colors.white, fontSize: 25, lineHeight: 30, fontWeight: '900', letterSpacing: -0.5, marginTop: 5, maxWidth: '93%' },
   heroCopy: { color: '#F0ECF8', fontSize: 11, lineHeight: 17, marginTop: 8, maxWidth: '94%' },
@@ -187,8 +197,8 @@ const styles = StyleSheet.create({
   voiceCard: { borderRadius: radius.xl, overflow: 'hidden' },
   voiceGradient: { minHeight: 180, padding: 18, overflow: 'hidden' },
   voiceVisual: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
-  micCircle: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center', borderWidth: 5, borderColor: 'rgba(255,255,255,0.10)' },
-  micIcon: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
+  micCircle: { width: 64, height: 64, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
+  micImage: { width: 55, height: 55 },
   waveform: { flex: 1, height: 52, flexDirection: 'row', alignItems: 'center', gap: 5 },
   waveBar: { width: 4, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.70)' },
   voiceCopy: { maxWidth: '80%' },
@@ -199,8 +209,8 @@ const styles = StyleSheet.create({
   voiceArrowText: { color: colors.white, fontSize: 20, fontWeight: '900' },
   editorCard: { backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 18, gap: 13 },
   editorHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  editorIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center' },
-  editorIconText: { color: colors.purple, fontSize: 18, fontWeight: '900' },
+  editorIcon: { width: 50, height: 50, borderRadius: 16, backgroundColor: '#FFF2D8', alignItems: 'center', justifyContent: 'center' },
+  editorIconImage: { width: 43, height: 43 },
   editorHeaderText: { flex: 1 },
   editorKicker: { color: colors.purple, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
   editorTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 2 },
@@ -220,7 +230,7 @@ const styles = StyleSheet.create({
   timelineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.tealBright },
   timelineDotFuture: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.lineWarm },
   timelineLine: { flex: 1, height: 2, backgroundColor: colors.lineWarm },
-  timelineStar: { width: 30, height: 30, borderRadius: 12, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  timelineStarText: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
+  timelineStar: { width: 38, height: 38, borderRadius: 13, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center' },
+  timelineImage: { width: 34, height: 34 },
   footer: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', paddingHorizontal: 30 },
 });

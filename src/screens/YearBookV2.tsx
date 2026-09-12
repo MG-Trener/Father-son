@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  type ImageSourcePropType,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -27,27 +29,35 @@ type ChapterItem = { id: string; category: string; title: string; detail: string
 type Category = {
   id: string;
   title: string;
-  icon: string;
+  image: ImageSourcePropType;
   colors: readonly [string, string];
   ink: string;
 };
 
+type AnnualPrompt = {
+  id: string;
+  image: ImageSourcePropType;
+  title: string;
+  question: string;
+  note: string;
+};
+
 const chapterAges = [11, 12, 13, 14, 15, 16, 17] as const;
 const categories: Category[] = [
-  { id: 'school', title: 'Школа', icon: '📘', colors: ['#E4F1FB', '#C8E2F4'], ink: '#35698D' },
-  { id: 'football', title: 'Футбол', icon: '⚽', colors: ['#E1F3E7', '#C7E5D1'], ink: '#397058' },
-  { id: 'chess', title: 'Шахматы', icon: '♞', colors: ['#ECE8FA', '#D7CEF2'], ink: '#5E5495' },
-  { id: 'english', title: 'English', icon: 'EN', colors: ['#FFF2CE', '#FFE1A5'], ink: '#96651B' },
-  { id: 'leadership', title: 'Лидерство', icon: '🧭', colors: ['#FFE5DC', '#F5C8B9'], ink: '#8D5246' },
-  { id: 'together', title: 'Папа & Я', icon: '♥', colors: ['#FBE2E0', '#F0C9C6'], ink: '#96534F' },
+  { id: 'school', title: 'Школа', image: require('../../assets/generated/direction-school.png'), colors: ['#E4F1FB', '#C8E2F4'], ink: '#35698D' },
+  { id: 'football', title: 'Футбол', image: require('../../assets/generated/direction-football.png'), colors: ['#E1F3E7', '#C7E5D1'], ink: '#397058' },
+  { id: 'chess', title: 'Шахматы', image: require('../../assets/generated/direction-chess.png'), colors: ['#ECE8FA', '#D7CEF2'], ink: '#5E5495' },
+  { id: 'english', title: 'English', image: require('../../assets/generated/direction-english.png'), colors: ['#FFF2CE', '#FFE1A5'], ink: '#96651B' },
+  { id: 'leadership', title: 'Лидерство', image: require('../../assets/generated/direction-leadership.png'), colors: ['#FFE5DC', '#F5C8B9'], ink: '#8D5246' },
+  { id: 'together', title: 'Папа & Я', image: require('../../assets/generated/nav-together.png'), colors: ['#FBE2E0', '#F0C9C6'], ink: '#96534F' },
 ];
 
-const annualPrompts = [
-  { id: 'proud', icon: '⭐', title: 'Гордость года', question: 'Чем я горжусь в этом году?', note: 'Поступок, усилие или момент, когда получилось не сдаться.' },
-  { id: 'hard', icon: '⛰️', title: 'Сложный момент', question: 'Что было самым сложным?', note: 'То, что потребовало сил, терпения или смелости.' },
-  { id: 'learned', icon: '💡', title: 'Главный рост', question: 'Чему я научился?', note: 'Навык, вывод о себе или новое понимание людей.' },
-  { id: 'next', icon: '🚀', title: 'В следующий год', question: 'Что я хочу попробовать дальше?', note: 'Не обещание — просто направление, которое сейчас интересно.' },
-] as const;
+const annualPrompts: AnnualPrompt[] = [
+  { id: 'proud', image: require('../../assets/generated/utility-recognition.png'), title: 'Гордость года', question: 'Чем я горжусь в этом году?', note: 'Поступок, усилие или момент, когда получилось не сдаться.' },
+  { id: 'hard', image: require('../../assets/generated/badge-courage.png'), title: 'Сложный момент', question: 'Что было самым сложным?', note: 'То, что потребовало сил, терпения или смелости.' },
+  { id: 'learned', image: require('../../assets/generated/badge-planner.png'), title: 'Главный рост', question: 'Чему я научился?', note: 'Навык, вывод о себе или новое понимание людей.' },
+  { id: 'next', image: require('../../assets/generated/utility-goal.png'), title: 'В следующий год', question: 'Что я хочу попробовать дальше?', note: 'Не обещание — просто направление, которое сейчас интересно.' },
+];
 
 const payloadRecord = (payload: unknown): Record<string, unknown> => (
   payload && typeof payload === 'object' && !Array.isArray(payload) ? payload as Record<string, unknown> : {}
@@ -227,7 +237,10 @@ export default function YearBookV2() {
         <View style={styles.categoryGrid}>
           {categories.map((category) => (
             <LinearGradient key={category.id} colors={category.colors} style={[styles.categoryCard, shadows.soft]}>
-              <View style={styles.categoryTop}><Text style={styles.categoryIcon}>{category.icon}</Text><Text style={[styles.categoryCount, { color: category.ink }]}>{categoryCounts.get(category.id) ?? 0}</Text></View>
+              <View style={styles.categoryTop}>
+                <View style={styles.categoryIconShell}><Image source={category.image} style={styles.categoryIconImage} resizeMode="contain" /></View>
+                <Text style={[styles.categoryCount, { color: category.ink }]}>{categoryCounts.get(category.id) ?? 0}</Text>
+              </View>
               <Text style={[styles.categoryTitle, { color: category.ink }]}>{category.title}</Text>
             </LinearGradient>
           ))}
@@ -254,7 +267,10 @@ export default function YearBookV2() {
             const childAnswered = child ? answered.has(child.user_id) : false;
             return (
               <View key={prompt.id} style={[styles.promptCard, shadows.soft]}>
-                <View style={styles.promptTop}><View style={styles.promptIcon}><Text style={styles.promptIconText}>{prompt.icon}</Text></View><View style={styles.promptCopy}><Text style={styles.promptTitle}>{prompt.title}</Text><Text style={styles.promptQuestion}>{prompt.question}</Text></View></View>
+                <View style={styles.promptTop}>
+                  <View style={styles.promptIcon}><Image source={prompt.image} style={styles.promptIconImage} resizeMode="contain" /></View>
+                  <View style={styles.promptCopy}><Text style={styles.promptTitle}>{prompt.title}</Text><Text style={styles.promptQuestion}>{prompt.question}</Text></View>
+                </View>
                 <Text style={styles.promptNote}>{prompt.note}</Text>
                 <View style={styles.voiceRow}>
                   <View style={[styles.voiceBadge, parentAnswered && styles.voiceBadgeDone]}><Text style={[styles.voiceBadgeText, parentAnswered && styles.voiceBadgeTextDone]}>{parentName}: {parentAnswered ? '✓' : '…'}</Text></View>
@@ -279,13 +295,17 @@ export default function YearBookV2() {
             const category = categories.find((entry) => entry.id === item.category) ?? categories[5]!;
             return (
               <View key={item.id} style={[styles.timelineRow, index > 0 && styles.timelineBorder]}>
-                <View style={[styles.timelineIcon, { backgroundColor: category.colors[0] }]}><Text style={styles.timelineIconText}>{category.icon}</Text></View>
+                <View style={[styles.timelineIcon, { backgroundColor: category.colors[0] }]}><Image source={category.image} style={styles.timelineIconImage} resizeMode="contain" /></View>
                 <View style={styles.timelineCopy}><Text style={styles.timelineTitle}>{item.title}</Text>{item.detail ? <Text style={styles.timelineDetail}>{item.detail}</Text> : null}<Text style={styles.timelineDate}>{prettyDate(item.date)}</Text></View>
               </View>
             );
           })}
           {!chapterItems.length ? (
-            <View style={styles.emptyState}><Text style={styles.emptyIcon}>🌱</Text><Text style={styles.emptyTitle}>Глава пока тихая</Text><Text style={styles.emptyText}>Миссии, заметки, достижения и моменты «Папа & Я» будут собираться здесь автоматически.</Text></View>
+            <View style={styles.emptyState}>
+              <Image source={require('../../assets/generated/nav-book.png')} style={styles.emptyImage} resizeMode="contain" />
+              <Text style={styles.emptyTitle}>Глава пока тихая</Text>
+              <Text style={styles.emptyText}>Миссии, заметки, достижения и моменты «Папа & Я» будут собираться здесь автоматически.</Text>
+            </View>
           ) : null}
           {chapterItems.length > 18 ? <Pressable onPress={() => router.push('/(tabs)/history')} style={styles.historyButton}><Text style={styles.historyButtonText}>Открыть всю историю →</Text></Pressable> : null}
         </View>
@@ -315,11 +335,12 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 3, letterSpacing: -0.4 },
   sectionNote: { color: colors.muted, fontSize: 9, fontWeight: '800' },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  categoryCard: { width: '31.6%', minHeight: 105, borderRadius: 22, padding: 12 },
+  categoryCard: { width: '31.6%', minHeight: 112, borderRadius: 22, padding: 10 },
   categoryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  categoryIcon: { fontSize: 20, fontWeight: '900' },
+  categoryIconShell: { width: 42, height: 42, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  categoryIconImage: { width: 40, height: 40 },
   categoryCount: { fontSize: 20, fontWeight: '900' },
-  categoryTitle: { fontSize: 10, fontWeight: '900', marginTop: 18 },
+  categoryTitle: { fontSize: 10, fontWeight: '900', marginTop: 14 },
   summaryRibbon: { minHeight: 86, borderRadius: radius.xl, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryValue: { color: colors.navyDeep, fontSize: 21, fontWeight: '900' },
@@ -329,8 +350,8 @@ const styles = StyleSheet.create({
   promptList: { gap: 10 },
   promptCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, borderWidth: 1, borderColor: '#E8DFD1', padding: 17 },
   promptTop: { flexDirection: 'row', gap: 11 },
-  promptIcon: { width: 45, height: 45, borderRadius: 16, backgroundColor: '#FFF0C9', alignItems: 'center', justifyContent: 'center' },
-  promptIconText: { fontSize: 21 },
+  promptIcon: { width: 52, height: 52, borderRadius: 17, backgroundColor: '#FFF0C9', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  promptIconImage: { width: 49, height: 49 },
   promptCopy: { flex: 1 },
   promptTitle: { color: colors.navyDeep, fontSize: 12, fontWeight: '900' },
   promptQuestion: { color: colors.navyDeep, fontSize: 16, lineHeight: 20, fontWeight: '900', marginTop: 3 },
@@ -348,14 +369,14 @@ const styles = StyleSheet.create({
   timelineCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, borderWidth: 1, borderColor: '#E8DFD1', padding: 18 },
   timelineRow: { flexDirection: 'row', gap: 11, paddingVertical: 12 },
   timelineBorder: { borderTopWidth: 1, borderTopColor: '#EEE7DC' },
-  timelineIcon: { width: 39, height: 39, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  timelineIconText: { fontSize: 17, fontWeight: '900' },
+  timelineIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  timelineIconImage: { width: 41, height: 41 },
   timelineCopy: { flex: 1 },
   timelineTitle: { color: colors.navyDeep, fontSize: 11, lineHeight: 15, fontWeight: '900' },
   timelineDetail: { color: colors.muted, fontSize: 9, lineHeight: 13, marginTop: 3 },
   timelineDate: { color: '#96A1A0', fontSize: 8, marginTop: 4 },
   emptyState: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 12 },
-  emptyIcon: { fontSize: 32 },
+  emptyImage: { width: 90, height: 90 },
   emptyTitle: { color: colors.navyDeep, fontSize: 14, fontWeight: '900', marginTop: 7 },
   emptyText: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 4 },
   historyButton: { minHeight: 42, borderRadius: 14, backgroundColor: '#F1ECE4', alignItems: 'center', justifyContent: 'center', marginTop: 10 },

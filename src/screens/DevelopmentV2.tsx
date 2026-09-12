@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  type ImageSourcePropType,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -33,7 +35,7 @@ type Award = { id: string; awarded_at: string };
 
 type Direction = {
   id: 'school' | 'football' | 'chess' | 'english' | 'leadership';
-  icon: string;
+  image: ImageSourcePropType;
   title: string;
   childLine: string;
   parentLine: string;
@@ -41,12 +43,30 @@ type Direction = {
   ink: string;
 };
 
+type BadgeSlot = {
+  id: string;
+  title: string;
+  source: ImageSourcePropType;
+  unlockAt: number;
+};
+
 const directions: Direction[] = [
-  { id: 'school', icon: '📘', title: 'Школа', childLine: 'Становлюсь увереннее', parentLine: 'Интерес важнее оценок', colors: ['#DCEFFF', '#B9DAF2'], ink: '#2E6286' },
-  { id: 'football', icon: '⚽', title: 'Футбол', childLine: 'Движение и команда', parentLine: 'Характер через игру', colors: ['#DDF4E6', '#BFE5CD'], ink: '#356B50' },
-  { id: 'chess', icon: '♞', title: 'Шахматы', childLine: 'Думаю на ход вперёд', parentLine: 'Спокойствие и стратегия', colors: ['#EAE5FA', '#D2C8F1'], ink: '#5B5091' },
-  { id: 'english', icon: 'EN', title: 'English', childLine: 'Открываю новый мир', parentLine: 'Смелость говорить', colors: ['#FFF1C9', '#FFDEA0'], ink: '#98661A' },
-  { id: 'leadership', icon: '🧭', title: 'Лидерство', childLine: 'Учусь выбирать сам', parentLine: 'Ответственность без давления', colors: ['#FFE2D8', '#F6C3AF'], ink: '#945345' },
+  { id: 'school', image: require('../../assets/generated/direction-school.png'), title: 'Школа', childLine: 'Становлюсь увереннее', parentLine: 'Интерес важнее оценок', colors: ['#EAF4FA', '#D5E9F3'], ink: '#2E6286' },
+  { id: 'football', image: require('../../assets/generated/direction-football.png'), title: 'Футбол', childLine: 'Движение и команда', parentLine: 'Характер через игру', colors: ['#EAF4EC', '#D7E9DB'], ink: '#356B50' },
+  { id: 'chess', image: require('../../assets/generated/direction-chess.png'), title: 'Шахматы', childLine: 'Думаю на ход вперёд', parentLine: 'Спокойствие и стратегия', colors: ['#F1EEF8', '#E0D9EF'], ink: '#5B5091' },
+  { id: 'english', image: require('../../assets/generated/direction-english.png'), title: 'English', childLine: 'Открываю новый мир', parentLine: 'Смелость говорить', colors: ['#FFF7DF', '#F9E7B7'], ink: '#98661A' },
+  { id: 'leadership', image: require('../../assets/generated/direction-leadership.png'), title: 'Лидерство', childLine: 'Учусь выбирать сам', parentLine: 'Ответственность без давления', colors: ['#FFF0E7', '#F7D7C8'], ink: '#945345' },
+];
+
+const badgeSlots: BadgeSlot[] = [
+  { id: 'school', title: 'Знания', source: require('../../assets/generated/badge-school.png'), unlockAt: 1 },
+  { id: 'football', title: 'Команда', source: require('../../assets/generated/badge-football.png'), unlockAt: 2 },
+  { id: 'chess', title: 'Стратег', source: require('../../assets/generated/badge-chess.png'), unlockAt: 3 },
+  { id: 'english', title: 'Мир', source: require('../../assets/generated/badge-english.png'), unlockAt: 5 },
+  { id: 'adventure', title: 'Путь', source: require('../../assets/generated/badge-adventure.png'), unlockAt: 8 },
+  { id: 'team', title: 'Вместе', source: require('../../assets/generated/badge-team.png'), unlockAt: 12 },
+  { id: 'courage', title: 'Смелость', source: require('../../assets/generated/badge-courage.png'), unlockAt: 20 },
+  { id: 'planner', title: 'Ритм', source: require('../../assets/generated/badge-planner.png'), unlockAt: 30 },
 ];
 
 const ages = [11, 12, 13, 14, 15, 16, 17, 18];
@@ -129,6 +149,7 @@ export default function DevelopmentV2() {
     for (const entry of growthEntries) next.set(entry.category, (next.get(entry.category) ?? 0) + 1);
     return next;
   }, [growthEntries]);
+  const openedBadges = badgeSlots.filter((badge) => awards.length >= badge.unlockAt).length;
 
   const completeMission = async (mission: Mission) => {
     if (!supabase || busyMission) return;
@@ -219,7 +240,9 @@ export default function DevelopmentV2() {
             >
               <LinearGradient colors={item.colors} style={[styles.directionCard, shadows.soft]}>
                 <View style={styles.directionTop}>
-                  <View style={[styles.directionIcon, { backgroundColor: item.ink }]}><Text style={styles.directionIconText}>{item.icon}</Text></View>
+                  <View style={styles.directionIcon}>
+                    <Image source={item.image} style={styles.directionIconImage} resizeMode="contain" />
+                  </View>
                   <Text style={[styles.directionCount, { color: item.ink }]}>{counts.get(item.id) ?? 0}</Text>
                 </View>
                 <Text style={[styles.directionTitle, { color: item.ink }]}>{item.title}</Text>
@@ -228,6 +251,32 @@ export default function DevelopmentV2() {
               </LinearGradient>
             </Pressable>
           ))}
+        </View>
+
+        <View style={[styles.badgesCard, shadows.soft]}>
+          <View style={styles.sectionTop}>
+            <View>
+              <Text style={styles.kicker}>КОЛЛЕКЦИЯ НА ГОДЫ</Text>
+              <Text style={styles.sectionTitle}>Гербы пути</Text>
+            </View>
+            <Text style={styles.badgesProgress}>{openedBadges}/{badgeSlots.length}</Text>
+          </View>
+          <Text style={styles.badgesIntro}>Гербы остаются в истории и открываются постепенно по мере настоящих вех. Здесь нет сезонного обнуления.</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesRow}>
+            {badgeSlots.map((badge) => {
+              const unlocked = awards.length >= badge.unlockAt;
+              return (
+                <View key={badge.id} style={[styles.badgeSlot, !unlocked && styles.badgeSlotLocked]}>
+                  <Image source={badge.source} style={[styles.badgeImage, !unlocked && styles.badgeImageLocked]} resizeMode="contain" />
+                  <Text style={styles.badgeTitle}>{badge.title}</Text>
+                  <Text style={styles.badgeMeta}>{unlocked ? 'открыт' : `после ${badge.unlockAt} вех`}</Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+          <Pressable style={styles.badgesLink} onPress={() => router.push('/(tabs)/yearbook')}>
+            <Text style={styles.badgesLinkText}>Смотреть историю вех в Книге года →</Text>
+          </Pressable>
         </View>
 
         <View style={[styles.missionsCard, shadows.soft]}>
@@ -259,7 +308,7 @@ export default function DevelopmentV2() {
             );
           }) : (
             <View style={styles.emptyMission}>
-              <Text style={styles.emptyMissionIcon}>🌤️</Text>
+              <Image source={require('../../assets/generated/utility-goal.png')} style={styles.emptyMissionImage} resizeMode="contain" />
               <Text style={styles.emptyMissionTitle}>Сейчас свободный участок пути</Text>
               <Text style={styles.emptyMissionText}>Можно просто жить, играть, учиться и сохранить важный момент в одном из журналов.</Text>
             </View>
@@ -269,7 +318,7 @@ export default function DevelopmentV2() {
         <Pressable onPress={() => router.push('/(tabs)/yearbook')}>
           <LinearGradient colors={['#173F57', '#315E73', '#D39444']} style={[styles.bookCta, shadows.lift]}>
             <View style={styles.bookGlow} />
-            <Text style={styles.bookIcon}>📖</Text>
+            <Image source={require('../../assets/generated/nav-book.png')} style={styles.bookIconImage} resizeMode="contain" />
             <View style={styles.bookCopy}>
               <Text style={styles.bookKicker}>КНИГА ГОДА</Text>
               <Text style={styles.bookTitle}>Из маленьких шагов складывается большая история</Text>
@@ -311,14 +360,26 @@ const styles = StyleSheet.create({
   directionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   directionPressable: { width: '48.5%' },
   directionWide: { width: '100%' },
-  directionCard: { minHeight: 166, borderRadius: radius.lg, padding: 15, overflow: 'hidden' },
+  directionCard: { minHeight: 176, borderRadius: radius.lg, padding: 15, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)' },
   directionTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  directionIcon: { minWidth: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
-  directionIconText: { color: colors.white, fontSize: 19, fontWeight: '900' },
+  directionIcon: { width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.58)', overflow: 'hidden' },
+  directionIconImage: { width: 56, height: 56 },
   directionCount: { fontSize: 23, fontWeight: '900', opacity: 0.75 },
-  directionTitle: { fontSize: 18, fontWeight: '900', marginTop: 12 },
+  directionTitle: { fontSize: 18, fontWeight: '900', marginTop: 9 },
   directionLine: { fontSize: 10, fontWeight: '700', marginTop: 3, opacity: 0.78 },
-  directionOpen: { fontSize: 9, fontWeight: '900', marginTop: 16 },
+  directionOpen: { fontSize: 9, fontWeight: '900', marginTop: 13 },
+  badgesCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, paddingVertical: 18, borderWidth: 1, borderColor: '#E9DFD0', overflow: 'hidden' },
+  badgesIntro: { color: colors.muted, fontSize: 10, lineHeight: 15, paddingHorizontal: 18, marginTop: 8 },
+  badgesProgress: { color: '#A56E16', fontSize: 12, fontWeight: '900', backgroundColor: '#FFF0C7', paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.pill, marginRight: 18 },
+  badgesRow: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 6, gap: 8 },
+  badgeSlot: { width: 106, minHeight: 132, borderRadius: 18, backgroundColor: '#F8F2E7', borderWidth: 1, borderColor: '#E7D7BA', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 9 },
+  badgeSlotLocked: { backgroundColor: '#F3F0EA', borderColor: '#E3DED5' },
+  badgeImage: { width: 76, height: 76 },
+  badgeImageLocked: { opacity: 0.28 },
+  badgeTitle: { color: colors.navyDeep, fontSize: 10, fontWeight: '900', marginTop: 4, textAlign: 'center' },
+  badgeMeta: { color: colors.muted, fontSize: 7, fontWeight: '800', marginTop: 2, textAlign: 'center' },
+  badgesLink: { marginHorizontal: 18, marginTop: 10, minHeight: 42, borderRadius: 14, backgroundColor: '#EDF4F4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  badgesLinkText: { color: colors.teal, fontSize: 9, fontWeight: '900' },
   missionsCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: '#E9DFD0' },
   countBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.navyDeep, alignItems: 'center', justifyContent: 'center' },
   countBadgeText: { color: colors.white, fontWeight: '900' },
@@ -331,13 +392,13 @@ const styles = StyleSheet.create({
   checkButton: { width: 38, height: 38, borderRadius: 14, backgroundColor: colors.green, alignItems: 'center', justifyContent: 'center' },
   checkButtonText: { color: colors.white, fontSize: 19, fontWeight: '900' },
   disabled: { opacity: 0.55 },
-  emptyMission: { alignItems: 'center', paddingVertical: 22, paddingHorizontal: 14 },
-  emptyMissionIcon: { fontSize: 33 },
-  emptyMissionTitle: { color: colors.navyDeep, fontSize: 14, fontWeight: '900', marginTop: 7 },
+  emptyMission: { alignItems: 'center', paddingVertical: 18, paddingHorizontal: 14 },
+  emptyMissionImage: { width: 94, height: 94 },
+  emptyMissionTitle: { color: colors.navyDeep, fontSize: 14, fontWeight: '900', marginTop: 3 },
   emptyMissionText: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 5 },
   bookCta: { minHeight: 155, borderRadius: radius.xl, padding: 18, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
   bookGlow: { position: 'absolute', width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,216,113,0.13)', right: -40, top: -55 },
-  bookIcon: { fontSize: 43, marginRight: 14 },
+  bookIconImage: { width: 68, height: 68, marginRight: 12 },
   bookCopy: { flex: 1 },
   bookKicker: { color: '#F5D89C', fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
   bookTitle: { color: colors.white, fontSize: 17, lineHeight: 21, fontWeight: '900', marginTop: 5 },

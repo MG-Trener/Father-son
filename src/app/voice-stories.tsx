@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -26,6 +27,13 @@ type VoiceStory = {
   duration_ms: number;
   recorded_at: string;
 };
+
+const artwork = {
+  voice: require('../../assets/generated/utility-voice.png'),
+  recognition: require('../../assets/generated/utility-recognition.png'),
+  together: require('../../assets/generated/nav-together.png'),
+  book: require('../../assets/generated/nav-book.png'),
+} as const;
 
 const archiveWave = [12, 23, 17, 32, 21, 28, 14, 35, 24, 19, 30, 15];
 
@@ -148,8 +156,13 @@ export default function VoiceStoriesScreen() {
         <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}>
           <View style={styles.heroOrb} />
           <View style={styles.heroRing} />
-          <Text style={styles.heroKicker}>КОЛЛЕКЦИЯ ГОЛОСОВ</Text>
-          <Text style={styles.heroTitle}>То, что через годы будет особенно ценно услышать снова.</Text>
+          <View style={styles.heroHeading}>
+            <View style={styles.heroArtworkShell}><Image source={artwork.book} style={styles.heroArtwork} resizeMode="contain" /></View>
+            <View style={styles.heroHeadingCopy}>
+              <Text style={styles.heroKicker}>КОЛЛЕКЦИЯ ГОЛОСОВ</Text>
+              <Text style={styles.heroTitle}>То, что через годы будет особенно ценно услышать снова.</Text>
+            </View>
+          </View>
 
           <View style={styles.teamRow}>
             <View style={styles.person}>
@@ -158,7 +171,7 @@ export default function VoiceStoriesScreen() {
             </View>
             <View style={styles.connection}>
               <View style={styles.connectionLine} />
-              <View style={styles.audioBadge}><Text style={styles.audioBadgeText}>◉</Text></View>
+              <View style={styles.audioBadge}><Image source={artwork.voice} style={styles.audioBadgeImage} resizeMode="contain" /></View>
               <View style={styles.connectionLine} />
             </View>
             <View style={styles.person}>
@@ -188,7 +201,7 @@ export default function VoiceStoriesScreen() {
         <Pressable style={[styles.recordCard, shadows.soft]} onPress={() => router.push('/voice-story-new')}>
           <LinearGradient colors={gradients.connection} style={styles.recordGradient}>
             <View style={styles.recordVisual}>
-              <View style={styles.recordDot}><Text style={styles.recordDotText}>●</Text></View>
+              <View style={styles.recordDot}><Image source={artwork.voice} style={styles.recordDotImage} resizeMode="contain" /></View>
               <View style={styles.miniWave}>
                 {archiveWave.slice(0, 8).map((height, index) => (
                   <View key={`new-${height}-${index}`} style={[styles.miniWaveBar, { height: Math.max(7, Math.floor(height * 0.65)) }]} />
@@ -260,7 +273,7 @@ export default function VoiceStoriesScreen() {
 
                   {story.prompt ? (
                     <View style={styles.promptBox}>
-                      <View style={styles.promptIcon}><Text style={styles.promptIconText}>?</Text></View>
+                      <View style={styles.promptIcon}><Image source={artwork.recognition} style={styles.promptIconImage} resizeMode="contain" /></View>
                       <View style={styles.promptBody}>
                         <Text style={styles.promptLabel}>С ЧЕГО НАЧАЛСЯ ЭТОТ РАЗГОВОР</Text>
                         <Text style={styles.promptText}>{story.prompt}</Text>
@@ -274,7 +287,7 @@ export default function VoiceStoriesScreen() {
         ) : (
           <View style={[styles.emptyCard, shadows.soft]}>
             <View style={styles.emptyVisual}>
-              <View style={styles.emptyCircle}><Text style={styles.emptyIcon}>◉</Text></View>
+              <View style={styles.emptyCircle}><Image source={artwork.together} style={styles.emptyIconImage} resizeMode="contain" /></View>
               <View style={styles.emptyWave}>
                 {archiveWave.slice(0, 7).map((height, index) => (
                   <View key={`empty-${index}`} style={[styles.emptyBar, { height: Math.max(6, Math.floor(height * 0.5)) }]} />
@@ -308,11 +321,15 @@ const styles = StyleSheet.create({
   backButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   backText: { color: colors.navyDeep, fontSize: 31, lineHeight: 33, marginTop: -3 },
   topTitle: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
-  hero: { minHeight: 330, borderRadius: radius.xl, padding: 22, overflow: 'hidden', justifyContent: 'space-between' },
+  hero: { minHeight: 340, borderRadius: radius.xl, padding: 22, overflow: 'hidden', justifyContent: 'space-between' },
   heroOrb: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: 'rgba(255,215,106,0.09)', top: -78, right: -54 },
   heroRing: { position: 'absolute', width: 115, height: 115, borderRadius: 58, borderWidth: 2, borderColor: 'rgba(255,255,255,0.09)', bottom: 26, left: -48 },
+  heroHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  heroHeadingCopy: { flex: 1 },
+  heroArtworkShell: { width: 66, height: 66, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  heroArtwork: { width: 57, height: 57 },
   heroKicker: { color: colors.sun, fontSize: 8, fontWeight: '900', letterSpacing: 1.6 },
-  heroTitle: { color: colors.white, fontSize: 24, lineHeight: 29, fontWeight: '900', letterSpacing: -0.5, maxWidth: '90%', marginTop: 5 },
+  heroTitle: { color: colors.white, fontSize: 22, lineHeight: 27, fontWeight: '900', letterSpacing: -0.5, maxWidth: '96%', marginTop: 5 },
   teamRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 15 },
   person: { width: 64, alignItems: 'center' },
   avatar: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
@@ -322,8 +339,8 @@ const styles = StyleSheet.create({
   personName: { color: colors.white, fontSize: 9, fontWeight: '900', marginTop: 5 },
   connection: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
   connectionLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.22)' },
-  audioBadge: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  audioBadgeText: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
+  audioBadge: { width: 42, height: 42, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  audioBadgeImage: { width: 36, height: 36 },
   statsRow: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.09)', borderRadius: radius.lg, paddingVertical: 13, paddingHorizontal: 8, alignItems: 'center' },
   statCard: { flex: 1, alignItems: 'center' },
   statValue: { color: colors.white, fontSize: 20, fontWeight: '900' },
@@ -332,8 +349,8 @@ const styles = StyleSheet.create({
   recordCard: { borderRadius: radius.xl, overflow: 'hidden' },
   recordGradient: { minHeight: 165, padding: 18, justifyContent: 'flex-end' },
   recordVisual: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
-  recordDot: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.38)', alignItems: 'center', justifyContent: 'center' },
-  recordDotText: { color: colors.navyDeep, fontSize: 18, fontWeight: '900' },
+  recordDot: { width: 58, height: 58, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.38)', alignItems: 'center', justifyContent: 'center' },
+  recordDotImage: { width: 51, height: 51 },
   miniWave: { height: 34, flexDirection: 'row', alignItems: 'center', gap: 5 },
   miniWaveBar: { width: 4, borderRadius: 3, backgroundColor: 'rgba(8,43,56,0.52)' },
   recordCopy: { maxWidth: '82%' },
@@ -368,15 +385,15 @@ const styles = StyleSheet.create({
   storyWaveBar: { flex: 1, maxWidth: 4, borderRadius: 3, backgroundColor: colors.lineWarm },
   storyWaveBarActive: { backgroundColor: colors.tealBright },
   promptBox: { backgroundColor: colors.sandWarm, borderRadius: radius.md, padding: 11, flexDirection: 'row', gap: 9 },
-  promptIcon: { width: 29, height: 29, borderRadius: 10, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  promptIconText: { color: colors.navyDeep, fontSize: 12, fontWeight: '900' },
+  promptIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#FFF7E6', alignItems: 'center', justifyContent: 'center' },
+  promptIconImage: { width: 29, height: 29 },
   promptBody: { flex: 1 },
   promptLabel: { color: colors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
   promptText: { color: colors.text, fontSize: 10, lineHeight: 15, marginTop: 2 },
   emptyCard: { backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 22, alignItems: 'center', gap: 8 },
   emptyVisual: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  emptyCircle: { width: 52, height: 52, borderRadius: 19, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
-  emptyIcon: { color: colors.green, fontSize: 19, fontWeight: '900' },
+  emptyCircle: { width: 58, height: 58, borderRadius: 19, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center' },
+  emptyIconImage: { width: 50, height: 50 },
   emptyWave: { height: 36, flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 10 },
   emptyBar: { width: 4, borderRadius: 3, backgroundColor: colors.lineWarm },
   emptyTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900' },

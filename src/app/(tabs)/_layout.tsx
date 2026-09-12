@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Redirect, Tabs } from 'expo-router';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TeamLoadingScene } from '../../components/TeamLoadingScene';
 import { useAuth } from '../../context/AuthContext';
@@ -8,14 +8,22 @@ import { useFamily } from '../../context/FamilyContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { colors, shadows } from '../../theme';
 
+const navIcons = {
+  home: require('../../../assets/generated/nav-home.png'),
+  growth: require('../../../assets/generated/nav-growth.png'),
+  together: require('../../../assets/generated/nav-together.png'),
+  book: require('../../../assets/generated/nav-book.png'),
+  us: require('../../../assets/generated/nav-us.png'),
+} satisfies Record<string, ImageSourcePropType>;
+
 type TabGlyphProps = {
-  symbol: string;
+  source: ImageSourcePropType;
   focused: boolean;
   accent?: string;
   prominent?: boolean;
 };
 
-const TabGlyph = ({ symbol, focused, accent = colors.navy, prominent = false }: TabGlyphProps) => {
+const TabGlyph = ({ source, focused, accent = colors.navy, prominent = false }: TabGlyphProps) => {
   const progress = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
@@ -36,12 +44,14 @@ const TabGlyph = ({ symbol, focused, accent = colors.navy, prominent = false }: 
         ],
       }}
     >
-      <View style={[
-        styles.glyph,
-        prominent && styles.glyphProminent,
-        focused && { backgroundColor: accent, borderColor: accent },
-      ]}>
-        <Text style={[styles.glyphText, prominent && styles.glyphTextProminent, focused && styles.glyphTextFocused]}>{symbol}</Text>
+      <View
+        style={[
+          styles.glyph,
+          prominent && styles.glyphProminent,
+          focused && { backgroundColor: '#FFF8E9', borderColor: accent },
+        ]}
+      >
+        <Image source={source} style={[styles.glyphImage, prominent && styles.glyphImageProminent]} resizeMode="contain" />
       </View>
       {focused ? <View style={[styles.activeDot, { backgroundColor: accent }]} /> : null}
     </Animated.View>
@@ -61,6 +71,7 @@ export default function TabsLayout() {
 
   if (isSupabaseConfigured && !session) return <Redirect href="/sign-in" />;
   if (isSupabaseConfigured && session && !family) return <Redirect href="/team-setup" />;
+  if (isSupabaseConfigured && session && family && me && !me.onboarding_completed_at) return <Redirect href="/onboarding" />;
 
   return (
     <Tabs
@@ -85,41 +96,38 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Главная',
-          tabBarIcon: ({ focused }) => <TabGlyph symbol="⌂" focused={focused} accent={colors.navy} />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.home} focused={focused} accent={colors.navy} />,
         }}
       />
       <Tabs.Screen
         name="development"
         options={{
           title: isChild ? 'Мой путь' : 'Развитие',
-          tabBarIcon: ({ focused }) => <TabGlyph symbol="↗" focused={focused} accent={isChild ? colors.orange : colors.green} />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.growth} focused={focused} accent={isChild ? colors.orange : colors.green} />,
         }}
       />
       <Tabs.Screen
         name="together"
         options={{
           title: 'Вместе',
-          tabBarIcon: ({ focused }) => <TabGlyph symbol="♥" focused={focused} accent={colors.amber} prominent />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.together} focused={focused} accent={colors.amber} prominent />,
         }}
       />
       <Tabs.Screen
         name="yearbook"
         options={{
           title: 'Книга',
-          tabBarIcon: ({ focused }) => <TabGlyph symbol="▤" focused={focused} accent={colors.blue} />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.book} focused={focused} accent={colors.blue} />,
         }}
       />
       <Tabs.Screen
         name="us"
         options={{
           title: isChild ? 'Команда' : 'Мы',
-          tabBarIcon: ({ focused }) => <TabGlyph symbol="●" focused={focused} accent={colors.tealBright} />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.us} focused={focused} accent={colors.tealBright} />,
         }}
       />
-      <Tabs.Screen
-        name="history"
-        options={{ href: null }}
-      />
+      <Tabs.Screen name="history" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -137,8 +145,8 @@ const styles = StyleSheet.create({
   tabBarItem: { paddingTop: 1 },
   tabLabel: { fontSize: 9, fontWeight: '900', marginTop: 2 },
   glyph: {
-    width: 40,
-    height: 35,
+    width: 42,
+    height: 38,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -147,15 +155,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#F6F1E8',
   },
   glyphProminent: {
-    width: 52,
-    height: 44,
-    borderRadius: 17,
+    width: 54,
+    height: 46,
+    borderRadius: 18,
     marginTop: -5,
     backgroundColor: '#FFF0CB',
     borderColor: '#F3D89B',
   },
-  glyphText: { color: '#728487', fontSize: 17, fontWeight: '900' },
-  glyphTextProminent: { fontSize: 20, color: '#A7751E' },
-  glyphTextFocused: { color: colors.white },
+  glyphImage: { width: 34, height: 34 },
+  glyphImageProminent: { width: 42, height: 42 },
   activeDot: { width: 4, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 3 },
 });
