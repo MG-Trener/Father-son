@@ -75,6 +75,22 @@ end $$;
 
 do $$
 begin
+  if has_column_privilege('authenticated', 'public.family_members', 'family_id', 'UPDATE')
+     or has_column_privilege('authenticated', 'public.family_members', 'user_id', 'UPDATE')
+     or has_column_privilege('authenticated', 'public.family_members', 'role', 'UPDATE')
+     or has_column_privilege('authenticated', 'public.family_members', 'joined_at', 'UPDATE') then
+    raise exception 'SECURITY_INVARIANT_FAILED: family membership identity/role columns must be immutable to authenticated clients';
+  end if;
+
+  if not has_column_privilege('authenticated', 'public.family_members', 'display_name', 'UPDATE')
+     or not has_column_privilege('authenticated', 'public.family_members', 'birth_date', 'UPDATE')
+     or not has_column_privilege('authenticated', 'public.family_members', 'onboarding_completed_at', 'UPDATE') then
+    raise exception 'SECURITY_INVARIANT_FAILED: expected family member profile columns are not updateable';
+  end if;
+end $$;
+
+do $$
+begin
   if exists (
     with public_functions as (
       select p.oid, p.proname, pg_get_function_identity_arguments(p.oid) as args
