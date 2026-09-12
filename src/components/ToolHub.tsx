@@ -7,6 +7,7 @@ import { colors, radius, shadows } from '../theme';
 export type HubTool = {
   icon?: string;
   image?: ImageSourcePropType;
+  decor?: ImageSourcePropType;
   eyebrow: string;
   title: string;
   text: string;
@@ -82,6 +83,7 @@ export function ToolHub({ kicker, title, subtitle, emblem, emblemImage, tools }:
               onPress={() => router.push(tool.route)}
               style={[styles.card, tool.wide && styles.cardWide, { backgroundColor: tool.base, borderColor: `${tool.ink}22` }, shadows.soft]}
             >
+              {tool.decor ? <Image pointerEvents="none" source={tool.decor} style={[styles.cardDecor, tool.wide && styles.cardDecorWide]} resizeMode="contain" /> : null}
               <View style={[styles.icon, { backgroundColor: tool.image ? 'rgba(255,255,255,0.66)' : tool.ink }]}>
                 {tool.image ? <Image source={tool.image} style={styles.iconImage} resizeMode="contain" /> : <Text style={styles.iconText}>{tool.icon}</Text>}
               </View>
@@ -127,8 +129,10 @@ const styles = StyleSheet.create({
   sectionKicker: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
   sectionTitle: { color: colors.navyDeep, fontSize: 20, fontWeight: '900', marginTop: 3, letterSpacing: -0.3 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  card: { width: '48.5%', minHeight: 210, borderRadius: radius.xl, borderWidth: 1, padding: 15 },
+  card: { width: '48.5%', minHeight: 210, borderRadius: radius.xl, borderWidth: 1, padding: 15, overflow: 'hidden' },
   cardWide: { width: '100%', minHeight: 178 },
+  cardDecor: { position: 'absolute', width: 116, height: 116, right: -20, top: -14, opacity: 0.24 },
+  cardDecorWide: { width: 154, height: 154, right: 2, top: -22, opacity: 0.28 },
   icon: { width: 58, height: 58, borderRadius: 17, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.58)' },
   iconImage: { width: 54, height: 54 },
   iconText: { color: colors.white, fontSize: 17, fontWeight: '900' },
