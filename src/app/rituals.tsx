@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  type ImageSourcePropType,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -42,6 +44,17 @@ type RitualMoment = {
 };
 
 const symbols = ['♥', '♟', '⚽', '☕', '☎', '✦', 'EN', '🎬'];
+const symbolImages: Record<string, ImageSourcePropType> = {
+  '♥': require('../../assets/generated/feature-together.png'),
+  '♟': require('../../assets/generated/direction-chess.png'),
+  '⚽': require('../../assets/generated/direction-football.png'),
+  '☕': require('../../assets/generated/feature-together.png'),
+  '☎': require('../../assets/generated/utility-voice.png'),
+  '✦': require('../../assets/generated/utility-recognition.png'),
+  EN: require('../../assets/generated/direction-english.png'),
+  '🎬': require('../../assets/generated/feature-book.png'),
+};
+const fallbackImage = require('../../assets/generated/feature-together.png');
 const weekDays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 const localDay = () => {
@@ -229,7 +242,13 @@ export default function RitualsScreen() {
 
         <LinearGradient colors={['#183D4D', '#276A6E', '#D2964A']} style={[styles.hero, shadows.lift]}>
           <View style={styles.heroGlow} />
-          <View style={styles.heroSymbols}><Text style={styles.heroSymbol}>☎</Text><Text style={styles.heroDash}>· · ·</Text><Text style={styles.heroSymbol}>♟</Text><Text style={styles.heroDash}>· · ·</Text><Text style={styles.heroSymbol}>⚽</Text></View>
+          <View style={styles.heroSymbols}>
+            <View style={styles.heroSymbol}><Image source={require('../../assets/generated/utility-voice.png')} style={styles.heroSymbolImage} resizeMode="contain" /></View>
+            <View style={styles.heroLine} />
+            <View style={styles.heroSymbol}><Image source={require('../../assets/generated/direction-chess.png')} style={styles.heroSymbolImage} resizeMode="contain" /></View>
+            <View style={styles.heroLine} />
+            <View style={styles.heroSymbol}><Image source={require('../../assets/generated/direction-football.png')} style={styles.heroSymbolImage} resizeMode="contain" /></View>
+          </View>
           <Text style={styles.heroTitle}>Связь держится не на серии дней, а на вещах, к которым хочется возвращаться.</Text>
           <Text style={styles.heroText}>Пропустили неделю — ничего не сломалось. Просто продолжайте, когда получится.</Text>
         </LinearGradient>
@@ -240,7 +259,11 @@ export default function RitualsScreen() {
             <Text style={styles.sectionTitle}>Что хочется повторять?</Text>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.symbolRail}>
-              {symbols.map((item) => <Pressable key={item} onPress={() => setSymbol(item)} style={[styles.symbolChoice, symbol === item && styles.symbolChoiceActive]}><Text style={[styles.symbolChoiceText, symbol === item && styles.symbolChoiceTextActive]}>{item}</Text></Pressable>)}
+              {symbols.map((item) => (
+                <Pressable key={item} onPress={() => setSymbol(item)} style={[styles.symbolChoice, symbol === item && styles.symbolChoiceActive]}>
+                  <Image source={symbolImages[item] ?? fallbackImage} style={[styles.symbolChoiceImage, symbol === item && styles.symbolChoiceImageActive]} resizeMode="contain" />
+                </Pressable>
+              ))}
             </ScrollView>
 
             <TextInput value={title} onChangeText={setTitle} maxLength={100} placeholder="Например: Воскресный звонок" placeholderTextColor={colors.mutedSoft} style={styles.input} />
@@ -272,7 +295,7 @@ export default function RitualsScreen() {
               return (
                 <View key={ritual.id} style={[styles.ritualCard, index % 2 === 0 ? styles.ritualWarm : styles.ritualCool, shadows.soft]}>
                   <View style={styles.ritualTop}>
-                    <View style={styles.ritualSymbol}><Text style={styles.ritualSymbolText}>{ritual.symbol}</Text></View>
+                    <View style={styles.ritualSymbol}><Image source={symbolImages[ritual.symbol] ?? fallbackImage} style={styles.ritualSymbolImage} resizeMode="contain" /></View>
                     <View style={styles.ritualCopy}>
                       <Text style={styles.ritualCadence}>{cadenceLabel(ritual)}</Text>
                       <Text style={styles.ritualTitle}>{ritual.title}</Text>
@@ -292,7 +315,11 @@ export default function RitualsScreen() {
             })}
           </View>
         ) : (
-          <Pressable style={[styles.empty, shadows.soft]} onPress={() => setShowCreate(true)}><Text style={styles.emptyIcon}>∞</Text><Text style={styles.emptyTitle}>Создайте первый ритуал</Text><Text style={styles.emptyText}>Это может быть что угодно маленькое, но ваше: звонок, игра, вопрос, совместный матч или традиционная шутка.</Text></Pressable>
+          <Pressable style={[styles.empty, shadows.soft]} onPress={() => setShowCreate(true)}>
+            <Image source={require('../../assets/generated/feature-together.png')} style={styles.emptyImage} resizeMode="contain" />
+            <Text style={styles.emptyTitle}>Создайте первый ритуал</Text>
+            <Text style={styles.emptyText}>Это может быть что угодно маленькое, но ваше: звонок, игра, вопрос, совместный матч или традиционная шутка.</Text>
+          </Pressable>
         )}
 
         <View style={styles.sectionHead}><View><Text style={styles.sectionKicker}>МЫ ЭТО ДЕЛАЛИ</Text><Text style={styles.sectionTitle}>Недавние моменты</Text></View></View>
@@ -301,7 +328,7 @@ export default function RitualsScreen() {
             const ritual = rituals.find((item) => item.id === moment.ritual_id);
             return (
               <View key={moment.id} style={styles.momentRow}>
-                <View style={styles.momentDot}><Text style={styles.momentDotText}>{ritual?.symbol ?? '✦'}</Text></View>
+                <View style={styles.momentDot}><Image source={symbolImages[ritual?.symbol ?? ''] ?? fallbackImage} style={styles.momentImage} resizeMode="contain" /></View>
                 <View style={styles.momentCopy}><Text style={styles.momentTitle}>{ritual?.title ?? 'Наш ритуал'}</Text><Text style={styles.momentMeta}>{momentDate(moment.happened_on)} · отметил {names.get(moment.created_by) ?? 'участник'}</Text></View>
               </View>
             );
@@ -327,19 +354,20 @@ const styles = StyleSheet.create({
   addTopText: { color: colors.white, fontSize: 24, lineHeight: 26, fontWeight: '800' },
   hero: { minHeight: 270, borderRadius: radius.xl, padding: 22, justifyContent: 'flex-end', overflow: 'hidden' },
   heroGlow: { position: 'absolute', width: 220, height: 220, borderRadius: 110, right: -70, top: -80, backgroundColor: 'rgba(255,215,106,0.14)' },
-  heroSymbols: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24 },
-  heroSymbol: { width: 42, height: 42, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.14)', textAlign: 'center', textAlignVertical: 'center', color: colors.sun, fontSize: 18, fontWeight: '900' },
-  heroDash: { color: 'rgba(255,255,255,0.40)', fontSize: 12 },
+  heroSymbols: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+  heroSymbol: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  heroSymbolImage: { width: 44, height: 44 },
+  heroLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.34)', marginHorizontal: 8 },
   heroTitle: { color: colors.white, fontSize: 23, lineHeight: 28, fontWeight: '900', maxWidth: '95%' },
   heroText: { color: '#D9E8E7', fontSize: 11, lineHeight: 17, marginTop: 9, maxWidth: '92%' },
   createCard: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 18 },
   sectionKicker: { color: colors.teal, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
   sectionTitle: { color: colors.text, fontSize: 20, lineHeight: 24, fontWeight: '900', marginTop: 3 },
   symbolRail: { gap: 7, paddingVertical: 14 },
-  symbolChoice: { width: 42, height: 42, borderRadius: 15, backgroundColor: '#F1EEE7', alignItems: 'center', justifyContent: 'center' },
-  symbolChoiceActive: { backgroundColor: colors.navy },
-  symbolChoiceText: { color: colors.teal, fontSize: 16, fontWeight: '900' },
-  symbolChoiceTextActive: { color: colors.sun },
+  symbolChoice: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#F1EEE7', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: colors.lineWarm },
+  symbolChoiceActive: { backgroundColor: colors.navy, borderColor: colors.navy },
+  symbolChoiceImage: { width: 42, height: 42, opacity: 0.88 },
+  symbolChoiceImageActive: { opacity: 1 },
   input: { minHeight: 48, borderRadius: radius.md, backgroundColor: '#F5F2EB', borderWidth: 1, borderColor: colors.lineWarm, paddingHorizontal: 13, color: colors.text, fontSize: 13, fontWeight: '700', marginTop: 8 },
   descriptionInput: { minHeight: 86, paddingTop: 13 },
   cadenceRow: { flexDirection: 'row', gap: 7, marginTop: 12 },
@@ -362,8 +390,8 @@ const styles = StyleSheet.create({
   ritualWarm: { backgroundColor: '#FFF0D2' },
   ritualCool: { backgroundColor: '#DDEDEF' },
   ritualTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  ritualSymbol: { width: 46, height: 46, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.72)', alignItems: 'center', justifyContent: 'center' },
-  ritualSymbolText: { color: colors.navy, fontSize: 18, fontWeight: '900' },
+  ritualSymbol: { width: 50, height: 50, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.72)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  ritualSymbolImage: { width: 46, height: 46 },
   ritualCopy: { flex: 1 },
   ritualCadence: { color: colors.teal, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   ritualTitle: { color: colors.text, fontSize: 17, lineHeight: 20, fontWeight: '900', marginTop: 3 },
@@ -378,14 +406,14 @@ const styles = StyleSheet.create({
   doneButtonDone: { backgroundColor: colors.green },
   doneButtonText: { color: colors.white, fontSize: 11, fontWeight: '900' },
   doneButtonTextDone: { color: colors.white },
-  empty: { minHeight: 170, borderRadius: radius.xl, backgroundColor: colors.paper, padding: 20, alignItems: 'center', justifyContent: 'center' },
-  emptyIcon: { color: colors.amber, fontSize: 30, fontWeight: '900' },
-  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 10 },
+  empty: { minHeight: 180, borderRadius: radius.xl, backgroundColor: colors.paper, padding: 20, alignItems: 'center', justifyContent: 'center' },
+  emptyImage: { width: 72, height: 72 },
+  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 8 },
   emptyText: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 5, maxWidth: '90%' },
   momentList: { gap: 7 },
   momentRow: { minHeight: 66, borderRadius: radius.md, backgroundColor: colors.paper, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  momentDot: { width: 38, height: 38, borderRadius: 14, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' },
-  momentDotText: { color: colors.teal, fontSize: 14, fontWeight: '900' },
+  momentDot: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  momentImage: { width: 38, height: 38 },
   momentCopy: { flex: 1 },
   momentTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   momentMeta: { color: colors.mutedSoft, fontSize: 8, fontWeight: '700', marginTop: 3 },
