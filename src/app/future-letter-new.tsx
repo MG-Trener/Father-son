@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
+
+const artwork = {
+  book: require('../../assets/generated/feature-book.png'),
+  path: require('../../assets/generated/feature-path.png'),
+  family: require('../../assets/generated/feature-family.png'),
+  goal: require('../../assets/generated/utility-goal.png'),
+} as const;
 
 type LetterRow = {
   id: string;
@@ -182,7 +189,7 @@ export default function FutureLetterComposer() {
     const valid = validate();
     if (!valid) return;
     Alert.alert(
-      'Запечатать письмо? 🔒',
+      'Запечатать письмо?',
       `После этого текст нельзя будет открыть или изменить до ${valid.date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
       [
         { text: 'Пока нет', style: 'cancel' },
@@ -196,7 +203,7 @@ export default function FutureLetterComposer() {
             try {
               const { error } = await client.rpc('seal_future_letter', { p_letter_id: id });
               if (error) throw error;
-              Alert.alert('Письмо запечатано ✉️', 'Теперь содержание будет ждать своей даты.', [{ text: 'Готово', onPress: () => router.replace('/letters') }]);
+              Alert.alert('Письмо запечатано', 'Теперь содержание будет ждать своей даты.', [{ text: 'Готово', onPress: () => router.replace('/letters') }]);
             } catch (caught) {
               Alert.alert('Не удалось запечатать', caught instanceof Error ? caught.message : 'Черновик сохранён, попробуй запечатать позже.');
             } finally {
@@ -243,7 +250,7 @@ export default function FutureLetterComposer() {
         </View>
 
         <LinearGradient colors={['#173C54', '#355F70', '#D49B4B']} style={[styles.intro, shadows.lift]}>
-          <Text style={styles.introIcon}>✉️</Text>
+          <View style={styles.introArtworkShell}><Image source={artwork.path} style={styles.introArtwork} resizeMode="contain" /></View>
           <Text style={styles.introTitle}>Пиши так, как будто время действительно пройдёт</Text>
           <Text style={styles.introText}>Не обязательно давать советы. Можно рассказать, каким был сегодняшний день, чего боишься, чем гордишься или что очень не хочется забыть.</Text>
         </LinearGradient>
@@ -283,12 +290,12 @@ export default function FutureLetterComposer() {
         </View>
 
         <View style={[styles.sealInfo, shadows.soft]}>
-          <View style={styles.lockCircle}><Text style={styles.lock}>🔒</Text></View>
+          <View style={styles.lockCircle}><Image source={artwork.goal} style={styles.lockImage} resizeMode="contain" /></View>
           <View style={styles.sealCopy}><Text style={styles.sealTitle}>Что значит «запечатать»</Text><Text style={styles.sealText}>После запечатывания нельзя исправить дату, адресата или текст. Содержание снова станет доступно только после выбранной даты.</Text></View>
         </View>
 
         <Pressable disabled={busy} onPress={seal} style={[styles.sealButton, busy && styles.disabled]}>
-          {busy ? <ActivityIndicator color={colors.white} /> : <><Text style={styles.sealButtonIcon}>✉️</Text><Text style={styles.sealButtonText}>Сохранить и запечатать</Text></>}
+          {busy ? <ActivityIndicator color={colors.white} /> : <><Image source={artwork.book} style={styles.sealButtonImage} resizeMode="contain" /><Text style={styles.sealButtonText}>Сохранить и запечатать</Text></>}
         </Pressable>
         <Pressable disabled={busy} onPress={() => void saveDraft()} style={[styles.draftButton, busy && styles.disabled]}><Text style={styles.draftButtonText}>Сохранить как черновик</Text></Pressable>
         {letterId ? <Pressable disabled={busy} onPress={removeDraft} style={styles.deleteButton}><Text style={styles.deleteText}>Удалить черновик</Text></Pressable> : null}
@@ -307,7 +314,8 @@ const styles = StyleSheet.create({
   kicker: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   topTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 2 },
   intro: { minHeight: 185, borderRadius: radius.xl, padding: 19, justifyContent: 'flex-end', overflow: 'hidden' },
-  introIcon: { position: 'absolute', right: 20, top: 18, fontSize: 36 },
+  introArtworkShell: { position: 'absolute', right: 15, top: 13, width: 72, height: 72, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  introArtwork: { width: 63, height: 63 },
   introTitle: { color: colors.white, fontSize: 22, lineHeight: 25, fontWeight: '900', maxWidth: '86%' },
   introText: { color: '#DFE9E9', fontSize: 9, lineHeight: 14, marginTop: 7, maxWidth: '91%' },
   formCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, padding: 17, borderWidth: 1, borderColor: '#E8DFD1' },
@@ -333,14 +341,14 @@ const styles = StyleSheet.create({
   presetTextActive: { color: colors.white },
   dateInput: { minHeight: 46, borderRadius: 15, backgroundColor: '#F5F0E7', paddingHorizontal: 13, color: colors.navyDeep, fontSize: 12, fontWeight: '800' },
   dateHint: { color: colors.muted, fontSize: 8, marginTop: 5 },
-  sealInfo: { borderRadius: radius.lg, backgroundColor: '#FFF8E7', borderWidth: 1, borderColor: '#F0DEB6', padding: 15, flexDirection: 'row', gap: 11 },
-  lockCircle: { width: 43, height: 43, borderRadius: 16, backgroundColor: '#F7E4B8', alignItems: 'center', justifyContent: 'center' },
-  lock: { fontSize: 20 },
+  sealInfo: { borderRadius: radius.lg, backgroundColor: '#FFF8E7', borderWidth: 1, borderColor: '#F0DEB6', padding: 15, flexDirection: 'row', gap: 11, alignItems: 'center' },
+  lockCircle: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#F7E4B8', alignItems: 'center', justifyContent: 'center' },
+  lockImage: { width: 41, height: 41 },
   sealCopy: { flex: 1 },
   sealTitle: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' },
   sealText: { color: colors.muted, fontSize: 8, lineHeight: 12, marginTop: 3 },
-  sealButton: { minHeight: 52, borderRadius: 17, backgroundColor: colors.navyDeep, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
-  sealButtonIcon: { fontSize: 17 },
+  sealButton: { minHeight: 56, borderRadius: 17, backgroundColor: colors.navyDeep, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
+  sealButtonImage: { width: 36, height: 36 },
   sealButtonText: { color: colors.white, fontSize: 11, fontWeight: '900' },
   draftButton: { minHeight: 46, borderRadius: 16, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: '#E1D8CB', alignItems: 'center', justifyContent: 'center' },
   draftButtonText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900' },
