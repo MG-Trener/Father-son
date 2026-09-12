@@ -13,7 +13,7 @@
 - `navigation-icons.png` — набор: Главная, Путь/Развитие, Книга, Вместе, Мы.
 - `growth-directions.png` — направления развития: Школа, Футбол, Шахматы, English, Лидерство.
 - `utility-icons.png` — календарь, голосовые истории, договорённости, путь/цель, признания/награды.
-- `feature-icons.png` — дополнительный набор тематических иконок; резерв для карточек и пустых состояний.
+- `feature-icons.png` — дополнительный набор: дом, общий путь, книга, «Вместе», папа и ребёнок. Используется для карточек, пустых состояний и экранов памяти.
 
 ## Достижения и декор
 
@@ -44,6 +44,11 @@
 - `utility-agreements.png`
 - `utility-goal.png`
 - `utility-recognition.png`
+- `feature-home.png`
+- `feature-path.png`
+- `feature-book.png`
+- `feature-together.png`
+- `feature-family.png`
 - `badge-school.png`
 - `badge-football.png`
 - `badge-chess.png`
