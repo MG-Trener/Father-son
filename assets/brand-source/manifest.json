@@ -1,0 +1,780 @@
+{
+  "source": "ChatGPT Image 12 сент. 2026 г., 00_25_06.png",
+  "count": 43,
+  "assets": [
+    {
+      "name": "decor-cloud-large",
+      "source_box": [
+        40,
+        80,
+        300,
+        235
+      ],
+      "source_png_size": [
+        266,
+        169
+      ],
+      "mobile_png_size": [
+        266,
+        169
+      ],
+      "mobile_file": "png_mobile_512/decor-cloud-large.png"
+    },
+    {
+      "name": "decor-cloud-small",
+      "source_box": [
+        305,
+        130,
+        455,
+        230
+      ],
+      "source_png_size": [
+        155,
+        114
+      ],
+      "mobile_png_size": [
+        155,
+        114
+      ],
+      "mobile_file": "png_mobile_512/decor-cloud-small.png"
+    },
+    {
+      "name": "decor-sun",
+      "source_box": [
+        455,
+        70,
+        605,
+        230
+      ],
+      "source_png_size": [
+        147,
+        160
+      ],
+      "mobile_png_size": [
+        147,
+        160
+      ],
+      "mobile_file": "png_mobile_512/decor-sun.png"
+    },
+    {
+      "name": "decor-moon",
+      "source_box": [
+        645,
+        90,
+        755,
+        220
+      ],
+      "source_png_size": [
+        110,
+        129
+      ],
+      "mobile_png_size": [
+        110,
+        129
+      ],
+      "mobile_file": "png_mobile_512/decor-moon.png"
+    },
+    {
+      "name": "decor-star-large",
+      "source_box": [
+        765,
+        100,
+        880,
+        215
+      ],
+      "source_png_size": [
+        109,
+        109
+      ],
+      "mobile_png_size": [
+        109,
+        109
+      ],
+      "mobile_file": "png_mobile_512/decor-star-large.png"
+    },
+    {
+      "name": "decor-star-medium",
+      "source_box": [
+        885,
+        130,
+        975,
+        215
+      ],
+      "source_png_size": [
+        84,
+        82
+      ],
+      "mobile_png_size": [
+        84,
+        82
+      ],
+      "mobile_file": "png_mobile_512/decor-star-medium.png"
+    },
+    {
+      "name": "decor-star-small",
+      "source_box": [
+        975,
+        160,
+        1040,
+        220
+      ],
+      "source_png_size": [
+        55,
+        54
+      ],
+      "mobile_png_size": [
+        55,
+        54
+      ],
+      "mobile_file": "png_mobile_512/decor-star-small.png"
+    },
+    {
+      "name": "decor-shooting-star",
+      "source_box": [
+        1075,
+        65,
+        1420,
+        205
+      ],
+      "source_png_size": [
+        350,
+        146
+      ],
+      "mobile_png_size": [
+        350,
+        146
+      ],
+      "mobile_file": "png_mobile_512/decor-shooting-star.png"
+    },
+    {
+      "name": "decor-blob-navy",
+      "source_box": [
+        35,
+        235,
+        259,
+        410
+      ],
+      "source_png_size": [
+        231,
+        160
+      ],
+      "mobile_png_size": [
+        231,
+        160
+      ],
+      "mobile_file": "png_mobile_512/decor-blob-navy.png"
+    },
+    {
+      "name": "decor-blob-peach",
+      "source_box": [
+        250,
+        235,
+        415,
+        410
+      ],
+      "source_png_size": [
+        166,
+        160
+      ],
+      "mobile_png_size": [
+        166,
+        160
+      ],
+      "mobile_file": "png_mobile_512/decor-blob-peach.png"
+    },
+    {
+      "name": "decor-blob-green",
+      "source_box": [
+        415,
+        250,
+        580,
+        410
+      ],
+      "source_png_size": [
+        160,
+        147
+      ],
+      "mobile_png_size": [
+        160,
+        147
+      ],
+      "mobile_file": "png_mobile_512/decor-blob-green.png"
+    },
+    {
+      "name": "decor-dot-cream",
+      "source_box": [
+        550,
+        285,
+        600,
+        335
+      ],
+      "source_png_size": [
+        47,
+        47
+      ],
+      "mobile_png_size": [
+        47,
+        47
+      ],
+      "mobile_file": "png_mobile_512/decor-dot-cream.png"
+    },
+    {
+      "name": "decor-dot-navy",
+      "source_box": [
+        605,
+        240,
+        700,
+        335
+      ],
+      "source_png_size": [
+        87,
+        86
+      ],
+      "mobile_png_size": [
+        87,
+        86
+      ],
+      "mobile_file": "png_mobile_512/decor-dot-navy.png"
+    },
+    {
+      "name": "decor-dot-gold",
+      "source_box": [
+        570,
+        320,
+        660,
+        410
+      ],
+      "source_png_size": [
+        79,
+        80
+      ],
+      "mobile_png_size": [
+        79,
+        80
+      ],
+      "mobile_file": "png_mobile_512/decor-dot-gold.png"
+    },
+    {
+      "name": "decor-glow",
+      "source_box": [
+        675,
+        230,
+        850,
+        405
+      ],
+      "source_png_size": [
+        181,
+        181
+      ],
+      "mobile_png_size": [
+        181,
+        181
+      ],
+      "mobile_file": "png_mobile_512/decor-glow.png"
+    },
+    {
+      "name": "decor-heart-navy",
+      "source_box": [
+        850,
+        240,
+        970,
+        370
+      ],
+      "source_png_size": [
+        136,
+        121
+      ],
+      "mobile_png_size": [
+        136,
+        121
+      ],
+      "mobile_file": "png_mobile_512/decor-heart-navy.png"
+    },
+    {
+      "name": "decor-heart-orange",
+      "source_box": [
+        980,
+        270,
+        1070,
+        370
+      ],
+      "source_png_size": [
+        90,
+        84
+      ],
+      "mobile_png_size": [
+        90,
+        84
+      ],
+      "mobile_file": "png_mobile_512/decor-heart-orange.png"
+    },
+    {
+      "name": "decor-heart-cream",
+      "source_box": [
+        1060,
+        290,
+        1135,
+        375
+      ],
+      "source_png_size": [
+        68,
+        65
+      ],
+      "mobile_png_size": [
+        68,
+        65
+      ],
+      "mobile_file": "png_mobile_512/decor-heart-cream.png"
+    },
+    {
+      "name": "decor-heart-ribbon",
+      "source_box": [
+        1120,
+        230,
+        1435,
+        425
+      ],
+      "source_png_size": [
+        329,
+        192
+      ],
+      "mobile_png_size": [
+        329,
+        192
+      ],
+      "mobile_file": "png_mobile_512/decor-heart-ribbon.png"
+    },
+    {
+      "name": "decor-road-bushes",
+      "source_box": [
+        15,
+        400,
+        285,
+        575
+      ],
+      "source_png_size": [
+        268,
+        168
+      ],
+      "mobile_png_size": [
+        268,
+        168
+      ],
+      "mobile_file": "png_mobile_512/decor-road-bushes.png"
+    },
+    {
+      "name": "decor-road-plants",
+      "source_box": [
+        290,
+        410,
+        485,
+        580
+      ],
+      "source_png_size": [
+        197,
+        160
+      ],
+      "mobile_png_size": [
+        197,
+        160
+      ],
+      "mobile_file": "png_mobile_512/decor-road-plants.png"
+    },
+    {
+      "name": "decor-dotted-path-star",
+      "source_box": [
+        465,
+        420,
+        798,
+        560
+      ],
+      "source_png_size": [
+        357,
+        123
+      ],
+      "mobile_png_size": [
+        357,
+        123
+      ],
+      "mobile_file": "png_mobile_512/decor-dotted-path-star.png"
+    },
+    {
+      "name": "decor-mountains",
+      "source_box": [
+        800,
+        410,
+        1170,
+        580
+      ],
+      "source_png_size": [
+        387,
+        176
+      ],
+      "mobile_png_size": [
+        387,
+        176
+      ],
+      "mobile_file": "png_mobile_512/decor-mountains.png"
+    },
+    {
+      "name": "decor-village",
+      "source_box": [
+        1165,
+        405,
+        1430,
+        595
+      ],
+      "source_png_size": [
+        261,
+        185
+      ],
+      "mobile_png_size": [
+        261,
+        185
+      ],
+      "mobile_file": "png_mobile_512/decor-village.png"
+    },
+    {
+      "name": "decor-leaves-sprig",
+      "source_box": [
+        30,
+        570,
+        180,
+        720
+      ],
+      "source_png_size": [
+        146,
+        141
+      ],
+      "mobile_png_size": [
+        146,
+        141
+      ],
+      "mobile_file": "png_mobile_512/decor-leaves-sprig.png"
+    },
+    {
+      "name": "decor-leaf-pair",
+      "source_box": [
+        175,
+        580,
+        300,
+        725
+      ],
+      "source_png_size": [
+        117,
+        133
+      ],
+      "mobile_png_size": [
+        117,
+        133
+      ],
+      "mobile_file": "png_mobile_512/decor-leaf-pair.png"
+    },
+    {
+      "name": "decor-flowers",
+      "source_box": [
+        300,
+        565,
+        460,
+        720
+      ],
+      "source_png_size": [
+        151,
+        144
+      ],
+      "mobile_png_size": [
+        151,
+        144
+      ],
+      "mobile_file": "png_mobile_512/decor-flowers.png"
+    },
+    {
+      "name": "decor-rocks",
+      "source_box": [
+        455,
+        585,
+        675,
+        725
+      ],
+      "source_png_size": [
+        214,
+        128
+      ],
+      "mobile_png_size": [
+        214,
+        128
+      ],
+      "mobile_file": "png_mobile_512/decor-rocks.png"
+    },
+    {
+      "name": "decor-grass-wide",
+      "source_box": [
+        675,
+        565,
+        770,
+        725
+      ],
+      "source_png_size": [
+        86,
+        149
+      ],
+      "mobile_png_size": [
+        86,
+        149
+      ],
+      "mobile_file": "png_mobile_512/decor-grass-wide.png"
+    },
+    {
+      "name": "decor-grass-thin",
+      "source_box": [
+        765,
+        585,
+        875,
+        720
+      ],
+      "source_png_size": [
+        104,
+        125
+      ],
+      "mobile_png_size": [
+        104,
+        125
+      ],
+      "mobile_file": "png_mobile_512/decor-grass-thin.png"
+    },
+    {
+      "name": "decor-flying-leaves",
+      "source_box": [
+        855,
+        585,
+        1135,
+        705
+      ],
+      "source_png_size": [
+        285,
+        127
+      ],
+      "mobile_png_size": [
+        285,
+        127
+      ],
+      "mobile_file": "png_mobile_512/decor-flying-leaves.png"
+    },
+    {
+      "name": "decor-birds",
+      "source_box": [
+        1170,
+        590,
+        1370,
+        690
+      ],
+      "source_png_size": [
+        187,
+        88
+      ],
+      "mobile_png_size": [
+        187,
+        88
+      ],
+      "mobile_file": "png_mobile_512/decor-birds.png"
+    },
+    {
+      "name": "decor-hill-cloud-left",
+      "source_box": [
+        20,
+        715,
+        270,
+        850
+      ],
+      "source_png_size": [
+        255,
+        132
+      ],
+      "mobile_png_size": [
+        255,
+        132
+      ],
+      "mobile_file": "png_mobile_512/decor-hill-cloud-left.png"
+    },
+    {
+      "name": "decor-hill-cloud-middle",
+      "source_box": [
+        270,
+        725,
+        495,
+        845
+      ],
+      "source_png_size": [
+        229,
+        117
+      ],
+      "mobile_png_size": [
+        229,
+        117
+      ],
+      "mobile_file": "png_mobile_512/decor-hill-cloud-middle.png"
+    },
+    {
+      "name": "decor-hill-sunset",
+      "source_box": [
+        490,
+        720,
+        700,
+        845
+      ],
+      "source_png_size": [
+        209,
+        100
+      ],
+      "mobile_png_size": [
+        209,
+        100
+      ],
+      "mobile_file": "png_mobile_512/decor-hill-sunset.png"
+    },
+    {
+      "name": "decor-soft-wave",
+      "source_box": [
+        700,
+        720,
+        990,
+        845
+      ],
+      "source_png_size": [
+        293,
+        112
+      ],
+      "mobile_png_size": [
+        293,
+        112
+      ],
+      "mobile_file": "png_mobile_512/decor-soft-wave.png"
+    },
+    {
+      "name": "decor-golden-swoosh",
+      "source_box": [
+        1000,
+        680,
+        1430,
+        845
+      ],
+      "source_png_size": [
+        435,
+        183
+      ],
+      "mobile_png_size": [
+        435,
+        183
+      ],
+      "mobile_file": "png_mobile_512/decor-golden-swoosh.png"
+    },
+    {
+      "name": "card-horizon-star",
+      "source_box": [
+        25,
+        840,
+        300,
+        1030
+      ],
+      "source_png_size": [
+        275,
+        191
+      ],
+      "mobile_png_size": [
+        275,
+        191
+      ],
+      "mobile_file": "png_mobile_512/card-horizon-star.png"
+    },
+    {
+      "name": "card-night-hills",
+      "source_box": [
+        295,
+        840,
+        570,
+        1030
+      ],
+      "source_png_size": [
+        273,
+        183
+      ],
+      "mobile_png_size": [
+        273,
+        183
+      ],
+      "mobile_file": "png_mobile_512/card-night-hills.png"
+    },
+    {
+      "name": "card-cloud-hills",
+      "source_box": [
+        560,
+        840,
+        840,
+        1030
+      ],
+      "source_png_size": [
+        279,
+        195
+      ],
+      "mobile_png_size": [
+        279,
+        195
+      ],
+      "mobile_file": "png_mobile_512/card-cloud-hills.png"
+    },
+    {
+      "name": "card-sunset-round",
+      "source_box": [
+        830,
+        840,
+        1005,
+        1030
+      ],
+      "source_png_size": [
+        170,
+        188
+      ],
+      "mobile_png_size": [
+        170,
+        188
+      ],
+      "mobile_file": "png_mobile_512/card-sunset-round.png"
+    },
+    {
+      "name": "card-night-stars",
+      "source_box": [
+        995,
+        840,
+        1200,
+        1030
+      ],
+      "source_png_size": [
+        198,
+        184
+      ],
+      "mobile_png_size": [
+        198,
+        184
+      ],
+      "mobile_file": "png_mobile_512/card-night-stars.png"
+    },
+    {
+      "name": "card-warm-abstract",
+      "source_box": [
+        1195,
+        835,
+        1420,
+        1030
+      ],
+      "source_png_size": [
+        222,
+        196
+      ],
+      "mobile_png_size": [
+        222,
+        196
+      ],
+      "mobile_file": "png_mobile_512/card-warm-abstract.png"
+    }
+  ]
+}
