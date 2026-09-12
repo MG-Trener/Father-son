@@ -12,6 +12,8 @@ const versionCode = Number(required('VERSION_CODE'));
 const downloadUrl = required('DOWNLOAD_URL');
 const sha256 = required('SHA256');
 const sizeBytes = Number(required('SIZE_BYTES'));
+const releasesRepo = process.env.RELEASES_REPO || 'MG-Trener/Father-son-releases';
+const expectedPrefix = `https://github.com/${releasesRepo}/releases/download/`;
 
 if (!Number.isInteger(versionCode) || versionCode <= 0) {
   throw new Error(`Invalid VERSION_CODE: ${process.env.VERSION_CODE}`);
@@ -19,8 +21,8 @@ if (!Number.isInteger(versionCode) || versionCode <= 0) {
 if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
   throw new Error(`Invalid SIZE_BYTES: ${process.env.SIZE_BYTES}`);
 }
-if (!downloadUrl.startsWith('https://github.com/')) {
-  throw new Error(`DOWNLOAD_URL must point to GitHub Releases: ${downloadUrl}`);
+if (!downloadUrl.startsWith(expectedPrefix)) {
+  throw new Error(`DOWNLOAD_URL must point to public release repository ${releasesRepo}: ${downloadUrl}`);
 }
 
 async function assertOk(response, label) {
@@ -36,7 +38,7 @@ const row = {
   version_code: versionCode,
   minimum_supported_code: 1,
   title: `Папа & Я ${version}`,
-  notes: 'Подписанный ARM64 Android-релиз. APK хранится только в GitHub Releases; Supabase хранит только метаданные обновления.',
+  notes: 'Подписанный ARM64 Android-релиз. APK хранится в публичном GitHub Releases репозитории; Supabase хранит только метаданные обновления.',
   download_url: downloadUrl,
   storage_bucket: null,
   storage_path: null,
@@ -84,4 +86,4 @@ if (latest.download_url !== downloadUrl) {
 if (latest.storage_bucket || latest.storage_path) {
   throw new Error('Update feed still references Supabase Storage');
 }
-console.log(`Update feed verified: ${latest.version_name} (${latest.version_code}) -> GitHub Releases`);
+console.log(`Update feed verified: ${latest.version_name} (${latest.version_code}) -> ${releasesRepo}`);
