@@ -3,6 +3,10 @@ name: Validate Android
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/**'
+      - 'README.md'
+      - 'docs/**'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -40,10 +44,10 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
 
-  preview-apk:
+  release-apk:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     needs: validate
     env:
       GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
@@ -52,6 +56,7 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      SUPABASE_RELEASE_SECRET_KEY: ${{ secrets.SUPABASE_RELEASE_SECRET_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -87,8 +92,14 @@ jobs:
             echo "Persistent Android release signing is configured."
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Release-signing secrets are not configured; build will remain preview/debug signed."
+            echo "Release-signing secrets are not configured."
           fi
+
+      - name: Require persistent release signing
+        if: github.ref == 'refs/heads/main'
+        env:
+          SIGNING_READY: ${{ steps.signing.outputs.ready }}
+        run: test "$SIGNING_READY" = "true"
 
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v6
@@ -104,7 +115,6 @@ jobs:
         run: |
           chmod +x gradlew
           set -o pipefail
-
           SIGNING_ARGS=()
           if [ "$SIGNING_READY" = "true" ]; then
             SIGNING_ARGS+=("-Pandroid.injected.signing.store.file=$PWD/app/release.keystore")
@@ -112,8 +122,6 @@ jobs:
             SIGNING_ARGS+=("-Pandroid.injected.signing.key.alias=$ANDROID_KEY_ALIAS")
             SIGNING_ARGS+=("-Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD")
           fi
-
-          echo "Building only arm64-v8a for faster phone releases"
           ./gradlew :app:assembleRelease \
             -PreactNativeArchitectures=arm64-v8a \
             --no-daemon \
@@ -132,14 +140,19 @@ jobs:
           APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner"
           CERT_INFO="$($APKSIGNER verify --print-certs "$APK")"
           echo "$CERT_INFO"
-
           if echo "$CERT_INFO" | grep -qi 'Android Debug'; then
             echo "release_signed=false" >> "$GITHUB_OUTPUT"
-            echo "APK is debug signed. It can be used for preview installs, but not as a stable in-place update."
+            echo "APK is debug signed."
           else
             echo "release_signed=true" >> "$GITHUB_OUTPUT"
             echo "APK uses the persistent release signing identity."
           fi
+
+      - name: Require verified release signature
+        if: github.ref == 'refs/heads/main'
+        env:
+          RELEASE_SIGNED: ${{ steps.signing_check.outputs.release_signed }}
+        run: test "$RELEASE_SIGNED" = "true"
 
       - name: Prepare release metadata
         id: release_meta
@@ -168,136 +181,41 @@ jobs:
           VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
           SHA256: ${{ steps.release_meta.outputs.sha256 }}
           RELEASE_ASSET: ${{ steps.release_meta.outputs.release_asset }}
-          RELEASE_SIGNED: ${{ steps.signing_check.outputs.release_signed }}
         shell: bash
         run: |
           set -euo pipefail
           TAG="android-v${VERSION_CODE}"
           APK="android/app/build/outputs/apk/release/app-release.apk"
-          cp "$APK" "$RELEASE_ASSET"
-
-          if [ "$RELEASE_SIGNED" = "true" ]; then
-            SIGNING_NOTE="Подписано постоянным release-ключом; подходит для последующих обновлений."
-          else
-            SIGNING_NOTE="Preview/debug-подпись."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Increase versionCode and version before publishing another app build."
+            exit 1
           fi
-
+          cp "$APK" "$RELEASE_ASSET"
           cat > release-notes.md <<EOF
           Android-версия «Папа & Я» ${VERSION} (versionCode ${VERSION_CODE}).
 
           Оптимизированная ARM64-сборка для современных Android-телефонов.
           SHA-256: ${SHA256}
-          ${SIGNING_NOTE}
+          Подписано постоянным release-ключом; подходит для последующих обновлений.
 
           Канал: release.
           EOF
+          gh release create "$TAG" "$RELEASE_ASSET" \
+            --target "$GITHUB_SHA" \
+            --title "Папа & Я ${VERSION}" \
+            --notes-file release-notes.md \
+            --latest
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "GitHub release $TAG already exists; converting it to a normal latest release."
-            gh release edit "$TAG" \
-              --title "Папа & Я ${VERSION}" \
-              --notes-file release-notes.md \
-              --prerelease=false \
-              --latest
-          else
-            gh release create "$TAG" "$RELEASE_ASSET" \
-              --target "$GITHUB_SHA" \
-              --title "Папа & Я ${VERSION}" \
-              --notes-file release-notes.md \
-              --latest
-          fi
-
-      - name: Publish APK to private Supabase Storage
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.signing_check.outputs.release_signed == 'true'
+      - name: Publish APK and update feed in Supabase
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
-          SUPABASE_RELEASE_SECRET_KEY: ${{ secrets.SUPABASE_RELEASE_SECRET_KEY }}
+          APK_PATH: android/app/build/outputs/apk/release/app-release.apk
           VERSION: ${{ steps.release_meta.outputs.version }}
           VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
+          STORAGE_PATH: ${{ steps.release_meta.outputs.storage_path }}
           SHA256: ${{ steps.release_meta.outputs.sha256 }}
           SIZE_BYTES: ${{ steps.release_meta.outputs.size_bytes }}
-          STORAGE_PATH: ${{ steps.release_meta.outputs.storage_path }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "$SUPABASE_RELEASE_SECRET_KEY" ]; then
-            echo "SUPABASE_RELEASE_SECRET_KEY is not configured; GitHub release remains available."
-            exit 0
-          fi
-
-          APK="android/app/build/outputs/apk/release/app-release.apk"
-          BASE_URL="$EXPO_PUBLIC_SUPABASE_URL"
-
-          echo "Uploading signed APK to private Supabase Storage..."
-          curl --fail-with-body --silent --show-error \
-            --retry 3 --retry-delay 2 --retry-all-errors \
-            --request POST \
-            "$BASE_URL/storage/v1/object/app-releases/$STORAGE_PATH" \
-            --header "apikey: $SUPABASE_RELEASE_SECRET_KEY" \
-            --header "Content-Type: application/vnd.android.package-archive" \
-            --header "x-upsert: true" \
-            --data-binary "@$APK"
-
-          RELEASE_JSON="$(node -e '
-            const row = {
-              platform: "android",
-              channel: "preview",
-              version_name: process.env.VERSION,
-              version_code: Number(process.env.VERSION_CODE),
-              minimum_supported_code: 1,
-              title: `Папа & Я ${process.env.VERSION}`,
-              notes: "Автоматическая ARM64 Android-сборка из main, подписанная постоянным release-ключом.",
-              download_url: null,
-              storage_bucket: "app-releases",
-              storage_path: process.env.STORAGE_PATH,
-              sha256: process.env.SHA256,
-              size_bytes: Number(process.env.SIZE_BYTES),
-              is_enabled: true,
-              published_at: new Date().toISOString(),
-            };
-            process.stdout.write(JSON.stringify(row));
-          ')"
-
-          echo "Upserting release metadata through the Supabase Data API..."
-          curl --fail-with-body --silent --show-error \
-            --retry 3 --retry-delay 2 --retry-all-errors \
-            --request POST \
-            "$BASE_URL/rest/v1/app_releases?on_conflict=platform,channel,version_code" \
-            --header "apikey: $SUPABASE_RELEASE_SECRET_KEY" \
-            --header "Content-Type: application/json" \
-            --header "Prefer: resolution=merge-duplicates,return=minimal" \
-            --data "$RELEASE_JSON"
-
-      - name: Verify app update feed
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.signing_check.outputs.release_signed == 'true'
-        env:
-          EXPECTED_VERSION: ${{ steps.release_meta.outputs.version }}
-          EXPECTED_CODE: ${{ steps.release_meta.outputs.version_code }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          RESULT="$(curl --fail-with-body --silent --show-error \
-            --retry 3 --retry-delay 2 --retry-all-errors \
-            --request POST \
-            "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/get_latest_app_release" \
-            --header "apikey: $EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" \
-            --header "Content-Type: application/json" \
-            --data '{"p_platform":"android","p_channel":"preview"}')"
-
-          RESULT="$RESULT" EXPECTED_VERSION="$EXPECTED_VERSION" EXPECTED_CODE="$EXPECTED_CODE" node - <<'NODE'
-          const rows = JSON.parse(process.env.RESULT || '[]');
-          const row = Array.isArray(rows) ? rows[0] : rows;
-          if (!row) throw new Error('Update feed returned no release');
-          if (String(row.version_name) !== process.env.EXPECTED_VERSION) {
-            throw new Error(`Update feed version mismatch: ${row.version_name}`);
-          }
-          if (Number(row.version_code) !== Number(process.env.EXPECTED_CODE)) {
-            throw new Error(`Update feed code mismatch: ${row.version_code}`);
-          }
-          if (!row.storage_bucket || !row.storage_path) {
-            throw new Error('Update feed is missing private Storage coordinates');
-          }
-          console.log(`Update feed verified: ${row.version_name} (${row.version_code})`);
-          NODE
+        run: node .github/scripts/publish-supabase-release.mjs
 
       - name: Clean signing material
         if: always()
