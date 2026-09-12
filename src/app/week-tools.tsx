@@ -7,6 +7,11 @@ const tools: HubTool[] = [
     route: '/weekly-focus', base: '#DCEFFF', ink: '#2E6286', wide: true,
   },
   {
+    image: require('../../assets/generated/feature-path.png'), eyebrow: '11 → 18', title: 'Карта взросления',
+    text: 'Восемь спокойных глав пути: ориентиры, общие моменты и большая история без дедлайнов.',
+    route: '/path-map', base: '#E8F1F2', ink: '#2D6D73', wide: true,
+  },
+  {
     image: require('../../assets/generated/feature-path.png'), eyebrow: 'ОГЛЯНУТЬСЯ', title: 'Итог недели',
     text: 'Что осталось от недели: настроение, ритуалы, признания и сохранённые моменты.',
     route: '/week-review', base: '#E5F0F2', ink: '#2D6D73',
