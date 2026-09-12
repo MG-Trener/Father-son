@@ -18,11 +18,14 @@ const sources = {
   utilityStrip: source('utility-icons.png'),
   featureStrip: source('feature-icons.png'),
   badgeSheet: source('achievement-badges.png'),
-  decorSheet: source('decor-atlas.png'),
 };
+const decorManifestFile = source('manifest.json');
 
 await fs.mkdir(outDir, { recursive: true });
-await Promise.all(Object.values(sources).map((file) => fs.access(file)));
+await Promise.all([
+  ...Object.values(sources).map((file) => fs.access(file)),
+  fs.access(decorManifestFile),
+]);
 
 const png = (file) => sharp(file, { failOn: 'none' });
 
@@ -129,10 +132,39 @@ await splitGrid(
   320,
 );
 
-await png(sources.decorSheet)
-  .resize(1448, 1086, { fit: 'inside', withoutEnlargement: true })
-  .png({ compressionLevel: 9, quality: 90 })
-  .toFile(path.join(outDir, 'decor-atlas.png'));
+// Decorative artwork is no longer cropped from decor-atlas.png. Each element is
+// stored as an individual mobile-ready PNG and validated through manifest.json.
+const decorManifest = JSON.parse(await fs.readFile(decorManifestFile, 'utf8'));
+if (!Array.isArray(decorManifest.assets) || decorManifest.assets.length === 0) {
+  throw new Error('Decor manifest must contain a non-empty assets array');
+}
+
+for (const asset of decorManifest.assets) {
+  const name = String(asset?.name ?? '');
+  if (!/^(decor|card)-[a-z0-9-]+$/.test(name)) {
+    throw new Error(`Invalid decor asset name in manifest: ${name}`);
+  }
+
+  const input = source(`${name}.png`);
+  await fs.access(input);
+  await png(input)
+    .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+    .png({ compressionLevel: 9, quality: 94 })
+    .toFile(path.join(outDir, `${name}.png`));
+}
+
+await fs.writeFile(
+  path.join(outDir, 'decor-manifest.json'),
+  JSON.stringify(
+    {
+      count: decorManifest.assets.length,
+      assets: decorManifest.assets.map((asset) => `${asset.name}.png`),
+    },
+    null,
+    2,
+  ),
+  'utf8',
+);
 
 const monochromeSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
@@ -148,4 +180,4 @@ await sharp(Buffer.from(monochromeSvg))
   .png({ compressionLevel: 9 })
   .toFile(path.join(outDir, 'app-icon-monochrome.png'));
 
-console.log('Generated Papa & Ya assets from normalized brand source files');
+console.log(`Generated Papa & Ya assets, including ${decorManifest.assets.length} individual decor PNGs`);
