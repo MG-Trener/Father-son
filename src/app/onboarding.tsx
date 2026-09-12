@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -7,46 +7,60 @@ import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, gradients, radius, shadows } from '../theme';
 
+const artwork = {
+  family: require('../../assets/generated/feature-family.png'),
+  together: require('../../assets/generated/feature-together.png'),
+  path: require('../../assets/generated/feature-path.png'),
+  book: require('../../assets/generated/feature-book.png'),
+  voice: require('../../assets/generated/utility-voice.png'),
+  recognition: require('../../assets/generated/utility-recognition.png'),
+  goal: require('../../assets/generated/utility-goal.png'),
+  football: require('../../assets/generated/direction-football.png'),
+  chess: require('../../assets/generated/direction-chess.png'),
+  english: require('../../assets/generated/direction-english.png'),
+  courage: require('../../assets/generated/badge-courage.png'),
+} as const satisfies Record<string, ImageSourcePropType>;
+
 type Slide = {
   eyebrow: string;
-  icon: string;
+  image: ImageSourcePropType;
   title: string;
   text: string;
-  points: Array<{ icon: string; title: string; text: string }>;
+  points: Array<{ image: ImageSourcePropType; title: string; text: string }>;
 };
 
 const parentSlides = (childName: string): Slide[] => [
   {
     eyebrow: 'ДЛЯ ПАПЫ',
-    icon: '♥',
+    image: artwork.family,
     title: 'Это не приложение контроля.',
     text: `«Папа & Я» помогает быть рядом с ${childName}, даже когда вы не рядом физически. Здесь важнее внимание, чем показатели.`,
     points: [
-      { icon: '👂', title: 'Слушать', text: 'Сигналы, настроение и разговоры — без допроса.' },
-      { icon: '✦', title: 'Замечать', text: 'Конкретные поступки и рост, а не только результат.' },
-      { icon: '🤝', title: 'Быть рядом', text: 'Встречи, ритуалы и маленькие общие вещи.' },
+      { image: artwork.voice, title: 'Слушать', text: 'Сигналы, настроение и разговоры — без допроса.' },
+      { image: artwork.recognition, title: 'Замечать', text: 'Конкретные поступки и рост, а не только результат.' },
+      { image: artwork.together, title: 'Быть рядом', text: 'Встречи, ритуалы и маленькие общие вещи.' },
     ],
   },
   {
     eyebrow: 'ТРИ ГЛАВНЫХ МЕСТА',
-    icon: '⌁',
+    image: artwork.path,
     title: 'Не нужно использовать всё сразу.',
     text: 'Начните с трёх вещей. Остальные функции можно открывать тогда, когда они действительно понадобятся.',
     points: [
-      { icon: '♥', title: 'Вместе', text: 'Связь, встречи, разговоры и ваши ритуалы.' },
-      { icon: '🧭', title: 'Развитие', text: `Путь ${childName} без сравнения с другими.` },
-      { icon: '📖', title: 'Книга', text: 'То, что через несколько лет захочется перечитать.' },
+      { image: artwork.together, title: 'Вместе', text: 'Связь, встречи, разговоры и ваши ритуалы.' },
+      { image: artwork.path, title: 'Развитие', text: `Путь ${childName} без сравнения с другими.` },
+      { image: artwork.book, title: 'Книга', text: 'То, что через несколько лет захочется перечитать.' },
     ],
   },
   {
     eyebrow: 'ГЛАВНОЕ ПРАВИЛО',
-    icon: '🌱',
+    image: artwork.courage,
     title: 'Отношения не должны превращаться в таблицу.',
     text: 'Здесь можно пропускать дни, менять планы и возвращаться после пауз. Ничего ценного не обнуляется.',
     points: [
-      { icon: '○', title: 'Без наказаний за паузы', text: 'Нет серии, которую страшно потерять.' },
-      { icon: '◎', title: 'Один фокус за раз', text: 'Меньше задач, больше смысла.' },
-      { icon: '♥', title: 'Главное — связь', text: `Если ${childName} знает, что папа рядом — приложение работает.` },
+      { image: artwork.path, title: 'Без наказаний за паузы', text: 'Нет серии, которую страшно потерять.' },
+      { image: artwork.goal, title: 'Один фокус за раз', text: 'Меньше задач, больше смысла.' },
+      { image: artwork.family, title: 'Главное — связь', text: `Если ${childName} знает, что папа рядом — приложение работает.` },
     ],
   },
 ];
@@ -54,35 +68,35 @@ const parentSlides = (childName: string): Slide[] => [
 const childSlides = (parentName: string): Slide[] => [
   {
     eyebrow: 'ЭТО ТВОЁ МЕСТО',
-    icon: '🚀',
+    image: artwork.family,
     title: 'Здесь тебя не оценивают.',
     text: `«Папа & Я» — место для тебя и ${parentName}. Тут можно рассказывать о хорошем, сложном, смешном и вообще ничего не объяснять, если не хочется.`,
     points: [
-      { icon: '🙂', title: 'Как ты?', text: 'Можно просто выбрать настроение.' },
-      { icon: '💬', title: 'Поговорить', text: 'Позвать папу или вытянуть карточку разговора.' },
-      { icon: '🎙', title: 'Сохранить', text: 'Оставить текст или голос для будущего себя.' },
+      { image: artwork.together, title: 'Как ты?', text: 'Можно просто выбрать настроение.' },
+      { image: artwork.recognition, title: 'Поговорить', text: 'Позвать папу или вытянуть карточку разговора.' },
+      { image: artwork.voice, title: 'Сохранить', text: 'Оставить текст или голос для будущего себя.' },
     ],
   },
   {
     eyebrow: 'ТВОЙ ПУТЬ',
-    icon: '🧭',
+    image: artwork.path,
     title: 'Школа — только одна часть жизни.',
     text: 'Здесь есть несколько направлений. Не нужно быть лучшим во всех — можно выбирать то, что сейчас тебе интересно.',
     points: [
-      { icon: '⚽', title: 'Футбол', text: 'Команда, движение и характер.' },
-      { icon: '♟', title: 'Шахматы', text: 'Спокойствие и стратегия.' },
-      { icon: 'EN', title: 'English и другое', text: 'Навыки, которые открывают новые возможности.' },
+      { image: artwork.football, title: 'Футбол', text: 'Команда, движение и характер.' },
+      { image: artwork.chess, title: 'Шахматы', text: 'Спокойствие и стратегия.' },
+      { image: artwork.english, title: 'English и другое', text: 'Навыки, которые открывают новые возможности.' },
     ],
   },
   {
     eyebrow: 'ВАЖНО ПОМНИТЬ',
-    icon: '✦',
+    image: artwork.courage,
     title: 'Ты не обязан делать всё каждый день.',
     text: 'Можно забыть про приложение на неделю, а потом вернуться. Твой путь останется на месте и продолжится дальше.',
     points: [
-      { icon: '○', title: 'Пауза — нормально', text: 'Ничего не сгорит и не станет хуже.' },
-      { icon: '◎', title: 'Фокус выбираешь ты', text: 'Можно менять то, на чём хочется сосредоточиться.' },
-      { icon: '♥', title: 'Вы одна команда', text: `${parentName} здесь не судья. Он твой напарник.` },
+      { image: artwork.path, title: 'Пауза — нормально', text: 'Ничего не сгорит и не станет хуже.' },
+      { image: artwork.goal, title: 'Фокус выбираешь ты', text: 'Можно менять то, на чём хочется сосредоточиться.' },
+      { image: artwork.family, title: 'Вы одна команда', text: `${parentName} здесь не судья. Он твой напарник.` },
     ],
   },
 ];
@@ -139,7 +153,7 @@ export default function OnboardingScreen() {
         <LinearGradient colors={gradients.team} style={[styles.hero, shadows.lift]}>
           <View style={styles.heroGlow} />
           <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
-          <View style={styles.icon}><Text style={styles.iconText}>{slide.icon}</Text></View>
+          <View style={styles.icon}><Image source={slide.image} style={styles.iconImage} resizeMode="contain" /></View>
           <Text style={styles.title}>{slide.title}</Text>
           <Text style={styles.text}>{slide.text}</Text>
         </LinearGradient>
@@ -147,7 +161,7 @@ export default function OnboardingScreen() {
         <View style={[styles.pointsCard, shadows.soft]}>
           {slide.points.map((point, index) => (
             <View key={point.title} style={[styles.pointRow, index > 0 && styles.pointBorder]}>
-              <View style={styles.pointIcon}><Text style={styles.pointIconText}>{point.icon}</Text></View>
+              <View style={styles.pointIcon}><Image source={point.image} style={styles.pointIconImage} resizeMode="contain" /></View>
               <View style={styles.pointCopy}>
                 <Text style={styles.pointTitle}>{point.title}</Text>
                 <Text style={styles.pointText}>{point.text}</Text>
@@ -165,7 +179,7 @@ export default function OnboardingScreen() {
             style={[styles.next, busy && styles.disabled]}
             onPress={() => last ? void complete() : setStep((value) => Math.min(value + 1, slides.length - 1))}
           >
-            {busy ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.nextText}>{last ? (isChild ? 'Погнали 🚀' : 'Начать вместе ♥') : 'Дальше →'}</Text>}
+            {busy ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.nextText}>{last ? (isChild ? 'Начать мой путь' : 'Начать вместе') : 'Дальше →'}</Text>}
           </Pressable>
           {step > 0 ? <Pressable onPress={() => setStep((value) => Math.max(0, value - 1))}><Text style={styles.backText}>← Назад</Text></Pressable> : <View style={styles.backPlaceholder} />}
         </View>
@@ -187,15 +201,15 @@ const styles = StyleSheet.create({
   hero: { flex: 1.05, minHeight: 265, borderRadius: radius.xl, padding: 21, overflow: 'hidden', justifyContent: 'flex-end' },
   heroGlow: { position: 'absolute', width: 230, height: 230, borderRadius: 115, backgroundColor: 'rgba(255,215,106,0.10)', right: -70, top: -80 },
   eyebrow: { position: 'absolute', left: 21, top: 20, color: colors.sun, fontSize: 8, fontWeight: '900', letterSpacing: 1.25 },
-  icon: { width: 62, height: 62, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  iconText: { color: colors.sun, fontSize: 28, fontWeight: '900' },
+  icon: { width: 74, height: 74, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  iconImage: { width: 66, height: 66 },
   title: { color: colors.white, fontSize: 27, lineHeight: 32, fontWeight: '900', maxWidth: '95%' },
   text: { color: '#D7E5E7', fontSize: 11, lineHeight: 17, marginTop: 9, maxWidth: '94%' },
   pointsCard: { backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, paddingHorizontal: 15 },
   pointRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11 },
   pointBorder: { borderTopWidth: 1, borderTopColor: colors.lineWarm },
-  pointIcon: { width: 39, height: 39, borderRadius: 14, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' },
-  pointIconText: { color: colors.navyDeep, fontSize: 16, fontWeight: '900' },
+  pointIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' },
+  pointIconImage: { width: 40, height: 40 },
   pointCopy: { flex: 1 },
   pointTitle: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' },
   pointText: { color: colors.muted, fontSize: 8.5, lineHeight: 13, marginTop: 2 },
