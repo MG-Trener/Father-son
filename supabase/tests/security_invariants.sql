@@ -90,6 +90,49 @@ begin
 end $$;
 
 do $$
+declare
+  protected record;
+begin
+  for protected in
+    select * from (values
+      ('families','id'),('families','created_by'),('families','created_at'),
+      ('moods','id'),('moods','family_id'),('moods','user_id'),('moods','created_at'),
+      ('reflections','id'),('reflections','family_id'),('reflections','author_user_id'),('reflections','created_at'),
+      ('age_seasons','id'),('age_seasons','family_id'),('age_seasons','subject_user_id'),('age_seasons','age_year'),('age_seasons','created_at'),
+      ('year_reviews','id'),('year_reviews','family_id'),('year_reviews','subject_user_id'),('year_reviews','season_id'),('year_reviews','created_at'),
+      ('meetings','id'),('meetings','family_id'),('meetings','created_by'),('meetings','created_at'),
+      ('meeting_ideas','id'),('meeting_ideas','meeting_id'),('meeting_ideas','family_id'),('meeting_ideas','created_by'),('meeting_ideas','created_at'),
+      ('family_rituals','id'),('family_rituals','family_id'),('family_rituals','created_by'),('family_rituals','created_at')
+    ) as v(table_name, column_name)
+  loop
+    if has_column_privilege(
+      'authenticated',
+      format('public.%I', protected.table_name),
+      protected.column_name,
+      'UPDATE'
+    ) then
+      raise exception 'SECURITY_INVARIANT_FAILED: authenticated may UPDATE protected column %.%', protected.table_name, protected.column_name;
+    end if;
+  end loop;
+end $$;
+
+do $$
+begin
+  if has_table_privilege('authenticated', 'public.push_devices', 'SELECT')
+     or has_table_privilege('authenticated', 'public.push_devices', 'INSERT')
+     or has_table_privilege('authenticated', 'public.push_devices', 'UPDATE')
+     or has_table_privilege('authenticated', 'public.push_devices', 'DELETE') then
+    raise exception 'SECURITY_INVARIANT_FAILED: push_devices must be RPC-only for authenticated clients';
+  end if;
+
+  if not has_function_privilege('authenticated', 'public.register_push_device(text,text)', 'EXECUTE')
+     or not has_function_privilege('authenticated', 'public.unregister_push_device(text)', 'EXECUTE')
+     or not has_function_privilege('authenticated', 'public.unregister_all_push_devices()', 'EXECUTE') then
+    raise exception 'SECURITY_INVARIANT_FAILED: push device RPC access is broken';
+  end if;
+end $$;
+
+do $$
 begin
   if exists (
     with public_functions as (
