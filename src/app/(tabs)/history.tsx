@@ -107,7 +107,7 @@ const eventView = (event: TimelineEvent, actorName: string): EventView => {
       const quality = payloadText(event.payload, 'quality');
       return { image: artwork.recognition, title: title || 'Я заметил', text: quality ? `${actorName} отметил качество «${quality}» и сохранил конкретный момент.` : `${actorName} заметил важный поступок другого участника команды.`, color: colors.purple, base: colors.lavender };
     }
-    default: return { image: artwork.path, title: 'Момент команды', text: `${actorName} добавил новое событие.`, ...defaultVisual };
+    default: return { title: 'Момент команды', text: `${actorName} добавил новое событие.`, ...defaultVisual };
   }
 };
 
