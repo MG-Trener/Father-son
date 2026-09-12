@@ -143,6 +143,13 @@ export async function installReleaseApk(release: AppRelease) {
   if (Platform.OS !== 'android') throw new Error('APK_INSTALL_ANDROID_ONLY');
 
   const downloadUrl = await resolveReleaseDownloadUrl(release);
+  const directory = new Directory(Paths.cache, 'papa-i-ya-updates');
+  if (!directory.exists) directory.create();
+
+  const downloaded = await File.downloadFileAsync(downloadUrl, directory, { idempotent: true });
+  if (!downloaded.exists || downloaded.size <= 0) throw new Error('APK_DOWNLOAD_FAILED');
+
+  await verifyDownloadedApk(downloaded, release);
 
   const sideLoadingEnabled = await Device.isSideLoadingEnabledAsync();
   if (!sideLoadingEnabled) {
@@ -153,14 +160,6 @@ export async function installReleaseApk(release: AppRelease) {
     const allowedAfterSettings = await Device.isSideLoadingEnabledAsync();
     if (!allowedAfterSettings) throw new Error('APK_INSTALL_PERMISSION_REQUIRED');
   }
-
-  const directory = new Directory(Paths.cache, 'papa-i-ya-updates');
-  if (!directory.exists) directory.create();
-
-  const downloaded = await File.downloadFileAsync(downloadUrl, directory, { idempotent: true });
-  if (!downloaded.exists || downloaded.size <= 0) throw new Error('APK_DOWNLOAD_FAILED');
-
-  await verifyDownloadedApk(downloaded, release);
 
   await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
     data: downloaded.contentUri,
