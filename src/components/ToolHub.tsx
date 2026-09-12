@@ -83,7 +83,7 @@ export function ToolHub({ kicker, title, subtitle, emblem, emblemImage, tools }:
               onPress={() => router.push(tool.route)}
               style={[styles.card, tool.wide && styles.cardWide, { backgroundColor: tool.base, borderColor: `${tool.ink}22` }, shadows.soft]}
             >
-              {tool.decor ? <Image pointerEvents="none" source={tool.decor} style={[styles.cardDecor, tool.wide && styles.cardDecorWide]} resizeMode="contain" /> : null}
+              {tool.decor ? <Image source={tool.decor} style={[styles.cardDecor, tool.wide && styles.cardDecorWide]} resizeMode="contain" /> : null}
               <View style={[styles.icon, { backgroundColor: tool.image ? 'rgba(255,255,255,0.66)' : tool.ink }]}>
                 {tool.image ? <Image source={tool.image} style={styles.iconImage} resizeMode="contain" /> : <Text style={styles.iconText}>{tool.icon}</Text>}
               </View>
