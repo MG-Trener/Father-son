@@ -1,6 +1,10 @@
 name: Repair Current Android Release
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repair-current-release.yml'
   workflow_dispatch:
 
 permissions:
