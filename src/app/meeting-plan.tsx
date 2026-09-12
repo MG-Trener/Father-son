@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -443,7 +444,7 @@ export default function MeetingPlanScreen() {
               </View>
               <View style={styles.routeWrap}>
                 <View style={styles.routeLine} />
-                <View style={styles.routeStar}><Text style={styles.routeStarText}>✦</Text></View>
+                <View style={styles.routeStar}><Image source={require('../../assets/generated/feature-together.png')} style={styles.routeStarImage} resizeMode="contain" /></View>
                 <View style={styles.routeLine} />
               </View>
               <View style={styles.personBox}>
@@ -483,7 +484,7 @@ export default function MeetingPlanScreen() {
             <View style={[styles.newCard, shadows.soft]}>
               <View style={styles.sectionHeader}>
                 <View><Text style={styles.sectionKicker}>НОВЫЙ ПЛАН</Text><Text style={styles.sectionTitle}>Добавить встречу</Text></View>
-                <Text style={styles.sectionIcon}>🗓️</Text>
+                <Image source={require('../../assets/generated/utility-calendar.png')} style={styles.sectionImage} resizeMode="contain" />
               </View>
               <TextInput value={date} onChangeText={setDate} placeholder="2026-09-20" placeholderTextColor={colors.mutedSoft} keyboardType="numbers-and-punctuation" style={styles.input} />
               {validDate(date) ? <Text style={styles.hint}>{prettyDate(date)}</Text> : null}
@@ -523,7 +524,7 @@ export default function MeetingPlanScreen() {
             </ScrollView>
           ) : (
             <Pressable style={[styles.emptyCard, shadows.soft]} onPress={() => setShowNewMeeting(true)}>
-              <Text style={styles.emptyIcon}>⌁</Text>
+              <View style={styles.emptyImageWrap}><Image source={require('../../assets/generated/utility-calendar.png')} style={styles.emptyImage} resizeMode="contain" /></View>
               <View style={styles.emptyCopy}><Text style={styles.emptyTitle}>Пока ничего не запланировано</Text><Text style={styles.emptyText}>Добавьте хотя бы одну маленькую общую точку впереди.</Text></View>
               <Text style={styles.emptyArrow}>→</Text>
             </Pressable>
@@ -617,7 +618,7 @@ export default function MeetingPlanScreen() {
                   style={styles.memoryButton}
                   onPress={() => router.push({ pathname: '/reflection-new', params: { prompt: `Что хочется запомнить после встречи «${selectedMeeting.title}»?` } })}
                 >
-                  <Text style={styles.memoryIcon}>✎</Text>
+                  <View style={styles.memoryIconWrap}><Image source={require('../../assets/generated/feature-book.png')} style={styles.memoryImage} resizeMode="contain" /></View>
                   <View style={styles.memoryCopy}><Text style={styles.memoryTitle}>Добавить воспоминание</Text><Text style={styles.memoryText}>Одна мысль, фраза или голосовая история.</Text></View>
                   <Text style={styles.memoryArrow}>→</Text>
                 </Pressable>
@@ -633,7 +634,7 @@ export default function MeetingPlanScreen() {
             <View style={styles.historyList}>
               {history.slice(0, 12).map((item) => (
                 <Pressable key={item.id} style={[styles.historyCard, shadows.soft]} onPress={() => setSelectedMeetingId(item.id)}>
-                  <View style={styles.historyDot}><Text style={styles.historyDotText}>✓</Text></View>
+                  <View style={styles.historyDot}><Image source={require('../../assets/generated/feature-book.png')} style={styles.historyImage} resizeMode="contain" /></View>
                   <View style={styles.historyCopy}>
                     <Text style={styles.historyDate}>{prettyDate(item.meeting_date, false)}</Text>
                     <Text style={styles.historyTitle}>{item.title}</Text>
@@ -677,8 +678,8 @@ const styles = StyleSheet.create({
   personName: { marginTop: 6, color: colors.white, fontSize: 12, fontWeight: '800' },
   routeWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8 },
   routeLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.45)' },
-  routeStar: { width: 34, height: 34, borderRadius: 17, marginHorizontal: 6, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
-  routeStarText: { color: colors.sun, fontSize: 17 },
+  routeStar: { width: 40, height: 40, borderRadius: 16, marginHorizontal: 6, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  routeStarImage: { width: 36, height: 36 },
   heroKicker: { color: '#B7D8DC', fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
   heroTitle: { color: colors.white, fontSize: 28, lineHeight: 32, fontWeight: '900', marginTop: 7, maxWidth: '90%' },
   heroDate: { color: '#D8EAEB', fontSize: 14, lineHeight: 20, fontWeight: '600', marginTop: 7 },
@@ -693,7 +694,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
   sectionKicker: { fontSize: 9, fontWeight: '900', letterSpacing: 1.4, color: colors.teal },
   sectionTitle: { marginTop: 3, color: colors.text, fontSize: 21, lineHeight: 25, fontWeight: '900' },
-  sectionIcon: { fontSize: 26 },
+  sectionImage: { width: 46, height: 46 },
   input: { minHeight: 48, borderRadius: radius.md, backgroundColor: '#F5F2EB', borderWidth: 1, borderColor: colors.lineWarm, paddingHorizontal: 14, color: colors.text, fontSize: 15, fontWeight: '600' },
   noteInput: { minHeight: 90, paddingTop: 13 },
   hint: { marginTop: -6, marginLeft: 4, color: colors.muted, fontSize: 11, fontWeight: '600' },
@@ -720,7 +721,8 @@ const styles = StyleSheet.create({
   meetingDays: { marginTop: 12, color: colors.green, fontSize: 10, fontWeight: '900' },
   meetingDaysActive: { color: colors.sun },
   emptyCard: { minHeight: 96, borderRadius: radius.lg, backgroundColor: colors.paper, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  emptyIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.mint, textAlign: 'center', textAlignVertical: 'center', color: colors.green, fontSize: 22, fontWeight: '900' },
+  emptyImageWrap: { width: 46, height: 46, borderRadius: 16, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  emptyImage: { width: 42, height: 42 },
   emptyCopy: { flex: 1 },
   emptyTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   emptyText: { marginTop: 3, color: colors.muted, fontSize: 11, lineHeight: 15 },
@@ -768,15 +770,16 @@ const styles = StyleSheet.create({
   completeSub: { color: '#D9EFE4', fontSize: 10, fontWeight: '700', marginTop: 3 },
   cancelText: { color: colors.mutedSoft, fontSize: 10, fontWeight: '800', textAlign: 'center', paddingVertical: 13 },
   memoryButton: { marginTop: 17, minHeight: 70, borderRadius: radius.md, backgroundColor: colors.sandWarm, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  memoryIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.white, textAlign: 'center', textAlignVertical: 'center', color: colors.teal, fontSize: 17, fontWeight: '900' },
+  memoryIconWrap: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  memoryImage: { width: 38, height: 38 },
   memoryCopy: { flex: 1 },
   memoryTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   memoryText: { color: colors.muted, fontSize: 10, marginTop: 2 },
   memoryArrow: { color: colors.teal, fontSize: 20 },
   historyList: { gap: 8 },
   historyCard: { minHeight: 78, borderRadius: radius.md, backgroundColor: colors.paper, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  historyDot: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
-  historyDotText: { color: colors.green, fontWeight: '900' },
+  historyDot: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  historyImage: { width: 36, height: 36 },
   historyCopy: { flex: 1 },
   historyDate: { color: colors.teal, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   historyTitle: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 },
