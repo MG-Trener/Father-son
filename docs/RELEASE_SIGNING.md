@@ -25,7 +25,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\create-android-release-keysto
 - `ANDROID_KEYSTORE_PASSWORD` — пароль keystore;
 - `ANDROID_KEY_ALIAS` — по умолчанию `papa-i-ya-release`;
 - `ANDROID_KEY_PASSWORD` — пароль ключа;
-- `SUPABASE_RELEASE_SECRET_KEY` — серверный Supabase secret key для публикации APK и записи `app_releases`.
+- `SUPABASE_RELEASE_SECRET_KEY` — серверный Supabase secret key только для записи метаданных релиза в `app_releases`.
 
 `SUPABASE_RELEASE_SECRET_KEY` нельзя помещать в `app.json`, `.env` мобильного приложения или любой `EXPO_PUBLIC_*` параметр.
 
@@ -36,12 +36,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\create-android-release-keysto
 3. Временное восстановление keystore только внутри GitHub runner.
 4. Сборка APK с постоянной подписью.
 5. Проверка сертификата через `apksigner`.
-6. Создание versioned GitHub prerelease.
-7. Загрузка подписанного APK в приватный Supabase bucket `app-releases`.
-8. Запись новой версии в `app_releases`.
+6. Создание обычного Latest GitHub Release с versioned APK asset.
+7. Запись `download_url`, версии, SHA-256 и размера в таблицу `app_releases` Supabase.
+8. Проверка `get_latest_app_release`.
 9. Удаление keystore с runner.
 
-Клиентское приложение после этого увидит новую запись через `get_latest_app_release`, получит временную signed URL и предложит установку обновления.
+APK хранится только в GitHub Releases. Supabase Storage в release pipeline не используется.
 
 ## Первый переход на постоянную подпись
 
@@ -53,6 +53,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\create-android-release-keysto
 2. удалить старую preview/debug-установку;
 3. установить первый APK с постоянной release-подписью;
 4. дальше все версии устанавливаются поверх неё без смены signing key.
+
+## Приватный репозиторий и загрузка APK
+
+Текущий `Father-son` — приватный репозиторий. GitHub Release asset в приватном репозитории требует GitHub-доступ. Если нужна полностью автоматическая загрузка APK приложением без GitHub-аутентификации, следует использовать отдельный публичный release-only репозиторий, содержащий только APK-релизы, оставив основной исходный репозиторий приватным.
 
 ## Альтернативный вариант: EAS-managed credentials
 
