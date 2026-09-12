@@ -5,6 +5,7 @@ import * as Device from 'expo-device';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { supabase } from './supabase';
+import { assertSha256Matches, bytesToHex } from './updateIntegrity';
 
 export type AppRelease = {
   version_name: string;
@@ -34,16 +35,6 @@ const currentCode = Number(Application.nativeBuildVersion ?? 0) || 0;
 const stringOrNull = (value: unknown) => typeof value === 'string' && value.length > 0 ? value : null;
 const positiveNumberOrNull = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 
-const normalizedSha256 = (value: string | null) => {
-  if (!value) return null;
-  const normalized = value.trim().toLowerCase();
-  return /^[0-9a-f]{64}$/.test(normalized) ? normalized : null;
-};
-
-const bytesToHex = (buffer: ArrayBuffer) => Array.from(new Uint8Array(buffer))
-  .map((byte) => byte.toString(16).padStart(2, '0'))
-  .join('');
-
 const deleteQuietly = (file: File) => {
   try {
     if (file.exists) file.delete();
@@ -58,23 +49,15 @@ async function verifyDownloadedApk(file: File, release: AppRelease) {
     throw new Error('APK_SIZE_MISMATCH');
   }
 
-  const expectedSha256 = normalizedSha256(release.sha256);
-  if (!release.sha256) {
-    deleteQuietly(file);
-    throw new Error('APK_SHA256_MISSING');
-  }
-  if (!expectedSha256) {
-    deleteQuietly(file);
-    throw new Error('APK_SHA256_INVALID');
-  }
-
   const bytes = await file.bytes();
   const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes);
   const actualSha256 = bytesToHex(digest);
 
-  if (actualSha256 !== expectedSha256) {
+  try {
+    assertSha256Matches(actualSha256, release.sha256);
+  } catch (error) {
     deleteQuietly(file);
-    throw new Error('APK_SHA256_MISMATCH');
+    throw error;
   }
 }
 
