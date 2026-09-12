@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -27,16 +28,16 @@ type SkillNode = {
   node_type: string;
 };
 
-type CategoryMeta = { icon: string; title: string };
+type CategoryMeta = { image: number; title: string };
 
-const fallbackMeta: CategoryMeta = { icon: '❤️', title: 'Папа & Я' };
+const fallbackMeta: CategoryMeta = { image: require('../../assets/generated/feature-together.png'), title: 'Папа & Я' };
 
 const categoryMeta: Record<string, CategoryMeta> = {
-  school: { icon: '📚', title: 'Школа' },
-  football: { icon: '⚽', title: 'Футбол' },
-  chess: { icon: '♟', title: 'Шахматы' },
-  english: { icon: 'EN', title: 'English' },
-  leadership: { icon: '🧭', title: 'Лидерство' },
+  school: { image: require('../../assets/generated/direction-school.png'), title: 'Школа' },
+  football: { image: require('../../assets/generated/direction-football.png'), title: 'Футбол' },
+  chess: { image: require('../../assets/generated/direction-chess.png'), title: 'Шахматы' },
+  english: { image: require('../../assets/generated/direction-english.png'), title: 'English' },
+  leadership: { image: require('../../assets/generated/direction-leadership.png'), title: 'Лидерство' },
   together: fallbackMeta,
 };
 
@@ -183,7 +184,7 @@ export default function MissionNewScreen() {
                 <View style={styles.heroOrb} />
                 <View style={styles.heroRing} />
                 <View style={styles.heroTopRow}>
-                  <View style={styles.iconBadge}><Text style={styles.iconText}>{meta.icon}</Text></View>
+                  <View style={styles.iconBadge}><Image source={meta.image} style={styles.iconImage} resizeMode="contain" /></View>
                   <View style={styles.xpBadge}><Text style={styles.xpText}>+{xpReward} XP</Text></View>
                 </View>
                 <Text style={styles.heroKicker}>{meta.title.toUpperCase()}</Text>
@@ -198,7 +199,7 @@ export default function MissionNewScreen() {
               <View style={[styles.formCard, shadows.soft]}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.sectionIcon, { backgroundColor: categorySoft(category) }]}>
-                    <Text style={styles.sectionIconText}>✦</Text>
+                    <Image source={meta.image} style={styles.sectionIconImage} resizeMode="contain" />
                   </View>
                   <View style={styles.sectionHeaderText}>
                     <Text style={styles.sectionTitle}>Соберём миссию</Text>
@@ -254,7 +255,7 @@ export default function MissionNewScreen() {
                 <View style={styles.routePreview}>
                   <View style={styles.routeDot} />
                   <View style={styles.routeLine} />
-                  <View style={styles.routeFlag}><Text style={styles.routeFlagText}>⚑</Text></View>
+                  <View style={styles.routeFlag}><Image source={require('../../assets/generated/utility-goal.png')} style={styles.routeFlagImage} resizeMode="contain" /></View>
                   <View style={styles.routeLine} />
                   <View style={styles.routeReward}><Text style={styles.routeRewardText}>+{xpReward}</Text></View>
                 </View>
@@ -272,7 +273,7 @@ export default function MissionNewScreen() {
               </View>
 
               <View style={styles.noteCard}>
-                <Text style={styles.noteIcon}>∞</Text>
+                <Image source={require('../../assets/generated/feature-path.png')} style={styles.noteImage} resizeMode="contain" />
                 <Text style={styles.note}>
                   {isTogether
                     ? 'Автор и второй участник смогут завершить миссию. Результат и XP попадут в общую Историю.'
@@ -300,8 +301,8 @@ const styles = StyleSheet.create({
   heroOrb: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.10)', top: -56, right: -45 },
   heroRing: { position: 'absolute', width: 95, height: 95, borderRadius: 48, borderWidth: 2, borderColor: 'rgba(255,255,255,0.12)', top: 34, right: 38 },
   heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 },
-  iconBadge: { width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center' },
-  iconText: { color: colors.white, fontSize: 27, fontWeight: '900' },
+  iconBadge: { width: 64, height: 64, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.88)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  iconImage: { width: 58, height: 58 },
   xpBadge: { backgroundColor: colors.sun, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill },
   xpText: { color: colors.navyDeep, fontWeight: '900', fontSize: 11 },
   heroKicker: { color: 'rgba(255,255,255,0.78)', fontSize: 9, fontWeight: '900', letterSpacing: 1.6 },
@@ -309,8 +310,8 @@ const styles = StyleSheet.create({
   heroCopy: { color: 'rgba(255,255,255,0.88)', fontSize: 12, lineHeight: 18, marginTop: 7, maxWidth: '94%' },
   formCard: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 18, gap: 16, borderWidth: 1, borderColor: colors.lineWarm },
   sectionHeader: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  sectionIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  sectionIconText: { color: colors.navyDeep, fontSize: 20, fontWeight: '900' },
+  sectionIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  sectionIconImage: { width: 46, height: 46 },
   sectionHeaderText: { flex: 1 },
   sectionTitle: { color: colors.navyDeep, fontSize: 19, fontWeight: '900' },
   sectionCopy: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 2 },
@@ -329,8 +330,8 @@ const styles = StyleSheet.create({
   routePreview: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
   routeDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.tealBright },
   routeLine: { flex: 1, height: 2, backgroundColor: colors.lineWarm },
-  routeFlag: { width: 34, height: 34, borderRadius: 12, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center' },
-  routeFlagText: { color: colors.orange, fontSize: 17, fontWeight: '900' },
+  routeFlag: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  routeFlagImage: { width: 38, height: 38 },
   routeReward: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
   routeRewardText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900' },
   primary: { borderRadius: radius.md, overflow: 'hidden' },
@@ -339,6 +340,6 @@ const styles = StyleSheet.create({
   primaryArrow: { color: colors.white, fontWeight: '900', fontSize: 20 },
   disabled: { opacity: 0.5 },
   noteCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EEF5F2', borderRadius: radius.lg, padding: 14 },
-  noteIcon: { color: colors.green, fontSize: 24, fontWeight: '900' },
+  noteImage: { width: 42, height: 42 },
   note: { flex: 1, color: colors.muted, fontSize: 10, lineHeight: 15 },
 });
