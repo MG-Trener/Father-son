@@ -212,7 +212,6 @@ create table if not exists private.family_invites (
 );
 
 create index if not exists idx_families_created_by on public.families(created_by);
-create index if not exists idx_family_members_user on public.family_members(user_id);
 create unique index if not exists ux_family_members_one_family_per_user on public.family_members(user_id);
 create index if not exists idx_moods_family_created on public.moods(family_id, created_at desc);
 create index if not exists idx_moods_user_id on public.moods(user_id);
@@ -244,7 +243,6 @@ create index if not exists idx_recognitions_event on public.recognitions(related
 create index if not exists idx_recognitions_family_created on public.recognitions(family_id, created_at desc);
 create index if not exists idx_recognitions_from on public.recognitions(from_user_id);
 create index if not exists idx_recognitions_to on public.recognitions(to_user_id);
-create index if not exists idx_age_seasons_family on public.age_seasons(family_id, subject_user_id, age_year);
 create index if not exists idx_age_seasons_subject on public.age_seasons(subject_user_id);
 create index if not exists idx_year_reviews_family on public.year_reviews(family_id, created_at desc);
 create index if not exists idx_year_reviews_subject on public.year_reviews(subject_user_id);
