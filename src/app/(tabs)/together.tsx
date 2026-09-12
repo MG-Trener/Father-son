@@ -9,7 +9,7 @@ export default function TogetherTab() {
       <TogetherV2 />
       <Pressable style={[styles.launcher, shadows.lift]} onPress={() => router.push('/together-tools')}>
         <View style={styles.icon}>
-          <Image source={require('../../../assets/generated/nav-together.png')} style={styles.iconImage} resizeMode="contain" />
+          <Image source={require('../../../assets/generated/feature-together.png')} style={styles.iconImage} resizeMode="contain" />
         </View>
         <View style={styles.copy}>
           <Text style={styles.kicker}>ВМЕСТЕ</Text>
