@@ -63,16 +63,32 @@ export default {
       recipientUserId = payloadText(event.payload, 'requester_user_id')
     } else if (event.event_type === 'recognition_added') {
       recipientUserId = payloadText(event.payload, 'to_user_id')
-      if (recipientUserId) {
-        const { data: recipientMember } = await ctx.supabaseAdmin.from('family_members').select('user_id').eq('family_id', event.family_id).eq('user_id', recipientUserId).maybeSingle()
-        if (!recipientMember) recipientUserId = null
-      }
     } else {
-      const { data: recipient } = await ctx.supabaseAdmin.from('family_members').select('user_id').eq('family_id', event.family_id).neq('user_id', callerId).order('joined_at', { ascending: true }).limit(1).maybeSingle()
+      const { data: recipient, error: recipientLookupError } = await ctx.supabaseAdmin
+        .from('family_members')
+        .select('user_id')
+        .eq('family_id', event.family_id)
+        .neq('user_id', callerId)
+        .order('joined_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      if (recipientLookupError) return Response.json({ error: 'RECIPIENT_LOOKUP_FAILED' }, { status: 500 })
       recipientUserId = recipient?.user_id ?? null
     }
 
     if (!recipientUserId || recipientUserId === callerId) return Response.json({ ok: true, delivered: 0, reason: 'NO_RECIPIENT' })
+
+    // Payload-controlled recipient IDs must never escape the event family. Keep this
+    // check for every event type so future notification types cannot accidentally
+    // turn the service-role device lookup into a cross-family push primitive.
+    const { data: recipientMember, error: recipientMembershipError } = await ctx.supabaseAdmin
+      .from('family_members')
+      .select('user_id')
+      .eq('family_id', event.family_id)
+      .eq('user_id', recipientUserId)
+      .maybeSingle()
+    if (recipientMembershipError) return Response.json({ error: 'RECIPIENT_MEMBERSHIP_CHECK_FAILED' }, { status: 500 })
+    if (!recipientMember) return Response.json({ ok: true, delivered: 0, reason: 'RECIPIENT_NOT_IN_FAMILY' })
 
     const [{ data: actorMember }, { data: devices, error: devicesError }] = await Promise.all([
       ctx.supabaseAdmin.from('family_members').select('display_name').eq('family_id', event.family_id).eq('user_id', callerId).maybeSingle(),
