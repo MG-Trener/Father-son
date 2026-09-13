@@ -11,6 +11,40 @@ begin
   end if;
 end $$;
 
+-- Family creation/invites must preserve the two-person team model and single-use invite semantics.
+do $$
+declare
+  create_team_definition text;
+  create_invite_definition text;
+  join_definition text;
+begin
+  select pg_get_functiondef('private.create_family_team(text,text)'::regprocedure) into create_team_definition;
+  select pg_get_functiondef('private.create_family_invite(uuid,text)'::regprocedure) into create_invite_definition;
+  select pg_get_functiondef('private.join_family_by_code(text,text,date)'::regprocedure) into join_definition;
+
+  if create_team_definition is null
+     or position('ALREADY_IN_FAMILY' in create_team_definition) = 0
+     or position('''parent''' in lower(create_team_definition)) = 0 then
+    raise exception 'DATA_INTEGRITY_INVARIANT_FAILED: create_family_team membership rules are incomplete';
+  end if;
+
+  if create_invite_definition is null
+     or position('PARENT_REQUIRED' in create_invite_definition) = 0
+     or position('FAMILY_FULL' in create_invite_definition) = 0
+     or position('fm.role = ''parent''' in lower(create_invite_definition)) = 0 then
+    raise exception 'DATA_INTEGRITY_INVARIANT_FAILED: create_family_invite parent/capacity rules are incomplete';
+  end if;
+
+  if join_definition is null
+     or position('ALREADY_IN_FAMILY' in join_definition) = 0
+     or position('INVITE_NOT_FOUND_OR_EXPIRED' in join_definition) = 0
+     or position('FAMILY_FULL' in join_definition) = 0
+     or position('for update' in lower(join_definition)) = 0
+     or position('used_at = now()' in lower(join_definition)) = 0 then
+    raise exception 'DATA_INTEGRITY_INVARIANT_FAILED: join_family_by_code single-use/capacity rules are incomplete';
+  end if;
+end $$;
+
 do $$
 begin
   if not exists (
