@@ -96,4 +96,28 @@ begin
   end if;
 end $$;
 
+-- Clients may only create user-originated timeline events. System events are RPC-only.
+do $$
+declare
+  event_check text;
+begin
+  select with_check into event_check
+  from pg_policies
+  where schemaname = 'public'
+    and tablename = 'activity_events'
+    and policyname = 'events_family_insert';
+
+  if event_check is null
+     or position('ritual_moment_added' in event_check) = 0
+     or position('weekly_focus_added' in event_check) = 0
+     or position('mood_shared' in event_check) = 0
+     or position('meeting_created' in event_check) = 0
+     or position('recognition_added' in event_check) = 0
+     or position('mission_completed' in event_check) > 0
+     or position('achievement_awarded' in event_check) > 0
+     or position('agreement_proposed' in event_check) > 0 then
+    raise exception 'ACCESS_MATRIX_INVARIANT_FAILED: direct activity event whitelist is unsafe';
+  end if;
+end $$;
+
 select 'access_matrix_invariants_ok' as result;
