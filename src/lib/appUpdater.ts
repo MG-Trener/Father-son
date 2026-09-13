@@ -27,7 +27,11 @@ const deleteQuietly = (file: File) => {
 };
 
 async function verifyDownloadedApk(file: File, release: AppRelease) {
-  if (release.size_bytes && file.size !== release.size_bytes) {
+  if (!release.size_bytes || !Number.isInteger(release.size_bytes) || release.size_bytes <= 0) {
+    deleteQuietly(file);
+    throw new Error('APK_SIZE_INVALID');
+  }
+  if (file.size !== release.size_bytes) {
     deleteQuietly(file);
     throw new Error('APK_SIZE_MISMATCH');
   }
