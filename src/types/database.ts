@@ -53,6 +53,13 @@ type NullableRpcOverrides = {
   };
 };
 
+type AppRpcAdditions = {
+  record_ritual_moment: {
+    Args: { p_ritual_id: string; p_happened_on?: string };
+    Returns: Json;
+  };
+};
+
 /**
  * App-facing database type.
  *
@@ -60,10 +67,14 @@ type NullableRpcOverrides = {
  * arguments with `DEFAULT NULL` are currently generated as optional strings,
  * even though passing SQL NULL is valid and used by the app. Keep those
  * narrow overrides here instead of editing the generated snapshot.
+ *
+ * AppRpcAdditions lets a just-deployed backwards-compatible RPC be consumed
+ * immediately; the raw snapshot is regenerated from production on the next
+ * full schema sync.
  */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<PublicSchema, 'Functions'> & {
-    Functions: Omit<GeneratedFunctions, keyof NullableRpcOverrides> & NullableRpcOverrides;
+    Functions: Omit<GeneratedFunctions, keyof NullableRpcOverrides> & NullableRpcOverrides & AppRpcAdditions;
   };
 };
 
