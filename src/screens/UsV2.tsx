@@ -7,6 +7,7 @@ import { StoryHero } from '../components/StoryHero';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { checkForAppUpdate, installReleaseApk, type UpdateStatus } from '../lib/appUpdater';
+import { getApkInstallErrorCopy } from '../lib/updateInstallError';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
 
@@ -90,8 +91,9 @@ export default function UsV2() {
     }
     try {
       await installReleaseApk(updateStatus.release);
-    } catch {
-      Alert.alert('Не удалось начать установку', 'Проверь интернет и разрешение Android на установку приложений из этого источника.');
+    } catch (caught) {
+      const copy = getApkInstallErrorCopy(caught);
+      Alert.alert(copy.title, copy.message);
     }
   };
 
