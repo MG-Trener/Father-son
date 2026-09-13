@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Image, ImageBackground, type ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { brandAssets } from '../brandAssets';
 import { colors, radius, shadows } from '../theme';
 
 type StoryHeroProps = {
@@ -21,10 +22,10 @@ const overlays = {
 } as const;
 
 const variantEmblems: Record<NonNullable<StoryHeroProps['variant']>, ImageSourcePropType> = {
-  adventure: require('../../assets/generated/badge-adventure.png'),
-  warm: require('../../assets/generated/badge-courage.png'),
-  book: require('../../assets/generated/nav-book.png'),
-  team: require('../../assets/generated/badge-team.png'),
+  adventure: brandAssets.badges.adventure,
+  warm: brandAssets.badges.courage,
+  book: brandAssets.navigation.book,
+  team: brandAssets.badges.team,
 };
 
 export function StoryHero({ kicker, title, subtitle, emblem, emblemImage, variant = 'adventure', footer }: StoryHeroProps) {
@@ -33,7 +34,7 @@ export function StoryHero({ kicker, title, subtitle, emblem, emblemImage, varian
   return (
     <View style={[styles.shell, shadows.lift]}>
       <ImageBackground
-        source={require('../../assets/generated/family-hero.png')}
+        source={brandAssets.app.familyHero}
         resizeMode="cover"
         imageStyle={styles.image}
         style={styles.background}
