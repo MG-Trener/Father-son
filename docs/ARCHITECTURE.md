@@ -39,25 +39,48 @@ Repository-модули содержат чтение/запись данных 
 
 Уже выделены:
 
-- `familyRepository.ts` — membership, family и members snapshot;
+- `familyRepository.ts` — membership, family/member snapshot, создание команды, invite и join-by-code;
 - `meetingRepository.ts` — встречи, идеи, реакции, create/complete/cancel операции;
-- `growthRepository.ts` — пути развития, шаги, миссии, журнал роста, progress и достижения.
+- `growthRepository.ts` — пути развития, шаги, миссии, журнал роста, progress и достижения;
+- `familyCultureRepository.ts` — договорённости и семейные ритуалы;
+- `memoryArchiveRepository.ts` — голосовые истории, private Storage, Future Letters;
+- `reflectionRepository.ts` — сохранение текстовых размышлений через RPC.
+
+На repositories уже переведены, в частности:
+
+- список/создание/чтение Future Letters;
+- голосовой архив и создание голосовой истории;
+- договорённости;
+- ритуалы;
+- новая миссия;
+- новая запись развития;
+- текстовое размышление.
 
 Следующие кандидаты для переноса:
-- yearbook;
-- agreements / rituals;
-- voice stories;
-- future letters.
+- агрегаты `DevelopmentV2`;
+- yearbook/history summaries;
+- connection signals / together flow;
+- оставшиеся onboarding/team-setup вызовы UI → familyRepository.
 
-### 4. Supabase client + types
+### 4. Domain layer
+
+`src/domain/` содержит чистые правила, которые не требуют React Native или Supabase и поэтому проверяются обычным `node:test`.
+
+Сейчас туда вынесены:
+- правила доступа и открытия Future Letters;
+- периодичность и дедупликация Rituals.
+
+Новые вычислимые правила следует по возможности сначала оформлять здесь, а не прятать внутри JSX.
+
+### 5. Supabase client + types
 
 - `src/lib/supabase.ts` — единственная конфигурация Supabase client;
 - `src/types/database.generated.ts` — снимок типов production-схемы;
-- `src/types/database.ts` — узкие app-facing overrides там, где PostgreSQL допускает `DEFAULT NULL`, а генератор описывает аргумент только как optional.
+- `src/types/database.ts` — узкие app-facing overrides там, где PostgreSQL допускает `DEFAULT NULL`, а генератор описывает аргумент только как optional, а также кратковременные additions для только что развёрнутых backwards-compatible RPC.
 
 После изменения схемы типы должны генерироваться заново из актуальной базы.
 
-### 5. Database business rules
+### 6. Database business rules
 
 `supabase/migrations/`, `supabase/baseline/`, PostgreSQL RLS/RPC.
 
@@ -69,7 +92,10 @@ Repository-модули содержат чтение/запись данных 
 - награды;
 - атомарные операции «основная запись + activity event»;
 - доступ к голосовым файлам;
-- неизменяемость identity/ownership полей.
+- неизменяемость identity/ownership полей;
+- идемпотентность операций, которые могут прийти с двух устройств одновременно.
+
+Пример: `record_ritual_moment()` атомарно создаёт ritual moment и activity event и не допускает второй момент для того же ритуала в тот же день.
 
 Для привилегированных операций предпочтителен public wrapper + private implementation с явными EXECUTE grants.
 
@@ -83,6 +109,8 @@ Repository-модули содержат чтение/запись данных 
 
 Таблица становится RPC-only, когда прямой write позволяет обойти бизнес-правило. Сейчас это применяется, в частности, к family membership, missions/awards, reflections insert и push devices.
 
+При миграции существующего APK на новую RPC-границу старые direct privileges могут временно сохраняться ради backward compatibility. Их следует отзывать только после обновления установленных клиентов.
+
 ### Realtime
 
 Realtime используется как сигнал «данные изменились», а не как второй источник истины. После события клиент перечитывает нужный domain snapshot из базы.
@@ -90,6 +118,18 @@ Realtime используется как сигнал «данные измен�
 ### Storage
 
 `voice-stories` остаётся private bucket. Доступ проверяется storage policies, а metadata регистрируется только после проверки существования фактического объекта.
+
+## Проверки без платной ветки
+
+Текущий zero-cost процесс описан в `docs/FREE_VERIFICATION.md` и включает:
+- migration history parity Git ↔ production;
+- baseline manifest;
+- read-only SQL invariants;
+- Security Advisor;
+- чистые Node/TypeScript tests;
+- production schema/RPC introspection.
+
+Полный clean-room restore остаётся финальной проверкой перед публичным масштабированием, но не является обязательным платным шагом на текущем этапе.
 
 ## Android updates
 
