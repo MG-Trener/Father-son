@@ -40,6 +40,26 @@ export async function listVoiceStories(
   return data ?? [];
 }
 
+export async function uploadVoiceStoryAudio(
+  client: AppSupabaseClient,
+  storagePath: string,
+  audio: ArrayBuffer,
+): Promise<void> {
+  const { error } = await client.storage
+    .from('voice-stories')
+    .upload(storagePath, audio, {
+      contentType: 'audio/mp4',
+      cacheControl: '3600',
+      upsert: false,
+    });
+  if (error) throw error;
+}
+
+export async function removeVoiceStoryAudio(client: AppSupabaseClient, storagePath: string): Promise<void> {
+  const { error } = await client.storage.from('voice-stories').remove([storagePath]);
+  if (error) throw error;
+}
+
 export async function createVoiceStorySignedUrl(
   client: AppSupabaseClient,
   storagePath: string,
