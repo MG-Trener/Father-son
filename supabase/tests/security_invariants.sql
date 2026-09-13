@@ -34,6 +34,43 @@ begin
   end if;
 end $$;
 
+-- Public RPCs must not inherit PostgreSQL's default EXECUTE TO PUBLIC.
+-- Only the app-release lookup is intentionally callable before authentication.
+do $$
+begin
+  if exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and has_function_privilege('public', p.oid, 'EXECUTE')
+  ) then
+    raise exception 'SECURITY_INVARIANT_FAILED: public RPC grants EXECUTE to PUBLIC';
+  end if;
+
+  if exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and has_function_privilege('anon', p.oid, 'EXECUTE')
+      and not (
+        p.proname = 'get_latest_app_release'
+        and pg_get_function_identity_arguments(p.oid) = 'p_platform text, p_channel text'
+      )
+  ) then
+    raise exception 'SECURITY_INVARIANT_FAILED: unexpected public RPC is executable by anon';
+  end if;
+
+  if not has_function_privilege(
+    'anon',
+    'public.get_latest_app_release(text,text)',
+    'EXECUTE'
+  ) then
+    raise exception 'SECURITY_INVARIANT_FAILED: anon app-release lookup is unavailable';
+  end if;
+end $$;
+
 do $$
 begin
   if exists (
