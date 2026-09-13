@@ -6,9 +6,16 @@ type AppSupabaseClient = SupabaseClient<Database>;
 
 export type FamilyAgreement = Tables<'family_agreements'>;
 export type AgreementConfirmation = Tables<'family_agreement_confirmations'>;
-export type FamilyRitual = Tables<'family_rituals'>;
-export type RitualMoment = Tables<'ritual_moments'>;
 export type RitualCadence = 'weekly' | 'monthly' | 'flexible';
+export type FamilyRitual = Omit<Tables<'family_rituals'>, 'cadence'> & { cadence: RitualCadence };
+export type RitualMoment = Tables<'ritual_moments'>;
+
+const normalizeRitual = (row: Tables<'family_rituals'>): FamilyRitual => {
+  if (row.cadence !== 'weekly' && row.cadence !== 'monthly' && row.cadence !== 'flexible') {
+    throw new Error(`UNSUPPORTED_RITUAL_CADENCE:${row.cadence}`);
+  }
+  return { ...row, cadence: row.cadence };
+};
 
 export async function listFamilyAgreements(client: AppSupabaseClient, familyId: string): Promise<FamilyAgreement[]> {
   const { data, error } = await client
@@ -68,7 +75,7 @@ export async function listActiveRituals(client: AppSupabaseClient, familyId: str
     .eq('active', true)
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map(normalizeRitual);
 }
 
 export async function listRitualMoments(
