@@ -10,6 +10,18 @@ export function bytesToHex(buffer: ArrayBuffer): string {
     .join('');
 }
 
+export function assertApkSizeMatches(
+  actualSize: number,
+  expectedSize: number | null | undefined,
+): void {
+  if (!expectedSize || !Number.isInteger(expectedSize) || expectedSize <= 0) {
+    throw new Error('APK_SIZE_INVALID');
+  }
+  if (!Number.isInteger(actualSize) || actualSize <= 0 || actualSize !== expectedSize) {
+    throw new Error('APK_SIZE_MISMATCH');
+  }
+}
+
 export function assertSha256Matches(
   actualSha256: string,
   expectedSha256: string | null | undefined,
