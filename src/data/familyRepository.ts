@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Tables } from '../types/database.generated';
+import type { Database, Tables } from '../types/database';
 
 export type FamilyRole = 'parent' | 'child';
 export type FamilyMember = Omit<Tables<'family_members'>, 'role'> & { role: FamilyRole };
