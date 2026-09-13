@@ -24,9 +24,10 @@ type NullableRpcOverrides = {
     Returns: Json;
   };
   create_mission: {
-    Args: Omit<GeneratedFunctions['create_mission']['Args'], 'p_assigned_to' | 'p_description' | 'p_skill_node_id'> & {
+    Args: Omit<GeneratedFunctions['create_mission']['Args'], 'p_assigned_to' | 'p_description' | 'p_due_at' | 'p_skill_node_id'> & {
       p_assigned_to?: string | null;
       p_description?: string | null;
+      p_due_at?: string | null;
       p_skill_node_id?: string | null;
     };
     Returns: Json;
