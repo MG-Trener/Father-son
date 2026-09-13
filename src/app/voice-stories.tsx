@@ -14,25 +14,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { brandAssets } from '../brandAssets';
+import {
+  createVoiceStorySignedUrl,
+  listVoiceStories,
+  type VoiceStory,
+} from '../data/memoryArchiveRepository';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, gradients, radius, shadows } from '../theme';
 
-type VoiceStory = {
-  id: string;
-  author_user_id: string;
-  title: string | null;
-  prompt: string | null;
-  storage_path: string;
-  duration_ms: number;
-  recorded_at: string;
-};
-
 const artwork = {
-  voice: require('../../assets/generated/utility-voice.png'),
-  recognition: require('../../assets/generated/utility-recognition.png'),
-  together: require('../../assets/generated/nav-together.png'),
-  book: require('../../assets/generated/nav-book.png'),
+  voice: brandAssets.utility.voice,
+  recognition: brandAssets.utility.recognition,
+  together: brandAssets.navigation.together,
+  book: brandAssets.navigation.book,
 } as const;
 
 const archiveWave = [12, 23, 17, 32, 21, 28, 14, 35, 24, 19, 30, 15];
@@ -76,25 +72,19 @@ export default function VoiceStoriesScreen() {
   const child = useMemo(() => members.find((member) => member.role === 'child'), [members]);
 
   const load = useCallback(async () => {
-    if (!supabase || !family) {
+    const client = supabase;
+    if (!client || !family) {
       setLoading(false);
       return;
     }
 
-    const { data, error } = await supabase
-      .from('voice_stories')
-      .select('id,author_user_id,title,prompt,storage_path,duration_ms,recorded_at')
-      .eq('family_id', family.id)
-      .eq('status', 'ready')
-      .order('recorded_at', { ascending: false })
-      .limit(100);
-
-    if (error) {
-      Alert.alert('Не удалось загрузить архив', error.message);
-    } else {
-      setStories((data ?? []) as VoiceStory[]);
+    try {
+      setStories(await listVoiceStories(client, family.id));
+    } catch (caught) {
+      Alert.alert('Не удалось загрузить архив', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [family]);
 
   useEffect(() => {
@@ -114,7 +104,8 @@ export default function VoiceStoriesScreen() {
   };
 
   const playStory = async (story: VoiceStory) => {
-    if (!supabase) return;
+    const client = supabase;
+    if (!client) return;
 
     if (playingId === story.id && playerStatus.playing) {
       player.pause();
@@ -123,13 +114,8 @@ export default function VoiceStoriesScreen() {
 
     setOpeningId(story.id);
     try {
-      const { data, error } = await supabase.storage
-        .from('voice-stories')
-        .createSignedUrl(story.storage_path, 10 * 60);
-      if (error) throw error;
-      if (!data?.signedUrl) throw new Error('Не удалось получить временную ссылку на запись.');
-
-      player.replace(data.signedUrl);
+      const signedUrl = await createVoiceStorySignedUrl(client, story.storage_path);
+      player.replace(signedUrl);
       setPlayingId(story.id);
       player.play();
     } catch (caught) {
