@@ -1,45 +1,23 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database, Tables } from '../types/database.generated';
 
 export type FamilyRole = 'parent' | 'child';
+export type FamilyMember = Omit<Tables<'family_members'>, 'role'> & { role: FamilyRole };
+export type FamilyTeam = Pick<Tables<'families'>, 'id' | 'name' | 'created_by' | 'created_at'>;
 
-export type FamilyMember = {
-  family_id: string;
-  user_id: string;
-  role: FamilyRole;
-  display_name: string;
-  birth_date: string | null;
-  joined_at: string;
-  onboarding_completed_at: string | null;
-};
-
-export type FamilyTeam = {
-  id: string;
-  name: string;
-  created_by: string;
-  created_at: string;
-};
+type AppSupabaseClient = SupabaseClient<Database>;
 
 const memberFields = 'family_id,user_id,role,display_name,birth_date,joined_at,onboarding_completed_at';
 const familyFields = 'id,name,created_by,created_at';
 
-const normalizeMember = (row: Record<string, unknown>): FamilyMember => ({
-  family_id: String(row.family_id),
-  user_id: String(row.user_id),
-  role: row.role === 'child' ? 'child' : 'parent',
-  display_name: String(row.display_name ?? ''),
-  birth_date: typeof row.birth_date === 'string' ? row.birth_date : null,
-  joined_at: String(row.joined_at),
-  onboarding_completed_at: typeof row.onboarding_completed_at === 'string' ? row.onboarding_completed_at : null,
-});
+const normalizeMember = (row: Tables<'family_members'>): FamilyMember => {
+  if (row.role !== 'parent' && row.role !== 'child') {
+    throw new Error(`UNSUPPORTED_FAMILY_ROLE:${row.role}`);
+  }
+  return { ...row, role: row.role };
+};
 
-const normalizeFamily = (row: Record<string, unknown>): FamilyTeam => ({
-  id: String(row.id),
-  name: String(row.name ?? ''),
-  created_by: String(row.created_by),
-  created_at: String(row.created_at),
-});
-
-export async function getMembership(client: SupabaseClient, userId: string): Promise<FamilyMember | null> {
+export async function getMembership(client: AppSupabaseClient, userId: string): Promise<FamilyMember | null> {
   const { data, error } = await client
     .from('family_members')
     .select(memberFields)
@@ -47,10 +25,10 @@ export async function getMembership(client: SupabaseClient, userId: string): Pro
     .maybeSingle();
 
   if (error) throw error;
-  return data ? normalizeMember(data as Record<string, unknown>) : null;
+  return data ? normalizeMember(data as Tables<'family_members'>) : null;
 }
 
-export async function getFamily(client: SupabaseClient, familyId: string): Promise<FamilyTeam> {
+export async function getFamily(client: AppSupabaseClient, familyId: string): Promise<FamilyTeam> {
   const { data, error } = await client
     .from('families')
     .select(familyFields)
@@ -58,10 +36,10 @@ export async function getFamily(client: SupabaseClient, familyId: string): Promi
     .single();
 
   if (error) throw error;
-  return normalizeFamily(data as Record<string, unknown>);
+  return data as FamilyTeam;
 }
 
-export async function getFamilyMembers(client: SupabaseClient, familyId: string): Promise<FamilyMember[]> {
+export async function getFamilyMembers(client: AppSupabaseClient, familyId: string): Promise<FamilyMember[]> {
   const { data, error } = await client
     .from('family_members')
     .select(memberFields)
@@ -69,10 +47,10 @@ export async function getFamilyMembers(client: SupabaseClient, familyId: string)
     .order('joined_at', { ascending: true });
 
   if (error) throw error;
-  return (data ?? []).map((row) => normalizeMember(row as Record<string, unknown>));
+  return (data ?? []).map((row) => normalizeMember(row as Tables<'family_members'>));
 }
 
-export async function getFamilySnapshot(client: SupabaseClient, userId: string) {
+export async function getFamilySnapshot(client: AppSupabaseClient, userId: string) {
   const membership = await getMembership(client, userId);
   if (!membership) return null;
 
