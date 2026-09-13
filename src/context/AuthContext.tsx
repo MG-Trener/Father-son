@@ -29,18 +29,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     let mounted = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (mounted) {
-        setSession(data.session);
-        setLoading(false);
-      }
-    });
+    let receivedAuthEvent = false;
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      receivedAuthEvent = true;
+      if (!mounted) return;
       setSession(nextSession);
       setLoading(false);
     });
+
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (mounted && !receivedAuthEvent) setSession(data.session);
+      } catch {
+        if (mounted && !receivedAuthEvent) setSession(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
 
     return () => {
       mounted = false;
@@ -55,10 +62,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signOut: async () => {
         if (!supabase) return;
 
-        if (session) {
-          await unregisterAllPushDevices();
+        try {
+          if (session) {
+            await unregisterAllPushDevices();
+          }
+        } finally {
+          await supabase.auth.signOut();
         }
-        await supabase.auth.signOut();
       },
     }),
     [session, loading],
