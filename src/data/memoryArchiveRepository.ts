@@ -1,0 +1,125 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { requireRpcString } from '../lib/rpcResult';
+import type { Database, Tables } from '../types/database';
+
+type AppSupabaseClient = SupabaseClient<Database>;
+
+export type VoiceStory = Tables<'voice_stories'>;
+export type FutureLetter = Tables<'future_letters'>;
+
+export async function listVoiceStories(
+  client: AppSupabaseClient,
+  familyId: string,
+  limit = 100,
+): Promise<VoiceStory[]> {
+  const { data, error } = await client
+    .from('voice_stories')
+    .select('*')
+    .eq('family_id', familyId)
+    .eq('status', 'ready')
+    .order('recorded_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createVoiceStorySignedUrl(
+  client: AppSupabaseClient,
+  storagePath: string,
+  expiresInSeconds = 10 * 60,
+): Promise<string> {
+  const { data, error } = await client.storage
+    .from('voice-stories')
+    .createSignedUrl(storagePath, expiresInSeconds);
+  if (error) throw error;
+  if (!data?.signedUrl) throw new Error('VOICE_SIGNED_URL_MISSING');
+  return data.signedUrl;
+}
+
+export async function registerVoiceStory(
+  client: AppSupabaseClient,
+  input: {
+    familyId: string;
+    storagePath: string;
+    durationMs: number;
+    title?: string | null;
+    prompt?: string | null;
+  },
+): Promise<string> {
+  const { data, error } = await client.rpc('register_voice_story', {
+    p_family_id: input.familyId,
+    p_storage_path: input.storagePath,
+    p_duration_ms: input.durationMs,
+    p_title: input.title ?? null,
+    p_prompt: input.prompt ?? null,
+  });
+  if (error) throw error;
+  return requireRpcString(data, 'voice_story_id', 'VOICE_STORY_RESULT_INVALID');
+}
+
+export async function listFutureLetters(client: AppSupabaseClient, familyId: string): Promise<FutureLetter[]> {
+  const { data, error } = await client
+    .from('future_letters')
+    .select('*')
+    .eq('family_id', familyId)
+    .order('unlock_at', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createFutureLetter(
+  client: AppSupabaseClient,
+  input: {
+    familyId: string;
+    recipientUserId: string;
+    title: string;
+    body: string;
+    unlockAt: string;
+  },
+): Promise<string> {
+  const { data, error } = await client.rpc('create_future_letter', {
+    p_family_id: input.familyId,
+    p_recipient_user_id: input.recipientUserId,
+    p_title: input.title,
+    p_body: input.body,
+    p_unlock_at: input.unlockAt,
+  });
+  if (error) throw error;
+  return requireRpcString(data, 'letter_id', 'FUTURE_LETTER_CREATE_RESULT_INVALID');
+}
+
+export async function updateFutureLetterDraft(
+  client: AppSupabaseClient,
+  input: {
+    letterId: string;
+    recipientUserId: string;
+    title: string;
+    body: string;
+    unlockAt: string;
+  },
+): Promise<void> {
+  const { error } = await client.rpc('update_future_letter_draft', {
+    p_letter_id: input.letterId,
+    p_recipient_user_id: input.recipientUserId,
+    p_title: input.title,
+    p_body: input.body,
+    p_unlock_at: input.unlockAt,
+  });
+  if (error) throw error;
+}
+
+export async function sealFutureLetter(client: AppSupabaseClient, letterId: string): Promise<void> {
+  const { error } = await client.rpc('seal_future_letter', { p_letter_id: letterId });
+  if (error) throw error;
+}
+
+export async function openFutureLetter(client: AppSupabaseClient, letterId: string): Promise<unknown> {
+  const { data, error } = await client.rpc('open_future_letter', { p_letter_id: letterId });
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteFutureLetterDraft(client: AppSupabaseClient, letterId: string): Promise<void> {
+  const { error } = await client.rpc('delete_future_letter_draft', { p_letter_id: letterId });
+  if (error) throw error;
+}
