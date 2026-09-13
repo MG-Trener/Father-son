@@ -6,34 +6,17 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { supabase } from './supabase';
 import { assertSha256Matches, bytesToHex } from './updateIntegrity';
+import {
+  evaluateUpdateStatus,
+  normalizeAppRelease,
+  type AppRelease,
+  type UpdateStatus,
+} from './updateRelease';
 
-export type AppRelease = {
-  version_name: string;
-  version_code: number;
-  minimum_supported_code: number;
-  title: string | null;
-  notes: string | null;
-  download_url: string | null;
-  storage_bucket: string | null;
-  storage_path: string | null;
-  sha256: string | null;
-  size_bytes: number | null;
-  published_at: string;
-};
-
-export type UpdateStatus = {
-  currentVersion: string;
-  currentCode: number;
-  release: AppRelease | null;
-  available: boolean;
-  required: boolean;
-};
+export type { AppRelease, UpdateStatus } from './updateRelease';
 
 const currentVersion = Application.nativeApplicationVersion ?? '0.0.0';
 const currentCode = Number(Application.nativeBuildVersion ?? 0) || 0;
-
-const stringOrNull = (value: unknown) => typeof value === 'string' && value.length > 0 ? value : null;
-const positiveNumberOrNull = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 
 const deleteQuietly = (file: File) => {
   try {
@@ -62,13 +45,7 @@ async function verifyDownloadedApk(file: File, release: AppRelease) {
 }
 
 export async function checkForAppUpdate(): Promise<UpdateStatus> {
-  const fallback: UpdateStatus = {
-    currentVersion,
-    currentCode,
-    release: null,
-    available: false,
-    required: false,
-  };
+  const fallback = evaluateUpdateStatus(currentVersion, currentCode, null);
 
   if (Platform.OS !== 'android' || !supabase) return fallback;
 
@@ -79,32 +56,10 @@ export async function checkForAppUpdate(): Promise<UpdateStatus> {
   if (error) throw error;
 
   const first = Array.isArray(data) ? data[0] : data;
-  if (!first || typeof first !== 'object') return fallback;
+  const release = normalizeAppRelease(first);
+  if (!release) return fallback;
 
-  const row = first as Partial<AppRelease>;
-  if (typeof row.version_code !== 'number' || typeof row.version_name !== 'string') return fallback;
-
-  const release: AppRelease = {
-    version_name: row.version_name,
-    version_code: row.version_code,
-    minimum_supported_code: typeof row.minimum_supported_code === 'number' ? row.minimum_supported_code : 1,
-    title: stringOrNull(row.title),
-    notes: stringOrNull(row.notes),
-    download_url: stringOrNull(row.download_url),
-    storage_bucket: stringOrNull(row.storage_bucket),
-    storage_path: stringOrNull(row.storage_path),
-    sha256: stringOrNull(row.sha256),
-    size_bytes: positiveNumberOrNull(row.size_bytes),
-    published_at: typeof row.published_at === 'string' ? row.published_at : new Date().toISOString(),
-  };
-
-  return {
-    currentVersion,
-    currentCode,
-    release,
-    available: release.version_code > currentCode,
-    required: currentCode < release.minimum_supported_code,
-  };
+  return evaluateUpdateStatus(currentVersion, currentCode, release);
 }
 
 async function resolveReleaseDownloadUrl(release: AppRelease) {
