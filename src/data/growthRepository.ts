@@ -4,7 +4,8 @@ import type { Database, Json, Tables } from '../types/database';
 
 type AppSupabaseClient = SupabaseClient<Database>;
 
-export type GrowthCategory = 'school' | 'football' | 'chess' | 'english' | 'leadership' | 'together';
+export type GrowthCategory = 'school' | 'football' | 'chess' | 'english' | 'leadership';
+export type MissionCategory = GrowthCategory | 'together';
 
 export type GrowthEntry = Tables<'growth_entries'>;
 export type Mission = Tables<'missions'>;
@@ -16,7 +17,7 @@ export type AchievementDefinition = Tables<'achievement_definitions'>;
 
 export type CreateMissionInput = {
   familyId: string;
-  category: GrowthCategory;
+  category: MissionCategory;
   title: string;
   description?: string | null;
   assignedTo?: string | null;
