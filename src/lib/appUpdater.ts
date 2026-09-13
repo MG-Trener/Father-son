@@ -5,7 +5,7 @@ import * as Device from 'expo-device';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { supabase } from './supabase';
-import { assertSha256Matches, bytesToHex } from './updateIntegrity';
+import { assertApkSizeMatches, assertSha256Matches, bytesToHex } from './updateIntegrity';
 import {
   evaluateUpdateStatus,
   normalizeAppRelease,
@@ -27,13 +27,11 @@ const deleteQuietly = (file: File) => {
 };
 
 async function verifyDownloadedApk(file: File, release: AppRelease) {
-  if (!release.size_bytes || !Number.isInteger(release.size_bytes) || release.size_bytes <= 0) {
+  try {
+    assertApkSizeMatches(file.size, release.size_bytes);
+  } catch (error) {
     deleteQuietly(file);
-    throw new Error('APK_SIZE_INVALID');
-  }
-  if (file.size !== release.size_bytes) {
-    deleteQuietly(file);
-    throw new Error('APK_SIZE_MISMATCH');
+    throw error;
   }
 
   const bytes = await file.bytes();
