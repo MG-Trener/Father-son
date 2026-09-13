@@ -6,6 +6,7 @@ type AppSupabaseClient = SupabaseClient<Database>;
 
 export type VoiceStory = Tables<'voice_stories'>;
 export type FutureLetter = Tables<'future_letters'>;
+export type FutureLetterDraft = FutureLetter & { body: string };
 
 export type RegisteredVoiceStory = {
   voiceStoryId: string;
@@ -84,6 +85,22 @@ export async function listFutureLetters(client: AppSupabaseClient, familyId: str
     .order('unlock_at', { ascending: true });
   if (error) throw error;
   return data ?? [];
+}
+
+export async function getFutureLetterDraft(client: AppSupabaseClient, letterId: string): Promise<FutureLetterDraft> {
+  const [letterResult, contentResult] = await Promise.all([
+    client.from('future_letters').select('*').eq('id', letterId).single(),
+    client.from('future_letter_contents').select('body').eq('letter_id', letterId).maybeSingle(),
+  ]);
+
+  if (letterResult.error) throw letterResult.error;
+  if (contentResult.error) throw contentResult.error;
+  if (!contentResult.data) throw new Error('FUTURE_LETTER_CONTENT_MISSING');
+
+  return {
+    ...letterResult.data,
+    body: contentResult.data.body,
+  };
 }
 
 export async function createFutureLetter(
