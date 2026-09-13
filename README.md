@@ -91,3 +91,5 @@ Baseline хранится отдельно от migrations намеренно: p
 ## Состояние проекта
 
 `0.4.1` — рабочая функциональная версия, а не дизайн-прототип. Основной текущий технический долг: зафиксировать npm lockfile, восстановить стабильную выдачу GitHub-hosted runner, выполнить полный clean-room restore на отдельной Supabase development branch и постепенно выносить бизнес-логику из самых крупных экранов в reusable feature/service слой.
+
+На момент последнего аудита GitHub Actions workflow корректно создаётся, но GitHub-hosted runner не назначается: job завершается до первого шага (`steps=null`). Поэтому красный Check в таком состоянии не является результатом падения unit tests, TypeScript или Expo Doctor.
