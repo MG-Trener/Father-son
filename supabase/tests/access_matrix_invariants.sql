@@ -127,6 +127,7 @@ begin
      or position('weekly_focus_added' in event_check) = 0
      or position('mood_shared' in event_check) = 0
      or position('meeting_created' in event_check) = 0
+     or position('meeting_completed' in event_check) = 0
      or position('recognition_added' in event_check) = 0
      or position('mission_completed' in event_check) > 0
      or position('achievement_awarded' in event_check) > 0
