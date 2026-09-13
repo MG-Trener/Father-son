@@ -1,5 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { brandAssets } from '../../brandAssets';
 import YearBookV2 from '../../screens/YearBookV2';
 import { colors, shadows } from '../../theme';
 
@@ -10,7 +11,7 @@ export default function YearBookTab() {
       <View style={styles.quickArchive}>
         <Pressable style={[styles.archiveButton, styles.historyButton, shadows.lift]} onPress={() => router.push('/(tabs)/history')}>
           <View style={styles.iconShellLight}>
-            <Image source={require('../../../assets/generated/nav-book.png')} style={styles.archiveImage} resizeMode="contain" />
+            <Image source={brandAssets.navigation.book} style={styles.archiveImage} resizeMode="contain" />
           </View>
           <View>
             <Text style={styles.archiveKicker}>АРХИВ</Text>
@@ -19,7 +20,7 @@ export default function YearBookTab() {
         </Pressable>
         <Pressable style={[styles.archiveButton, styles.lettersButton, shadows.lift]} onPress={() => router.push('/letters')}>
           <View style={styles.iconShellDark}>
-            <Image source={require('../../../assets/generated/utility-voice.png')} style={styles.archiveImage} resizeMode="contain" />
+            <Image source={brandAssets.utility.voice} style={styles.archiveImage} resizeMode="contain" />
           </View>
           <View>
             <Text style={styles.lettersKicker}>КАПСУЛА</Text>
