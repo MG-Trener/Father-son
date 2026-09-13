@@ -37,18 +37,17 @@
 
 Repository-модули содержат чтение/запись данных конкретного домена и возвращают понятные приложению структуры.
 
-Первый переведённый домен — семья:
-- `getMembership()`;
-- `getFamily()`;
-- `getFamilyMembers()`;
-- `getFamilySnapshot()`.
+Уже выделены:
+
+- `familyRepository.ts` — membership, family и members snapshot;
+- `meetingRepository.ts` — встречи, идеи, реакции, create/complete/cancel операции;
+- `growthRepository.ts` — пути развития, шаги, миссии, журнал роста, progress и достижения.
 
 Следующие кандидаты для переноса:
-- meetings / meeting ideas;
-- growth / missions;
 - yearbook;
 - agreements / rituals;
-- voice stories.
+- voice stories;
+- future letters.
 
 ### 4. Supabase client + types
 
