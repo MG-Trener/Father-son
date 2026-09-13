@@ -129,6 +129,7 @@ export function FamilyProvider({ children }: PropsWithChildren) {
       return;
     }
 
+    setError(null);
     setFamily(data as FamilyTeam);
   }, []);
 
@@ -154,6 +155,7 @@ export function FamilyProvider({ children }: PropsWithChildren) {
       return;
     }
 
+    setError(null);
     setMembers(nextMembers);
     setMe(nextMe);
   }, [refresh]);
