@@ -15,11 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import { brandAssets } from '../brandAssets';
+import { createGrowthEntry, type GrowthCategory } from '../data/growthRepository';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
 
-type GrowthCategory = 'school' | 'football' | 'chess' | 'english' | 'leadership';
 type EntryOption = { id: string; label: string };
 type NumberField = { key: string; label: string; placeholder: string; min: number; max: number; suffix?: string };
 type ChoiceField = { key: string; label: string; options: Array<{ id: string; label: string }> };
@@ -41,31 +42,31 @@ type FormConfig = {
 
 const configs: Record<GrowthCategory, FormConfig> = {
   school: {
-    image: require('../../assets/generated/direction-school.png'), title: 'Школа', subtitle: 'Сохраняем не только результат, но и то, как Артур к нему пришёл.', titlePlaceholder: 'Например: подготовка к контрольной по математике', notePlaceholder: 'Что было сложным? Что помогло? Что в следующий раз сделать иначе?', accent: '#DCE7F6', strong: '#477FA3', deep: '#27465F', gradient: ['#3D7195', '#294B67'],
+    image: brandAssets.directions.school, title: 'Школа', subtitle: 'Сохраняем не только результат, но и то, как Артур к нему пришёл.', titlePlaceholder: 'Например: подготовка к контрольной по математике', notePlaceholder: 'Что было сложным? Что помогло? Что в следующий раз сделать иначе?', accent: '#DCE7F6', strong: '#477FA3', deep: '#27465F', gradient: ['#3D7195', '#294B67'],
     entries: [{ id: 'goal', label: 'Цель' }, { id: 'study', label: 'Подготовка' }, { id: 'result', label: 'Результат' }, { id: 'reflection', label: 'Вывод' }],
     numbers: [{ key: 'duration_min', label: 'Время', placeholder: '30', min: 0, max: 600, suffix: 'мин' }],
     choices: [{ key: 'effort', label: 'Сколько усилий потребовалось?', options: [1, 2, 3, 4, 5].map((value) => ({ id: String(value), label: String(value) })) }],
   },
   football: {
-    image: require('../../assets/generated/direction-football.png'), title: 'Футбол', subtitle: 'Не рейтинг игрока, а личный разбор игры и командности.', titlePlaceholder: 'Например: вечерняя тренировка или матч с командой', notePlaceholder: 'Что получилось лучше всего? Что было трудно? Что хочется попробовать на следующей тренировке?', accent: '#DCEFE4', strong: '#4F8D70', deep: '#2C5942', gradient: ['#4C8D6F', '#2E6651'],
+    image: brandAssets.directions.football, title: 'Футбол', subtitle: 'Не рейтинг игрока, а личный разбор игры и командности.', titlePlaceholder: 'Например: вечерняя тренировка или матч с командой', notePlaceholder: 'Что получилось лучше всего? Что было трудно? Что хочется попробовать на следующей тренировке?', accent: '#DCEFE4', strong: '#4F8D70', deep: '#2C5942', gradient: ['#4C8D6F', '#2E6651'],
     entries: [{ id: 'training', label: 'Тренировка' }, { id: 'match', label: 'Матч' }, { id: 'teamwork', label: 'Команда' }, { id: 'tactics', label: 'Тактика' }],
     numbers: [{ key: 'duration_min', label: 'Время на поле', placeholder: '60', min: 0, max: 300, suffix: 'мин' }, { key: 'goals', label: 'Голы', placeholder: '0', min: 0, max: 30 }, { key: 'assists', label: 'Голевые передачи', placeholder: '0', min: 0, max: 30 }],
     choices: [{ key: 'confidence', label: 'Как ощущалась игра?', options: [1, 2, 3, 4, 5].map((value) => ({ id: String(value), label: String(value) })) }],
   },
   chess: {
-    image: require('../../assets/generated/direction-chess.png'), title: 'Шахматы', subtitle: 'Победы важны, но ещё важнее научиться видеть свои решения.', titlePlaceholder: 'Например: партия с папой или турнирная партия', notePlaceholder: 'Где был самый важный момент? Какой ход хочется разобрать? Что понял после партии?', accent: '#E7E2F6', strong: '#7167A8', deep: '#4C456B', gradient: ['#7167A8', '#4B456E'],
+    image: brandAssets.directions.chess, title: 'Шахматы', subtitle: 'Победы важны, но ещё важнее научиться видеть свои решения.', titlePlaceholder: 'Например: партия с папой или турнирная партия', notePlaceholder: 'Где был самый важный момент? Какой ход хочется разобрать? Что понял после партии?', accent: '#E7E2F6', strong: '#7167A8', deep: '#4C456B', gradient: ['#7167A8', '#4B456E'],
     entries: [{ id: 'game', label: 'Партия' }, { id: 'analysis', label: 'Разбор' }, { id: 'puzzle', label: 'Задачи' }, { id: 'tournament', label: 'Турнир' }],
     numbers: [{ key: 'moves', label: 'Количество ходов', placeholder: '40', min: 0, max: 500 }, { key: 'duration_min', label: 'Время', placeholder: '45', min: 0, max: 600, suffix: 'мин' }],
     choices: [{ key: 'result', label: 'Результат партии', options: [{ id: 'win', label: 'Победа' }, { id: 'draw', label: 'Ничья' }, { id: 'loss', label: 'Поражение' }] }],
   },
   english: {
-    image: require('../../assets/generated/direction-english.png'), title: 'English', subtitle: 'Следим не за идеальностью, а за тем, насколько свободнее становится речь.', titlePlaceholder: 'Например: 5 минут разговора без русского', notePlaceholder: 'Какие фразы получилось использовать? Что было трудно сказать? Что запомнилось?', accent: '#FFF0CF', strong: '#D89A2B', deep: '#74511B', gradient: ['#D89A2B', '#A9701D'],
+    image: brandAssets.directions.english, title: 'English', subtitle: 'Следим не за идеальностью, а за тем, насколько свободнее становится речь.', titlePlaceholder: 'Например: 5 минут разговора без русского', notePlaceholder: 'Какие фразы получилось использовать? Что было трудно сказать? Что запомнилось?', accent: '#FFF0CF', strong: '#D89A2B', deep: '#74511B', gradient: ['#D89A2B', '#A9701D'],
     entries: [{ id: 'speaking', label: 'Разговор' }, { id: 'lesson', label: 'Занятие' }, { id: 'vocabulary', label: 'Слова' }, { id: 'real_life', label: 'В жизни' }],
     numbers: [{ key: 'duration_min', label: 'Общее время', placeholder: '20', min: 0, max: 600, suffix: 'мин' }, { key: 'speaking_min', label: 'Говорил вслух', placeholder: '5', min: 0, max: 300, suffix: 'мин' }, { key: 'new_words', label: 'Новых слов/фраз', placeholder: '3', min: 0, max: 200 }],
     choices: [{ key: 'confidence', label: 'Насколько уверенно говорил?', options: [1, 2, 3, 4, 5].map((value) => ({ id: String(value), label: String(value) })) }],
   },
   leadership: {
-    image: require('../../assets/generated/direction-leadership.png'), title: 'Лидерство', subtitle: 'Не «быть главным», а замечать инициативу, ответственность и влияние на команду.', titlePlaceholder: 'Например: сам предложил решение в команде', notePlaceholder: 'Что произошло? Какое решение принял? Как это повлияло на других? Что понял?', accent: '#F7DDD5', strong: '#C76D5A', deep: '#70443A', gradient: ['#C76D5A', '#8F4A3E'],
+    image: brandAssets.directions.leadership, title: 'Лидерство', subtitle: 'Не «быть главным», а замечать инициативу, ответственность и влияние на команду.', titlePlaceholder: 'Например: сам предложил решение в команде', notePlaceholder: 'Что произошло? Какое решение принял? Как это повлияло на других? Что понял?', accent: '#F7DDD5', strong: '#C76D5A', deep: '#70443A', gradient: ['#C76D5A', '#8F4A3E'],
     entries: [{ id: 'initiative', label: 'Инициатива' }, { id: 'decision', label: 'Решение' }, { id: 'teamwork', label: 'Команда' }, { id: 'reflection', label: 'Вывод' }],
     numbers: [],
     choices: [{ key: 'impact', label: 'Насколько это повлияло на ситуацию?', options: [1, 2, 3, 4, 5].map((value) => ({ id: String(value), label: String(value) })) }],
@@ -95,7 +96,8 @@ export default function GrowthEntryNewScreen() {
   };
 
   const save = async () => {
-    if (!supabase || !family || !target || busy) return;
+    const client = supabase;
+    if (!client || !family || !target || busy) return;
     if (!title.trim() && !note.trim()) {
       Alert.alert('Пока пусто', 'Добавь короткий заголовок или заметку — то, что захочется вспомнить позже.');
       return;
@@ -121,17 +123,16 @@ export default function GrowthEntryNewScreen() {
 
     setBusy(true);
     try {
-      const { error } = await supabase.rpc('create_growth_entry', {
-        p_family_id: family.id,
-        p_user_id: target.user_id,
-        p_category: category,
-        p_entry_type: entryType,
-        p_activity_date: new Date().toISOString().slice(0, 10),
-        p_title: title.trim() || null,
-        p_note: note.trim() || null,
-        p_metrics: metrics,
+      await createGrowthEntry(client, {
+        familyId: family.id,
+        userId: target.user_id,
+        category,
+        entryType,
+        activityDate: new Date().toISOString().slice(0, 10),
+        title: title.trim() || null,
+        note: note.trim() || null,
+        metrics,
       });
-      if (error) throw error;
       Alert.alert('Сохранено', `Запись добавлена в «${config.title}» и в общую историю роста.`);
       router.back();
     } catch (caught) {
@@ -177,7 +178,7 @@ export default function GrowthEntryNewScreen() {
 
           {config.numbers.length ? (
             <View style={[styles.card, shadows.soft]}>
-              <View style={styles.cardHeaderRow}><View><Text style={styles.cardKicker}>ФАКТЫ</Text><Text style={styles.cardTitle}>Немного цифр</Text></View><View style={[styles.infoDot, { backgroundColor: config.accent }]}><Image source={require('../../assets/generated/utility-goal.png')} style={styles.infoImage} resizeMode="contain" /></View></View>
+              <View style={styles.cardHeaderRow}><View><Text style={styles.cardKicker}>ФАКТЫ</Text><Text style={styles.cardTitle}>Немного цифр</Text></View><View style={[styles.infoDot, { backgroundColor: config.accent }]}><Image source={brandAssets.utility.goal} style={styles.infoImage} resizeMode="contain" /></View></View>
               <Text style={styles.help}>Только если это действительно помогает помнить контекст. Все поля необязательные.</Text>
               <View style={styles.numberGrid}>
                 {config.numbers.map((field) => (
@@ -204,7 +205,7 @@ export default function GrowthEntryNewScreen() {
           ))}
 
           <View style={[styles.privateCard, { backgroundColor: config.accent }, shadows.soft]}>
-            <View style={styles.privateImageBox}><Image source={require('../../assets/generated/feature-family.png')} style={styles.privateImage} resizeMode="contain" /></View>
+            <View style={styles.privateImageBox}><Image source={brandAssets.features.family} style={styles.privateImage} resizeMode="contain" /></View>
             <View style={styles.privateCopy}><Text style={[styles.privateTitle, { color: config.deep }]}>Только для вашей команды</Text><Text style={[styles.privateText, { color: config.deep }]}>Запись не публикуется и не превращается в школьную, спортивную или личностную оценку.</Text></View>
           </View>
 
