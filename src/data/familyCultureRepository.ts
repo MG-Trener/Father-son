@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { rpcString } from '../lib/rpcResult';
+import { rpcBoolean, rpcString } from '../lib/rpcResult';
 import type { Database, Tables } from '../types/database';
 
 type AppSupabaseClient = SupabaseClient<Database>;
@@ -9,6 +9,11 @@ export type AgreementConfirmation = Tables<'family_agreement_confirmations'>;
 export type RitualCadence = 'weekly' | 'monthly' | 'flexible';
 export type FamilyRitual = Omit<Tables<'family_rituals'>, 'cadence'> & { cadence: RitualCadence };
 export type RitualMoment = Tables<'ritual_moments'>;
+
+export type RecordRitualMomentResult = {
+  alreadyRecorded: boolean;
+  eventId: string | null;
+};
 
 const normalizeRitual = (row: Tables<'family_rituals'>): FamilyRitual => {
   if (row.cadence !== 'weekly' && row.cadence !== 'monthly' && row.cadence !== 'flexible') {
@@ -120,35 +125,17 @@ export async function createRitual(
 
 export async function addRitualMoment(
   client: AppSupabaseClient,
-  input: {
-    familyId: string;
-    userId: string;
-    ritualId: string;
-    happenedOn: string;
-    ritualTitle: string;
-    ritualSymbol: string;
-  },
-): Promise<void> {
-  const { error } = await client.from('ritual_moments').insert({
-    ritual_id: input.ritualId,
-    family_id: input.familyId,
-    created_by: input.userId,
-    happened_on: input.happenedOn,
+  input: { ritualId: string; happenedOn: string },
+): Promise<RecordRitualMomentResult> {
+  const { data, error } = await client.rpc('record_ritual_moment', {
+    p_ritual_id: input.ritualId,
+    p_happened_on: input.happenedOn,
   });
   if (error) throw error;
-
-  const { error: eventError } = await client.from('activity_events').insert({
-    family_id: input.familyId,
-    actor_user_id: input.userId,
-    event_type: 'ritual_moment_added',
-    category: 'together',
-    payload: {
-      ritual_id: input.ritualId,
-      title: input.ritualTitle,
-      symbol: input.ritualSymbol,
-    },
-  });
-  if (eventError) throw eventError;
+  return {
+    alreadyRecorded: rpcBoolean(data, 'already_recorded') ?? false,
+    eventId: rpcString(data, 'event_id'),
+  };
 }
 
 export async function archiveRitual(
