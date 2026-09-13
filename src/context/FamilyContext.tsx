@@ -8,25 +8,17 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useAuth } from './AuthContext';
+import {
+  getFamily,
+  getFamilyMembers,
+  getFamilySnapshot,
+  type FamilyMember,
+  type FamilyTeam,
+} from '../data/familyRepository';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { useAuth } from './AuthContext';
 
-export type FamilyMember = {
-  family_id: string;
-  user_id: string;
-  role: 'parent' | 'child';
-  display_name: string;
-  birth_date: string | null;
-  joined_at: string;
-  onboarding_completed_at: string | null;
-};
-
-export type FamilyTeam = {
-  id: string;
-  name: string;
-  created_by: string;
-  created_at: string;
-};
+export type { FamilyMember, FamilyTeam } from '../data/familyRepository';
 
 type FamilyContextValue = {
   family: FamilyTeam | null;
@@ -57,7 +49,10 @@ export function FamilyProvider({ children }: PropsWithChildren) {
   }, []);
 
   const refresh = useCallback(async () => {
-    if (!isSupabaseConfigured || !supabase || !session) {
+    const client = supabase;
+    const userId = session?.user.id;
+
+    if (!isSupabaseConfigured || !client || !userId) {
       clear();
       setLoading(false);
       return;
@@ -67,47 +62,22 @@ export function FamilyProvider({ children }: PropsWithChildren) {
     setError(null);
 
     try {
-      const { data: membership, error: membershipError } = await supabase
-        .from('family_members')
-        .select('family_id,user_id,role,display_name,birth_date,joined_at,onboarding_completed_at')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-
-      if (membershipError) throw membershipError;
-
-      if (!membership) {
-        setFamily(null);
-        setMe(null);
-        setMembers([]);
+      const snapshot = await getFamilySnapshot(client, userId);
+      if (!snapshot) {
+        clear();
         return;
       }
 
-      const [familyResult, membersResult] = await Promise.all([
-        supabase
-          .from('families')
-          .select('id,name,created_by,created_at')
-          .eq('id', membership.family_id)
-          .single(),
-        supabase
-          .from('family_members')
-          .select('family_id,user_id,role,display_name,birth_date,joined_at,onboarding_completed_at')
-          .eq('family_id', membership.family_id)
-          .order('joined_at', { ascending: true }),
-      ]);
-
-      if (familyResult.error) throw familyResult.error;
-      if (membersResult.error) throw membersResult.error;
-
-      setFamily(familyResult.data as FamilyTeam);
-      setMe(membership as FamilyMember);
-      setMembers((membersResult.data ?? []) as FamilyMember[]);
+      setFamily(snapshot.family);
+      setMe(snapshot.me);
+      setMembers(snapshot.members);
     } catch (caught) {
       clear();
       setError(caught instanceof Error ? caught.message : 'Не удалось загрузить команду.');
     } finally {
       setLoading(false);
     }
-  }, [clear, session]);
+  }, [clear, session?.user.id]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -118,46 +88,33 @@ export function FamilyProvider({ children }: PropsWithChildren) {
     const client = supabase;
     if (!client) return;
 
-    const { data, error: familyError } = await client
-      .from('families')
-      .select('id,name,created_by,created_at')
-      .eq('id', familyId)
-      .single();
-
-    if (familyError) {
-      setError(familyError.message);
-      return;
+    try {
+      const nextFamily = await getFamily(client, familyId);
+      setError(null);
+      setFamily(nextFamily);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Не удалось обновить данные семьи.');
     }
-
-    setError(null);
-    setFamily(data as FamilyTeam);
   }, []);
 
   const refreshMembers = useCallback(async (familyId: string, userId: string) => {
     const client = supabase;
     if (!client) return;
 
-    const { data, error: membersError } = await client
-      .from('family_members')
-      .select('family_id,user_id,role,display_name,birth_date,joined_at,onboarding_completed_at')
-      .eq('family_id', familyId)
-      .order('joined_at', { ascending: true });
+    try {
+      const nextMembers = await getFamilyMembers(client, familyId);
+      const nextMe = nextMembers.find((member) => member.user_id === userId) ?? null;
+      if (!nextMe) {
+        void refresh();
+        return;
+      }
 
-    if (membersError) {
-      setError(membersError.message);
-      return;
+      setError(null);
+      setMembers(nextMembers);
+      setMe(nextMe);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Не удалось обновить состав команды.');
     }
-
-    const nextMembers = (data ?? []) as FamilyMember[];
-    const nextMe = nextMembers.find((member) => member.user_id === userId) ?? null;
-    if (!nextMe) {
-      void refresh();
-      return;
-    }
-
-    setError(null);
-    setMembers(nextMembers);
-    setMe(nextMe);
   }, [refresh]);
 
   const signalFamilyDataChanged = useCallback(() => {
