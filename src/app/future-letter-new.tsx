@@ -3,27 +3,24 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import { brandAssets } from '../brandAssets';
+import {
+  createFutureLetter,
+  deleteFutureLetterDraft,
+  getFutureLetterDraft,
+  sealFutureLetter,
+  updateFutureLetterDraft,
+} from '../data/memoryArchiveRepository';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
 
 const artwork = {
-  book: require('../../assets/generated/feature-book.png'),
-  path: require('../../assets/generated/feature-path.png'),
-  family: require('../../assets/generated/feature-family.png'),
-  goal: require('../../assets/generated/utility-goal.png'),
+  book: brandAssets.features.book,
+  path: brandAssets.features.path,
+  family: brandAssets.features.family,
+  goal: brandAssets.utility.goal,
 } as const;
-
-type LetterRow = {
-  id: string;
-  author_user_id: string;
-  recipient_user_id: string;
-  title: string;
-  unlock_at: string;
-  status: 'draft' | 'sealed';
-};
-
-type RpcResult = { letter_id?: string; status?: string };
 
 const toIsoDay = (date: Date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -90,31 +87,23 @@ export default function FutureLetterComposer() {
   const loadDraft = useCallback(async () => {
     const client = supabase;
     if (!letterId || !client || !me) return;
-    const [letterResult, contentResult] = await Promise.all([
-      client.from('future_letters').select('id,author_user_id,recipient_user_id,title,unlock_at,status').eq('id', letterId).single(),
-      client.from('future_letter_contents').select('body').eq('letter_id', letterId).maybeSingle(),
-    ]);
-    if (letterResult.error) {
-      Alert.alert('Черновик не найден', letterResult.error.message);
+    try {
+      const draft = await getFutureLetterDraft(client, letterId);
+      if (draft.author_user_id !== me.user_id || draft.status !== 'draft') {
+        Alert.alert('Письмо уже запечатано', 'После запечатывания редактировать его нельзя.');
+        router.replace('/letters');
+        return;
+      }
+      setTitle(draft.title);
+      setBody(draft.body);
+      setRecipientId(draft.recipient_user_id);
+      setUnlockDay(toIsoDay(new Date(draft.unlock_at)));
+    } catch (caught) {
+      Alert.alert('Черновик не найден', caught instanceof Error ? caught.message : 'Текст недоступен.');
       router.back();
-      return;
+    } finally {
+      setLoading(false);
     }
-    const row = letterResult.data as LetterRow;
-    if (row.author_user_id !== me.user_id || row.status !== 'draft') {
-      Alert.alert('Письмо уже запечатано', 'После запечатывания редактировать его нельзя.');
-      router.replace('/letters');
-      return;
-    }
-    if (contentResult.error || !contentResult.data) {
-      Alert.alert('Не удалось открыть черновик', contentResult.error?.message ?? 'Текст недоступен.');
-      router.back();
-      return;
-    }
-    setTitle(row.title);
-    setBody(String(contentResult.data.body ?? ''));
-    setRecipientId(row.recipient_user_id);
-    setUnlockDay(toIsoDay(new Date(row.unlock_at)));
-    setLoading(false);
   }, [letterId, me]);
 
   useEffect(() => { void loadDraft(); }, [loadDraft]);
@@ -152,25 +141,22 @@ export default function FutureLetterComposer() {
     setBusy(true);
     try {
       if (letterId) {
-        const { data, error } = await client.rpc('update_future_letter_draft', {
-          p_letter_id: letterId,
-          p_title: valid.cleanTitle,
-          p_body: valid.cleanBody,
-          p_unlock_at: valid.date.toISOString(),
-          p_recipient_user_id: recipientId,
+        await updateFutureLetterDraft(client, {
+          letterId,
+          title: valid.cleanTitle,
+          body: valid.cleanBody,
+          unlockAt: valid.date.toISOString(),
+          recipientUserId: recipientId,
         });
-        if (error) throw error;
-        return ((data ?? {}) as RpcResult).letter_id ?? letterId;
+        return letterId;
       }
-      const { data, error } = await client.rpc('create_future_letter', {
-        p_family_id: family.id,
-        p_recipient_user_id: recipientId,
-        p_title: valid.cleanTitle,
-        p_body: valid.cleanBody,
-        p_unlock_at: valid.date.toISOString(),
+      return await createFutureLetter(client, {
+        familyId: family.id,
+        recipientUserId: recipientId,
+        title: valid.cleanTitle,
+        body: valid.cleanBody,
+        unlockAt: valid.date.toISOString(),
       });
-      if (error) throw error;
-      return ((data ?? {}) as RpcResult).letter_id ?? null;
     } catch (caught) {
       Alert.alert('Не удалось сохранить письмо', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
       return null;
@@ -201,8 +187,7 @@ export default function FutureLetterComposer() {
             if (!id || !client) return;
             setBusy(true);
             try {
-              const { error } = await client.rpc('seal_future_letter', { p_letter_id: id });
-              if (error) throw error;
+              await sealFutureLetter(client, id);
               Alert.alert('Письмо запечатано', 'Теперь содержание будет ждать своей даты.', [{ text: 'Готово', onPress: () => router.replace('/letters') }]);
             } catch (caught) {
               Alert.alert('Не удалось запечатать', caught instanceof Error ? caught.message : 'Черновик сохранён, попробуй запечатать позже.');
@@ -226,8 +211,7 @@ export default function FutureLetterComposer() {
         onPress: () => void (async () => {
           setBusy(true);
           try {
-            const { error } = await client.rpc('delete_future_letter_draft', { p_letter_id: letterId });
-            if (error) throw error;
+            await deleteFutureLetterDraft(client, letterId);
             router.replace('/letters');
           } catch (caught) {
             Alert.alert('Не удалось удалить', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
