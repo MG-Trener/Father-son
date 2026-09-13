@@ -1,3 +1,7 @@
+-- Keep security/ownership/linkage fields immutable to authenticated clients.
+-- RLS still decides which rows may be edited; column privileges decide which
+-- fields inside an allowed row are client-editable.
+
 revoke update on table public.families from authenticated;
 grant update (name, timezone) on table public.families to authenticated;
 
@@ -24,4 +28,5 @@ grant update (title, description, symbol, cadence, cadence_value, active, update
   on table public.family_rituals
   to authenticated;
 
+-- Device tokens are managed only through hardened SECURITY DEFINER RPCs.
 revoke all on table public.push_devices from authenticated;

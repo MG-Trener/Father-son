@@ -11,7 +11,6 @@ with check (
     'weekly_focus_added',
     'mood_shared',
     'meeting_created',
-    'meeting_completed',
     'recognition_added'
   )
 );
