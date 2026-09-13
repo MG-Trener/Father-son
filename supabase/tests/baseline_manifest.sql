@@ -19,6 +19,13 @@ declare
     'public.year_reviews',
     'public.meetings',
     'public.meeting_ideas',
+    'public.family_rituals',
+    'public.ritual_moments',
+    'public.voice_stories',
+    'public.future_letters',
+    'public.future_letter_contents',
+    'public.family_agreements',
+    'public.family_agreement_confirmations',
     'private.family_invites'
   ];
   object_name text;
@@ -36,7 +43,8 @@ declare
     'public.ux_family_members_one_family_per_user',
     'public.missions_one_active_skill_node_idx',
     'public.achievement_awards_once_per_recipient_idx',
-    'public.skill_progress_family_id_user_id_node_id_key'
+    'public.skill_progress_family_id_user_id_node_id_key',
+    'public.ritual_moments_one_per_ritual_day_idx'
   ];
   object_name text;
 begin
@@ -66,6 +74,12 @@ begin
   end if;
   if to_regprocedure('public.complete_mission(uuid)') is null then
     raise exception 'BASELINE_MANIFEST_FAILED: public.complete_mission(uuid) missing';
+  end if;
+  if to_regprocedure('public.record_ritual_moment(uuid,date)') is null then
+    raise exception 'BASELINE_MANIFEST_FAILED: public.record_ritual_moment(uuid,date) missing';
+  end if;
+  if to_regprocedure('private.record_ritual_moment(uuid,date)') is null then
+    raise exception 'BASELINE_MANIFEST_FAILED: private.record_ritual_moment(uuid,date) missing';
   end if;
 end $$;
 
