@@ -20,14 +20,27 @@ export type UpdateStatus = {
   required: boolean;
 };
 
+const RELEASE_DOWNLOAD_PREFIX = 'https://github.com/MG-Trener/Father-son-releases/releases/download/';
+
 const stringOrNull = (value: unknown): string | null =>
   typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 
 const positiveIntegerOrNull = (value: unknown): number | null =>
   typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
 
-const positiveNumberOrNull = (value: unknown): number | null =>
-  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+const normalizeSha256 = (value: unknown): string | null => {
+  const normalized = stringOrNull(value)?.toLowerCase() ?? null;
+  return normalized && /^[0-9a-f]{64}$/.test(normalized) ? normalized : null;
+};
+
+const normalizeDirectDownloadUrl = (value: unknown): string | null => {
+  const normalized = stringOrNull(value);
+  if (!normalized) return null;
+  if (!normalized.startsWith(RELEASE_DOWNLOAD_PREFIX)) return null;
+  if (!normalized.toLowerCase().endsWith('.apk')) return null;
+  if (/[?#\s]/.test(normalized)) return null;
+  return normalized;
+};
 
 export function normalizeAppRelease(
   value: unknown,
@@ -43,17 +56,33 @@ export function normalizeAppRelease(
   const minimumSupportedCode = positiveIntegerOrNull(row.minimum_supported_code) ?? 1;
   if (minimumSupportedCode > versionCode) return null;
 
+  const rawDownloadUrl = stringOrNull(row.download_url);
+  const downloadUrl = rawDownloadUrl ? normalizeDirectDownloadUrl(rawDownloadUrl) : null;
+  if (rawDownloadUrl && !downloadUrl) return null;
+
+  const storageBucket = stringOrNull(row.storage_bucket);
+  const storagePath = stringOrNull(row.storage_path);
+  const hasAnyStorageSource = Boolean(storageBucket || storagePath);
+  const hasCompleteStorageSource = Boolean(storageBucket && storagePath);
+  if (hasAnyStorageSource && !hasCompleteStorageSource) return null;
+  if (downloadUrl && hasCompleteStorageSource) return null;
+  if (!downloadUrl && !hasCompleteStorageSource) return null;
+
+  const sha256 = normalizeSha256(row.sha256);
+  const sizeBytes = positiveIntegerOrNull(row.size_bytes);
+  if (!sha256 || !sizeBytes) return null;
+
   return {
     version_name: versionName,
     version_code: versionCode,
     minimum_supported_code: minimumSupportedCode,
     title: stringOrNull(row.title),
     notes: stringOrNull(row.notes),
-    download_url: stringOrNull(row.download_url),
-    storage_bucket: stringOrNull(row.storage_bucket),
-    storage_path: stringOrNull(row.storage_path),
-    sha256: stringOrNull(row.sha256),
-    size_bytes: positiveNumberOrNull(row.size_bytes),
+    download_url: downloadUrl,
+    storage_bucket: storageBucket,
+    storage_path: storagePath,
+    sha256,
+    size_bytes: sizeBytes,
     published_at: stringOrNull(row.published_at) ?? fallbackPublishedAt,
   };
 }
