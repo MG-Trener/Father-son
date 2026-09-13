@@ -3,33 +3,32 @@ import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { brandAssets } from '../brandAssets';
+import { listFutureLetters, type FutureLetter } from '../data/memoryArchiveRepository';
+import {
+  daysUntilFutureLetterUnlock,
+  futureLetterAccess,
+  isFutureLetterUnlocked,
+} from '../domain/futureLetters';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
 
 const artwork = {
-  book: require('../../assets/generated/feature-book.png'),
-  path: require('../../assets/generated/feature-path.png'),
-  family: require('../../assets/generated/feature-family.png'),
-  goal: require('../../assets/generated/utility-goal.png'),
+  book: brandAssets.features.book,
+  path: brandAssets.features.path,
+  family: brandAssets.features.family,
+  goal: brandAssets.utility.goal,
 } as const;
 
-type FutureLetter = {
-  id: string;
-  family_id: string;
-  author_user_id: string;
-  recipient_user_id: string;
-  title: string;
-  unlock_at: string;
-  status: 'draft' | 'sealed';
-  created_at: string;
-  sealed_at: string | null;
-  opened_at: string | null;
-};
-
-const isUnlocked = (letter: FutureLetter) => letter.status === 'sealed' && new Date(letter.unlock_at).getTime() <= Date.now();
 const prettyDate = (value: string) => new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-const daysUntil = (value: string) => Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 86_400_000));
+
+const accessFor = (letter: FutureLetter, userId: string | null | undefined) => futureLetterAccess({
+  status: letter.status,
+  unlockAt: letter.unlock_at,
+  authorUserId: letter.author_user_id,
+  recipientUserId: letter.recipient_user_id,
+}, userId);
 
 export default function LettersScreen() {
   const { family, members, me } = useFamily();
@@ -42,18 +41,18 @@ export default function LettersScreen() {
   const isChild = me?.role === 'child';
 
   const load = useCallback(async () => {
-    if (!supabase || !family) {
+    const client = supabase;
+    if (!client || !family) {
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase
-      .from('future_letters')
-      .select('id,family_id,author_user_id,recipient_user_id,title,unlock_at,status,created_at,sealed_at,opened_at')
-      .eq('family_id', family.id)
-      .order('unlock_at', { ascending: true });
-    if (error) Alert.alert('Не удалось загрузить письма', error.message);
-    else setLetters((data ?? []) as FutureLetter[]);
-    setLoading(false);
+    try {
+      setLetters(await listFutureLetters(client, family.id));
+    } catch (caught) {
+      Alert.alert('Не удалось загрузить письма', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
+    } finally {
+      setLoading(false);
+    }
   }, [family]);
 
   useEffect(() => { void load(); }, [load]);
@@ -68,16 +67,19 @@ export default function LettersScreen() {
   const sealed = letters.filter((letter) => letter.status === 'sealed');
 
   const openLetter = (letter: FutureLetter) => {
-    if (letter.status === 'draft') {
-      if (letter.author_user_id === me?.user_id) router.push({ pathname: '/future-letter-new', params: { id: letter.id } });
+    const access = accessFor(letter, me?.user_id);
+    if (access === 'draft-owner') {
+      router.push({ pathname: '/future-letter-new', params: { id: letter.id } });
       return;
     }
-    if (!isUnlocked(letter)) {
+    if (access === 'sealed-wait') {
       Alert.alert('Письмо ещё запечатано', `Оно откроется ${prettyDate(letter.unlock_at)}. До этого момента даже текст не загружается в приложение.`);
       return;
     }
-    if (me?.user_id !== letter.author_user_id && me?.user_id !== letter.recipient_user_id) {
-      Alert.alert('Это личное письмо', 'Прочитать его смогут только автор и адресат после даты открытия.');
+    if (access === 'forbidden') {
+      if (letter.status === 'sealed') {
+        Alert.alert('Это личное письмо', 'Прочитать его смогут только автор и адресат после даты открытия.');
+      }
       return;
     }
     router.push({ pathname: '/future-letter-view', params: { id: letter.id } });
@@ -127,8 +129,9 @@ export default function LettersScreen() {
           <Text style={styles.sectionTitle}>Запечатанные письма</Text>
           <View style={styles.list}>
             {sealed.map((letter) => {
-              const unlocked = isUnlocked(letter);
-              const accessible = me?.user_id === letter.author_user_id || me?.user_id === letter.recipient_user_id;
+              const access = accessFor(letter, me?.user_id);
+              const unlocked = isFutureLetterUnlocked(letter.status, letter.unlock_at);
+              const accessible = access === 'sealed-open' || access === 'sealed-wait';
               return (
                 <Pressable key={letter.id} style={[styles.letterCard, unlocked && accessible && styles.letterReady, shadows.soft]} onPress={() => openLetter(letter)}>
                   <View style={[styles.seal, unlocked && accessible && styles.sealReady]}>
@@ -137,7 +140,7 @@ export default function LettersScreen() {
                   <View style={styles.cardCopy}>
                     <Text style={styles.cardEyebrow}>{names.get(letter.author_user_id) ?? 'Автор'} → {names.get(letter.recipient_user_id) ?? 'Адресат'}</Text>
                     <Text style={styles.cardTitle}>{letter.title}</Text>
-                    <Text style={styles.cardMeta}>{unlocked ? (accessible ? 'Можно открыть сейчас' : 'Личное письмо') : `${prettyDate(letter.unlock_at)} · ещё ${daysUntil(letter.unlock_at)} дн.`}</Text>
+                    <Text style={styles.cardMeta}>{unlocked ? (accessible ? 'Можно открыть сейчас' : 'Личное письмо') : `${prettyDate(letter.unlock_at)} · ещё ${daysUntilFutureLetterUnlock(letter.unlock_at)} дн.`}</Text>
                   </View>
                   <Text style={styles.chevron}>{unlocked && accessible ? '›' : ''}</Text>
                 </Pressable>
