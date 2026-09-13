@@ -39,6 +39,21 @@ begin
   end if;
 end $$;
 
+-- Family membership creation is RPC-only so capacity and uniqueness checks cannot be bypassed.
+do $$
+begin
+  if has_table_privilege('authenticated', 'public.families', 'INSERT')
+     or has_table_privilege('authenticated', 'public.family_members', 'INSERT') then
+    raise exception 'ACCESS_MATRIX_INVARIANT_FAILED: family creation/membership must be RPC-only';
+  end if;
+
+  if not has_function_privilege('authenticated', 'public.create_family_team(text,text)', 'EXECUTE')
+     or not has_function_privilege('authenticated', 'public.join_family_by_code(text,text,date)', 'EXECUTE')
+     or not has_function_privilege('authenticated', 'public.create_family_invite(uuid,text)', 'EXECUTE') then
+    raise exception 'ACCESS_MATRIX_INVARIANT_FAILED: family membership RPC chain is unavailable';
+  end if;
+end $$;
+
 -- Mission state and achievement awards must only be directly readable by clients.
 -- Writes go through validated SECURITY DEFINER RPCs in the private schema.
 do $$
