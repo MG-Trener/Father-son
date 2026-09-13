@@ -3,45 +3,45 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import { brandAssets } from '../brandAssets';
+import { openFutureLetter, type OpenedFutureLetter } from '../data/memoryArchiveRepository';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
 
 const artwork = {
-  book: require('../../assets/generated/feature-book.png'),
-  path: require('../../assets/generated/feature-path.png'),
-  family: require('../../assets/generated/feature-family.png'),
+  book: brandAssets.features.book,
+  path: brandAssets.features.path,
+  family: brandAssets.features.family,
 } as const;
-
-type OpenedLetter = {
-  letter_id: string;
-  title: string;
-  body: string;
-  author_user_id: string;
-  recipient_user_id: string;
-  unlock_at: string;
-  opened_at: string;
-};
 
 export default function FutureLetterView() {
   const params = useLocalSearchParams<{ id?: string }>();
   const { members } = useFamily();
-  const [letter, setLetter] = useState<OpenedLetter | null>(null);
+  const [letter, setLetter] = useState<OpenedFutureLetter | null>(null);
   const [loading, setLoading] = useState(true);
   const letterId = typeof params.id === 'string' ? params.id : null;
 
   const load = useCallback(async () => {
-    if (!supabase || !letterId) {
+    const client = supabase;
+    if (!client || !letterId) {
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase.rpc('open_future_letter', { p_letter_id: letterId });
-    if (error) {
-      Alert.alert(error.message.includes('LETTER_STILL_SEALED') ? 'Письмо ещё запечатано' : 'Не удалось открыть письмо', error.message.includes('LETTER_STILL_SEALED') ? 'Его время ещё не пришло.' : error.message, [{ text: 'Назад', onPress: () => router.replace('/letters') }]);
-      return;
+
+    try {
+      setLetter(await openFutureLetter(client, letterId));
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Не удалось открыть письмо.';
+      const sealed = message.includes('LETTER_STILL_SEALED');
+      Alert.alert(
+        sealed ? 'Письмо ещё запечатано' : 'Не удалось открыть письмо',
+        sealed ? 'Его время ещё не пришло.' : message,
+        [{ text: 'Назад', onPress: () => router.replace('/letters') }],
+      );
+    } finally {
+      setLoading(false);
     }
-    setLetter(data as OpenedLetter);
-    setLoading(false);
   }, [letterId]);
 
   useEffect(() => { void load(); }, [load]);
@@ -62,20 +62,20 @@ export default function FutureLetterView() {
         <LinearGradient colors={['#173C54', '#365F70', '#D49B4B']} style={[styles.hero, shadows.lift]}>
           <View style={styles.glow} />
           <View style={styles.heroArtworkShell}><Image source={artwork.path} style={styles.heroArtwork} resizeMode="contain" /></View>
-          <Text style={styles.heroMeta}>{nameFor(letter.author_user_id)} → {nameFor(letter.recipient_user_id)}</Text>
+          <Text style={styles.heroMeta}>{nameFor(letter.authorUserId)} → {nameFor(letter.recipientUserId)}</Text>
           <Text style={styles.heroTitle}>{letter.title}</Text>
-          <Text style={styles.heroDate}>Ждало до {new Date(letter.unlock_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
+          <Text style={styles.heroDate}>Ждало до {new Date(letter.unlockAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
         </LinearGradient>
 
         <View style={[styles.paper, shadows.soft]}>
           <View style={styles.paperTop}>
-            <Text style={styles.paperTo}>Для {nameFor(letter.recipient_user_id)}</Text>
+            <Text style={styles.paperTo}>Для {nameFor(letter.recipientUserId)}</Text>
             <View style={styles.paperMark}><Image source={artwork.book} style={styles.paperMarkImage} resizeMode="contain" /></View>
           </View>
           <Text style={styles.body}>{letter.body}</Text>
           <View style={styles.signatureLine} />
-          <Text style={styles.signature}>{nameFor(letter.author_user_id)}</Text>
-          <Text style={styles.opened}>Открыто {new Date(letter.opened_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
+          <Text style={styles.signature}>{nameFor(letter.authorUserId)}</Text>
+          <Text style={styles.opened}>Открыто {new Date(letter.openedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
         </View>
 
         <View style={styles.note}>
