@@ -1,46 +1,53 @@
 import { Platform } from 'react-native';
 import * as Application from 'expo-application';
+import * as Crypto from 'expo-crypto';
 import * as Device from 'expo-device';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { supabase } from './supabase';
+import { assertApkSizeMatches, assertSha256Matches, bytesToHex } from './updateIntegrity';
+import {
+  evaluateUpdateStatus,
+  normalizeAppRelease,
+  type AppRelease,
+  type UpdateStatus,
+} from './updateRelease';
 
-export type AppRelease = {
-  version_name: string;
-  version_code: number;
-  minimum_supported_code: number;
-  title: string | null;
-  notes: string | null;
-  download_url: string | null;
-  storage_bucket: string | null;
-  storage_path: string | null;
-  sha256: string | null;
-  size_bytes: number | null;
-  published_at: string;
-};
-
-export type UpdateStatus = {
-  currentVersion: string;
-  currentCode: number;
-  release: AppRelease | null;
-  available: boolean;
-  required: boolean;
-};
+export type { AppRelease, UpdateStatus } from './updateRelease';
 
 const currentVersion = Application.nativeApplicationVersion ?? '0.0.0';
 const currentCode = Number(Application.nativeBuildVersion ?? 0) || 0;
 
-const stringOrNull = (value: unknown) => typeof value === 'string' && value.length > 0 ? value : null;
-const positiveNumberOrNull = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+const deleteQuietly = (file: File) => {
+  try {
+    if (file.exists) file.delete();
+  } catch {
+    // Cache cleanup must not hide the integrity error that caused it.
+  }
+};
+
+async function verifyDownloadedApk(file: File, release: AppRelease) {
+  try {
+    assertApkSizeMatches(file.size, release.size_bytes);
+  } catch (error) {
+    deleteQuietly(file);
+    throw error;
+  }
+
+  const bytes = await file.bytes();
+  const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes);
+  const actualSha256 = bytesToHex(digest);
+
+  try {
+    assertSha256Matches(actualSha256, release.sha256);
+  } catch (error) {
+    deleteQuietly(file);
+    throw error;
+  }
+}
 
 export async function checkForAppUpdate(): Promise<UpdateStatus> {
-  const fallback: UpdateStatus = {
-    currentVersion,
-    currentCode,
-    release: null,
-    available: false,
-    required: false,
-  };
+  const fallback = evaluateUpdateStatus(currentVersion, currentCode, null);
 
   if (Platform.OS !== 'android' || !supabase) return fallback;
 
@@ -51,32 +58,10 @@ export async function checkForAppUpdate(): Promise<UpdateStatus> {
   if (error) throw error;
 
   const first = Array.isArray(data) ? data[0] : data;
-  if (!first || typeof first !== 'object') return fallback;
+  const release = normalizeAppRelease(first);
+  if (!release) return fallback;
 
-  const row = first as Partial<AppRelease>;
-  if (typeof row.version_code !== 'number' || typeof row.version_name !== 'string') return fallback;
-
-  const release: AppRelease = {
-    version_name: row.version_name,
-    version_code: row.version_code,
-    minimum_supported_code: typeof row.minimum_supported_code === 'number' ? row.minimum_supported_code : 1,
-    title: stringOrNull(row.title),
-    notes: stringOrNull(row.notes),
-    download_url: stringOrNull(row.download_url),
-    storage_bucket: stringOrNull(row.storage_bucket),
-    storage_path: stringOrNull(row.storage_path),
-    sha256: stringOrNull(row.sha256),
-    size_bytes: positiveNumberOrNull(row.size_bytes),
-    published_at: typeof row.published_at === 'string' ? row.published_at : new Date().toISOString(),
-  };
-
-  return {
-    currentVersion,
-    currentCode,
-    release,
-    available: release.version_code > currentCode,
-    required: currentCode < release.minimum_supported_code,
-  };
+  return evaluateUpdateStatus(currentVersion, currentCode, release);
 }
 
 async function resolveReleaseDownloadUrl(release: AppRelease) {
@@ -100,6 +85,13 @@ export async function installReleaseApk(release: AppRelease) {
   if (Platform.OS !== 'android') throw new Error('APK_INSTALL_ANDROID_ONLY');
 
   const downloadUrl = await resolveReleaseDownloadUrl(release);
+  const directory = new Directory(Paths.cache, 'papa-i-ya-updates');
+  if (!directory.exists) directory.create();
+
+  const downloaded = await File.downloadFileAsync(downloadUrl, directory, { idempotent: true });
+  if (!downloaded.exists || downloaded.size <= 0) throw new Error('APK_DOWNLOAD_FAILED');
+
+  await verifyDownloadedApk(downloaded, release);
 
   const sideLoadingEnabled = await Device.isSideLoadingEnabledAsync();
   if (!sideLoadingEnabled) {
@@ -110,13 +102,6 @@ export async function installReleaseApk(release: AppRelease) {
     const allowedAfterSettings = await Device.isSideLoadingEnabledAsync();
     if (!allowedAfterSettings) throw new Error('APK_INSTALL_PERMISSION_REQUIRED');
   }
-
-  const directory = new Directory(Paths.cache, 'papa-i-ya-updates');
-  if (!directory.exists) directory.create();
-
-  const downloaded = await File.downloadFileAsync(downloadUrl, directory, { idempotent: true });
-  if (!downloaded.exists || downloaded.size <= 0) throw new Error('APK_DOWNLOAD_FAILED');
-  if (release.size_bytes && downloaded.size !== release.size_bytes) throw new Error('APK_SIZE_MISMATCH');
 
   await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
     data: downloaded.contentUri,
