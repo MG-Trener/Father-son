@@ -228,32 +228,22 @@ export default function MeetingPlanScreen() {
 
     setBusy(true);
     try {
-      const { data, error } = await client
-        .from('meetings')
-        .insert({
-          family_id: family.id,
-          created_by: session.user.id,
-          meeting_date: date,
-          title: title.trim(),
-          note: note.trim() || null,
-          status: 'planned',
-        })
-        .select('id,meeting_date,title,note,status,created_by,updated_at')
-        .single();
+      const { data, error } = await client.rpc('create_meeting_plan', {
+        p_family_id: family.id,
+        p_meeting_date: date,
+        p_title: title.trim(),
+        p_note: note.trim() || null,
+      });
       if (error) throw error;
 
-      const created = data as Meeting;
-      const eventResult = await client.from('activity_events').insert({
-        family_id: family.id,
-        actor_user_id: session.user.id,
-        event_type: 'meeting_created',
-        category: 'together',
-        payload: { meeting_id: created.id, meeting_date: created.meeting_date, title: created.title },
-      });
-      if (eventResult.error) throw eventResult.error;
+      const result = data && typeof data === 'object' && !Array.isArray(data)
+        ? data as Record<string, unknown>
+        : null;
+      const meetingId = result && typeof result.meeting_id === 'string' ? result.meeting_id : null;
+      if (!meetingId) throw new Error('MEETING_CREATE_RESULT_INVALID');
 
       resetMeetingForm();
-      setSelectedMeetingId(created.id);
+      setSelectedMeetingId(meetingId);
       await loadMeetings();
       Alert.alert('План сохранён ✦', 'Теперь у вас есть ещё одна общая точка впереди.');
     } catch (caught) {
@@ -336,22 +326,10 @@ export default function MeetingPlanScreen() {
           onPress: () => void (async () => {
             setBusy(true);
             try {
-              const now = new Date().toISOString();
-              const { error } = await client
-                .from('meetings')
-                .update({ status: 'completed', updated_at: now })
-                .eq('id', selectedMeeting.id)
-                .eq('family_id', family.id);
-              if (error) throw error;
-
-              const eventResult = await client.from('activity_events').insert({
-                family_id: family.id,
-                actor_user_id: session.user.id,
-                event_type: 'meeting_completed',
-                category: 'together',
-                payload: { meeting_id: selectedMeeting.id, meeting_date: selectedMeeting.meeting_date, title: selectedMeeting.title },
+              const { error } = await client.rpc('complete_meeting_plan', {
+                p_meeting_id: selectedMeeting.id,
               });
-              if (eventResult.error) throw eventResult.error;
+              if (error) throw error;
 
               await loadMeetings();
               Alert.alert('Встреча в истории ✦', 'Сохранить одну мысль или момент?', [
