@@ -2,19 +2,12 @@ import { useEffect, useRef } from 'react';
 import { Redirect, Tabs } from 'expo-router';
 import { Animated, Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { brandAssets } from '../../brandAssets';
 import { TeamLoadingScene } from '../../components/TeamLoadingScene';
 import { useAuth } from '../../context/AuthContext';
 import { useFamily } from '../../context/FamilyContext';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { colors, shadows } from '../../theme';
-
-const navIcons = {
-  home: require('../../../assets/generated/nav-home.png'),
-  growth: require('../../../assets/generated/nav-growth.png'),
-  together: require('../../../assets/generated/nav-together.png'),
-  book: require('../../../assets/generated/nav-book.png'),
-  us: require('../../../assets/generated/nav-us.png'),
-} satisfies Record<string, ImageSourcePropType>;
 
 type TabGlyphProps = {
   source: ImageSourcePropType;
@@ -96,35 +89,35 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Главная',
-          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.home} focused={focused} accent={colors.navy} />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={brandAssets.navigation.home} focused={focused} accent={colors.navy} />,
         }}
       />
       <Tabs.Screen
         name="development"
         options={{
           title: isChild ? 'Мой путь' : 'Развитие',
-          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.growth} focused={focused} accent={isChild ? colors.orange : colors.green} />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={brandAssets.navigation.growth} focused={focused} accent={isChild ? colors.orange : colors.green} />,
         }}
       />
       <Tabs.Screen
         name="together"
         options={{
           title: 'Вместе',
-          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.together} focused={focused} accent={colors.amber} prominent />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={brandAssets.navigation.together} focused={focused} accent={colors.amber} prominent />,
         }}
       />
       <Tabs.Screen
         name="yearbook"
         options={{
           title: 'Книга',
-          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.book} focused={focused} accent={colors.blue} />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={brandAssets.navigation.book} focused={focused} accent={colors.blue} />,
         }}
       />
       <Tabs.Screen
         name="us"
         options={{
           title: isChild ? 'Команда' : 'Мы',
-          tabBarIcon: ({ focused }) => <TabGlyph source={navIcons.us} focused={focused} accent={colors.tealBright} />,
+          tabBarIcon: ({ focused }) => <TabGlyph source={brandAssets.navigation.us} focused={focused} accent={colors.tealBright} />,
         }}
       />
       <Tabs.Screen name="history" options={{ href: null }} />
