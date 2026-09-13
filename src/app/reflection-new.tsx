@@ -14,17 +14,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import { brandAssets } from '../brandAssets';
+import { createReflection } from '../data/reflectionRepository';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, gradients, radius, shadows } from '../theme';
 
 const artwork = {
-  book: require('../../assets/generated/nav-book.png'),
-  together: require('../../assets/generated/nav-together.png'),
-  voice: require('../../assets/generated/utility-voice.png'),
-  recognition: require('../../assets/generated/utility-recognition.png'),
-  goal: require('../../assets/generated/utility-goal.png'),
+  book: brandAssets.navigation.book,
+  together: brandAssets.navigation.together,
+  voice: brandAssets.utility.voice,
+  recognition: brandAssets.utility.recognition,
+  goal: brandAssets.utility.goal,
 } as const;
 
 export default function ReflectionNewScreen() {
@@ -48,7 +50,8 @@ export default function ReflectionNewScreen() {
   );
 
   const save = async () => {
-    if (!supabase || !family || !session || busy) return;
+    const client = supabase;
+    if (!client || !family || !session || busy) return;
     const trimmed = body.trim();
     if (!trimmed) {
       Alert.alert('Пока пусто', 'Напиши хотя бы одну мысль, которую хочется сохранить.');
@@ -57,12 +60,11 @@ export default function ReflectionNewScreen() {
 
     setBusy(true);
     try {
-      const { error } = await supabase.rpc('create_reflection_entry', {
-        p_family_id: family.id,
-        p_body: trimmed,
-        p_prompt: prompt,
+      await createReflection(client, {
+        familyId: family.id,
+        body: trimmed,
+        prompt,
       });
-      if (error) throw error;
       Alert.alert(
         isStory ? 'История сохранена' : 'Ответ сохранён',
         `${other?.display_name ?? 'Второй участник'} увидит это в вашей общей Истории.`,
