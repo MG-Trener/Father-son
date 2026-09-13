@@ -1,9 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { requireRpcString } from '../lib/rpcResult';
 import type { Database, Tables } from '../types/database';
 
 export type FamilyRole = 'parent' | 'child';
 export type FamilyMember = Omit<Tables<'family_members'>, 'role'> & { role: FamilyRole };
 export type FamilyTeam = Pick<Tables<'families'>, 'id' | 'name' | 'created_by' | 'created_at'>;
+
+export type FamilyInvite = {
+  familyId: string;
+  inviteCode: string;
+  inviteExpiresAt: string;
+};
 
 type AppSupabaseClient = SupabaseClient<Database>;
 
@@ -16,6 +23,12 @@ const normalizeMember = (row: Tables<'family_members'>): FamilyMember => {
   }
   return { ...row, role: row.role };
 };
+
+const parseFamilyInvite = (data: unknown): FamilyInvite => ({
+  familyId: requireRpcString(data, 'family_id', 'FAMILY_INVITE_RESULT_INVALID'),
+  inviteCode: requireRpcString(data, 'invite_code', 'FAMILY_INVITE_RESULT_INVALID'),
+  inviteExpiresAt: requireRpcString(data, 'invite_expires_at', 'FAMILY_INVITE_RESULT_INVALID'),
+});
 
 export async function getMembership(client: AppSupabaseClient, userId: string): Promise<FamilyMember | null> {
   const { data, error } = await client
@@ -61,4 +74,41 @@ export async function getFamilySnapshot(client: AppSupabaseClient, userId: strin
 
   const me = members.find((member) => member.user_id === userId) ?? membership;
   return { family, members, me };
+}
+
+export async function createFamilyTeam(
+  client: AppSupabaseClient,
+  input: { displayName: string; familyName?: string },
+): Promise<FamilyInvite> {
+  const { data, error } = await client.rpc('create_family_team', {
+    p_display_name: input.displayName,
+    ...(input.familyName ? { p_family_name: input.familyName } : {}),
+  });
+  if (error) throw error;
+  return parseFamilyInvite(data);
+}
+
+export async function createFamilyInvite(
+  client: AppSupabaseClient,
+  familyId: string,
+  displayNameHint?: string | null,
+): Promise<FamilyInvite> {
+  const { data, error } = await client.rpc('create_family_invite', {
+    p_family_id: familyId,
+    p_display_name_hint: displayNameHint ?? null,
+  });
+  if (error) throw error;
+  return parseFamilyInvite(data);
+}
+
+export async function joinFamilyByCode(
+  client: AppSupabaseClient,
+  input: { inviteCode: string; displayName: string; birthDate?: string | null },
+): Promise<void> {
+  const { error } = await client.rpc('join_family_by_code', {
+    p_invite_code: input.inviteCode,
+    p_display_name: input.displayName,
+    p_birth_date: input.birthDate ?? null,
+  });
+  if (error) throw error;
 }
