@@ -1,9 +1,10 @@
 name: Preview Feature Branch
 
 on:
-  push:
-    branches-ignore: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: preview-feature-${{ github.ref }}
@@ -37,14 +38,6 @@ jobs:
       - name: Install dependencies and generate brand assets
         run: npm install --ignore-scripts=false
 
-      - name: Upload generated npm lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-lock-json-${{ github.sha }}
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Unit tests
         run: npm test
 
@@ -75,4 +68,4 @@ jobs:
           name: papa-i-ya-feature-preview-${{ github.sha }}
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
