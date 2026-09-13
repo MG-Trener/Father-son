@@ -29,22 +29,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     let mounted = true;
+    let receivedAuthEvent = false;
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      receivedAuthEvent = true;
+      if (!mounted) return;
+      setSession(nextSession);
+      setLoading(false);
+    });
 
     void (async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        if (mounted) setSession(data.session);
+        if (mounted && !receivedAuthEvent) setSession(data.session);
       } catch {
-        if (mounted) setSession(null);
+        if (mounted && !receivedAuthEvent) setSession(null);
       } finally {
         if (mounted) setLoading(false);
       }
     })();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setLoading(false);
-    });
 
     return () => {
       mounted = false;
