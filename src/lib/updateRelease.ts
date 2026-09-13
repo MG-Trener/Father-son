@@ -21,6 +21,8 @@ export type UpdateStatus = {
 };
 
 const RELEASE_DOWNLOAD_PREFIX = 'https://github.com/MG-Trener/Father-son-releases/releases/download/';
+const LEGACY_RELEASE_BUCKET = 'app-releases';
+const LEGACY_RELEASE_PATH_PREFIX = 'android/preview/';
 
 const stringOrNull = (value: unknown): string | null =>
   typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
@@ -38,6 +40,16 @@ const normalizeDirectDownloadUrl = (value: unknown): string | null => {
   if (!normalized) return null;
   if (!normalized.startsWith(RELEASE_DOWNLOAD_PREFIX)) return null;
   if (!normalized.toLowerCase().endsWith('.apk')) return null;
+  if (/[?#\s]/.test(normalized)) return null;
+  return normalized;
+};
+
+const normalizeLegacyStoragePath = (value: unknown): string | null => {
+  const normalized = stringOrNull(value);
+  if (!normalized) return null;
+  if (!normalized.startsWith(LEGACY_RELEASE_PATH_PREFIX)) return null;
+  if (!normalized.toLowerCase().endsWith('.apk')) return null;
+  if (normalized.includes('..') || normalized.includes('\\') || normalized.includes('//')) return null;
   if (/[?#\s]/.test(normalized)) return null;
   return normalized;
 };
@@ -60,11 +72,15 @@ export function normalizeAppRelease(
   const downloadUrl = rawDownloadUrl ? normalizeDirectDownloadUrl(rawDownloadUrl) : null;
   if (rawDownloadUrl && !downloadUrl) return null;
 
-  const storageBucket = stringOrNull(row.storage_bucket);
-  const storagePath = stringOrNull(row.storage_path);
-  const hasAnyStorageSource = Boolean(storageBucket || storagePath);
-  const hasCompleteStorageSource = Boolean(storageBucket && storagePath);
+  const rawStorageBucket = stringOrNull(row.storage_bucket);
+  const rawStoragePath = stringOrNull(row.storage_path);
+  const hasAnyStorageSource = Boolean(rawStorageBucket || rawStoragePath);
+  const hasCompleteStorageSource = Boolean(rawStorageBucket && rawStoragePath);
   if (hasAnyStorageSource && !hasCompleteStorageSource) return null;
+
+  const storageBucket = hasCompleteStorageSource ? rawStorageBucket : null;
+  const storagePath = hasCompleteStorageSource ? normalizeLegacyStoragePath(rawStoragePath) : null;
+  if (hasCompleteStorageSource && (storageBucket !== LEGACY_RELEASE_BUCKET || !storagePath)) return null;
   if (downloadUrl && hasCompleteStorageSource) return null;
   if (!downloadUrl && !hasCompleteStorageSource) return null;
 
