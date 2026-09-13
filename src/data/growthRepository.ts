@@ -50,6 +50,17 @@ export async function listSkillNodes(client: AppSupabaseClient): Promise<SkillNo
   return data ?? [];
 }
 
+export async function getSkillNode(client: AppSupabaseClient, nodeId: string): Promise<SkillNode | null> {
+  const { data, error } = await client
+    .from('skill_nodes')
+    .select('*')
+    .eq('id', nodeId)
+    .eq('hidden', false)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function listMissions(client: AppSupabaseClient, familyId: string): Promise<Mission[]> {
   const { data, error } = await client
     .from('missions')
