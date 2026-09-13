@@ -1,9 +1,10 @@
 name: Preview Feature Branch
 
 on:
-  push:
-    branches-ignore: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: preview-feature-${{ github.ref }}
@@ -21,7 +22,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -36,6 +37,9 @@ jobs:
 
       - name: Install dependencies and generate brand assets
         run: npm install --ignore-scripts=false
+
+      - name: Unit tests
+        run: npm test
 
       - name: TypeScript
         run: npm run typecheck
@@ -64,4 +68,4 @@ jobs:
           name: papa-i-ya-feature-preview-${{ github.sha }}
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
