@@ -82,10 +82,17 @@ test('normalizeAppRelease accepts a complete legacy private-storage source', () 
   assert.equal(release?.storage_path, 'android/preview/0.4.2/app.apk');
 });
 
+test('normalizeAppRelease rejects unsafe legacy storage sources', () => {
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: null, storage_bucket: 'voice-stories', storage_path: 'android/preview/0.4.2/app.apk' }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: null, storage_bucket: 'app-releases', storage_path: 'other/preview/0.4.2/app.apk' }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: null, storage_bucket: 'app-releases', storage_path: 'android/preview/../private/app.apk' }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: null, storage_bucket: 'app-releases', storage_path: 'android/preview/0.4.2/app.zip' }), null);
+});
+
 test('normalizeAppRelease rejects missing, partial, or ambiguous download sources', () => {
   assert.equal(normalizeAppRelease({ ...validRow, download_url: null }), null);
   assert.equal(normalizeAppRelease({ ...validRow, download_url: null, storage_bucket: 'app-releases', storage_path: null }), null);
-  assert.equal(normalizeAppRelease({ ...validRow, storage_bucket: 'app-releases', storage_path: 'app.apk' }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, storage_bucket: 'app-releases', storage_path: 'android/preview/0.4.2/app.apk' }), null);
 });
 
 test('evaluateUpdateStatus reports no update when release is absent', () => {
