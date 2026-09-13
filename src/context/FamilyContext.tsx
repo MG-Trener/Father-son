@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useAuth } from './AuthContext';
@@ -45,6 +46,8 @@ export function FamilyProvider({ children }: PropsWithChildren) {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState<string | null>(null);
+  const familySignalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const teamRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clear = useCallback(() => {
     setFamily(null);
@@ -111,8 +114,71 @@ export function FamilyProvider({ children }: PropsWithChildren) {
     void refresh();
   }, [authLoading, refresh]);
 
+  const refreshFamilyRecord = useCallback(async (familyId: string) => {
+    const client = supabase;
+    if (!client) return;
+
+    const { data, error: familyError } = await client
+      .from('families')
+      .select('id,name,created_by,created_at')
+      .eq('id', familyId)
+      .single();
+
+    if (familyError) {
+      setError(familyError.message);
+      return;
+    }
+
+    setError(null);
+    setFamily(data as FamilyTeam);
+  }, []);
+
+  const refreshMembers = useCallback(async (familyId: string, userId: string) => {
+    const client = supabase;
+    if (!client) return;
+
+    const { data, error: membersError } = await client
+      .from('family_members')
+      .select('family_id,user_id,role,display_name,birth_date,joined_at,onboarding_completed_at')
+      .eq('family_id', familyId)
+      .order('joined_at', { ascending: true });
+
+    if (membersError) {
+      setError(membersError.message);
+      return;
+    }
+
+    const nextMembers = (data ?? []) as FamilyMember[];
+    const nextMe = nextMembers.find((member) => member.user_id === userId) ?? null;
+    if (!nextMe) {
+      void refresh();
+      return;
+    }
+
+    setError(null);
+    setMembers(nextMembers);
+    setMe(nextMe);
+  }, [refresh]);
+
   const signalFamilyDataChanged = useCallback(() => {
-    setFamily((current) => (current ? { ...current } : current));
+    if (familySignalTimer.current) clearTimeout(familySignalTimer.current);
+    familySignalTimer.current = setTimeout(() => {
+      familySignalTimer.current = null;
+      setFamily((current) => (current ? { ...current } : current));
+    }, 80);
+  }, []);
+
+  const scheduleTeamRefresh = useCallback((familyId: string, userId: string) => {
+    if (teamRefreshTimer.current) clearTimeout(teamRefreshTimer.current);
+    teamRefreshTimer.current = setTimeout(() => {
+      teamRefreshTimer.current = null;
+      void refreshMembers(familyId, userId);
+    }, 80);
+  }, [refreshMembers]);
+
+  useEffect(() => () => {
+    if (familySignalTimer.current) clearTimeout(familySignalTimer.current);
+    if (teamRefreshTimer.current) clearTimeout(teamRefreshTimer.current);
   }, []);
 
   const familyId = family?.id ?? null;
@@ -125,9 +191,55 @@ export function FamilyProvider({ children }: PropsWithChildren) {
     const onFamilyChange = () => {
       signalFamilyDataChanged();
     };
+    const onFamilyRecordChange = () => {
+      void refreshFamilyRecord(familyId);
+    };
+    const onTeamChange = () => {
+      scheduleTeamRefresh(familyId, userId);
+    };
 
     const channel = client
       .channel(`family-live-${familyId}-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'families',
+          filter: `id=eq.${familyId}`,
+        },
+        onFamilyRecordChange,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'family_members',
+          filter: `family_id=eq.${familyId}`,
+        },
+        onTeamChange,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'family_members',
+          filter: `family_id=eq.${familyId}`,
+        },
+        onTeamChange,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'family_members',
+          filter: `family_id=eq.${familyId}`,
+        },
+        onTeamChange,
+      )
       .on(
         'postgres_changes',
         {
@@ -193,7 +305,7 @@ export function FamilyProvider({ children }: PropsWithChildren) {
     return () => {
       void client.removeChannel(channel);
     };
-  }, [familyId, signalFamilyDataChanged, userId]);
+  }, [familyId, refreshFamilyRecord, scheduleTeamRefresh, signalFamilyDataChanged, userId]);
 
   const value = useMemo<FamilyContextValue>(
     () => ({ family, me, members, loading, error, refresh }),
