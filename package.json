@@ -8,7 +8,7 @@
     "start": "expo start",
     "android": "expo start --android",
     "web": "expo start --web",
-    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts",
+    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts tests/futureLetters.test.ts tests/rituals.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
