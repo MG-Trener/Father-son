@@ -8,7 +8,7 @@ const validRow = {
   minimum_supported_code: 10,
   title: 'Обновление',
   notes: 'Исправления',
-  download_url: 'https://example.test/app.apk',
+  download_url: 'https://github.com/MG-Trener/Father-son-releases/releases/download/v0.4.2/papa-i-ya-0.4.2.apk',
   storage_bucket: null,
   storage_path: null,
   sha256: 'ab'.repeat(32),
@@ -43,7 +43,6 @@ test('normalizeAppRelease normalizes optional metadata safely', () => {
       minimum_supported_code: undefined,
       title: '',
       notes: '   ',
-      size_bytes: -1,
       published_at: '',
     },
     '2026-09-13T01:02:03.000Z',
@@ -52,8 +51,41 @@ test('normalizeAppRelease normalizes optional metadata safely', () => {
   assert.equal(release?.minimum_supported_code, 1);
   assert.equal(release?.title, null);
   assert.equal(release?.notes, null);
-  assert.equal(release?.size_bytes, null);
   assert.equal(release?.published_at, '2026-09-13T01:02:03.000Z');
+});
+
+test('normalizeAppRelease rejects incomplete integrity metadata', () => {
+  assert.equal(normalizeAppRelease({ ...validRow, sha256: null }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, sha256: 'invalid' }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, size_bytes: null }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, size_bytes: 42.5 }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, size_bytes: -1 }), null);
+});
+
+test('normalizeAppRelease rejects untrusted direct download URLs', () => {
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: 'http://github.com/MG-Trener/Father-son-releases/releases/download/v0.4.2/app.apk' }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: 'https://example.test/app.apk' }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: 'https://github.com/MG-Trener/Father-son-releases/releases/download/v0.4.2/app.zip' }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: `${validRow.download_url}?token=unexpected` }), null);
+});
+
+test('normalizeAppRelease accepts a complete legacy private-storage source', () => {
+  const release = normalizeAppRelease({
+    ...validRow,
+    download_url: null,
+    storage_bucket: 'app-releases',
+    storage_path: 'android/preview/0.4.2/app.apk',
+  });
+
+  assert.equal(release?.download_url, null);
+  assert.equal(release?.storage_bucket, 'app-releases');
+  assert.equal(release?.storage_path, 'android/preview/0.4.2/app.apk');
+});
+
+test('normalizeAppRelease rejects missing, partial, or ambiguous download sources', () => {
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: null }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, download_url: null, storage_bucket: 'app-releases', storage_path: null }), null);
+  assert.equal(normalizeAppRelease({ ...validRow, storage_bucket: 'app-releases', storage_path: 'app.apk' }), null);
 });
 
 test('evaluateUpdateStatus reports no update when release is absent', () => {
