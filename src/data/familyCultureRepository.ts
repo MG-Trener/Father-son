@@ -125,7 +125,16 @@ export async function createRitual(
 
 export async function addRitualMoment(
   client: AppSupabaseClient,
-  input: { ritualId: string; happenedOn: string },
+  input: {
+    ritualId: string;
+    happenedOn: string;
+    // Accepted temporarily so migrated callers do not need a flag-day change.
+    // The RPC derives these values from auth + the ritual row and ignores them.
+    familyId?: string;
+    userId?: string;
+    ritualTitle?: string;
+    ritualSymbol?: string;
+  },
 ): Promise<RecordRitualMomentResult> {
   const { data, error } = await client.rpc('record_ritual_moment', {
     p_ritual_id: input.ritualId,
