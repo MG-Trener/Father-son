@@ -63,6 +63,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
       - name: Require access to public release repository
         if: github.ref == 'refs/heads/main'
         shell: bash
@@ -74,24 +79,44 @@ jobs:
           gh repo view "$RELEASES_REPO" --json nameWithOwner,visibility >/dev/null
           echo "Public release repository access verified: $RELEASES_REPO"
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
+      - name: Check whether this version is already released
+        id: release_guard
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          VERSION_CODE="$(node -p "require('./app.json').expo.android.versionCode")"
+          TAG="android-v${VERSION_CODE}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists. Skipping duplicate APK build."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG does not exist. Building APK."
+          fi
 
       - name: Setup Java
+        if: steps.release_guard.outputs.needed == 'true'
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Install dependencies
+        if: steps.release_guard.outputs.needed == 'true'
         run: npm install --ignore-scripts=false
 
       - name: Generate Android project
+        if: steps.release_guard.outputs.needed == 'true'
         run: CI=1 npx expo prebuild --platform android
 
       - name: Configure persistent release signing
+        if: steps.release_guard.outputs.needed == 'true'
         id: signing
         shell: bash
         run: |
@@ -109,18 +134,20 @@ jobs:
           fi
 
       - name: Require persistent release signing
-        if: github.ref == 'refs/heads/main'
+        if: steps.release_guard.outputs.needed == 'true' && github.ref == 'refs/heads/main'
         env:
           SIGNING_READY: ${{ steps.signing.outputs.ready }}
         run: test "$SIGNING_READY" = "true"
 
       - name: Setup Gradle cache
+        if: steps.release_guard.outputs.needed == 'true'
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
           cache-read-only: false
 
       - name: Build ARM64 release APK
+        if: steps.release_guard.outputs.needed == 'true'
         working-directory: android
         shell: bash
         env:
@@ -145,6 +172,7 @@ jobs:
             "${SIGNING_ARGS[@]}" 2>&1 | tee ../gradle-build.log
 
       - name: Verify APK signing identity
+        if: steps.release_guard.outputs.needed == 'true'
         id: signing_check
         shell: bash
         run: |
@@ -162,18 +190,19 @@ jobs:
           fi
 
       - name: Require verified release signature
-        if: github.ref == 'refs/heads/main'
+        if: steps.release_guard.outputs.needed == 'true' && github.ref == 'refs/heads/main'
         env:
           RELEASE_SIGNED: ${{ steps.signing_check.outputs.release_signed }}
         run: test "$RELEASE_SIGNED" = "true"
 
       - name: Prepare release metadata
+        if: steps.release_guard.outputs.needed == 'true'
         id: release_meta
         shell: bash
         run: |
           APK="android/app/build/outputs/apk/release/app-release.apk"
-          VERSION="$(node -p "require('./app.json').expo.version")"
-          VERSION_CODE="$(node -p "require('./app.json').expo.android.versionCode")"
+          VERSION="${{ steps.release_guard.outputs.version }}"
+          VERSION_CODE="${{ steps.release_guard.outputs.version_code }}"
           SHA256="$(sha256sum "$APK" | awk '{print $1}')"
           SIZE_BYTES="$(stat -c%s "$APK")"
           RELEASE_ASSET="papa-i-ya-${VERSION}.apk"
@@ -187,7 +216,7 @@ jobs:
           echo "APK size: $SIZE_BYTES bytes"
 
       - name: Publish versioned public GitHub release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.release_guard.outputs.needed == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
           VERSION: ${{ steps.release_meta.outputs.version }}
@@ -199,10 +228,6 @@ jobs:
           set -euo pipefail
           TAG="android-v${VERSION_CODE}"
           APK="android/app/build/outputs/apk/release/app-release.apk"
-          if gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1; then
-            echo "Release $TAG already exists in $RELEASES_REPO. Increase versionCode and version before publishing another app build."
-            exit 1
-          fi
           cp "$APK" "$RELEASE_ASSET"
           cat > release-notes.md <<EOF
           Android-версия «Папа & Я» ${VERSION} (versionCode ${VERSION_CODE}).
@@ -223,7 +248,7 @@ jobs:
             --latest
 
       - name: Publish release metadata in Supabase
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.release_guard.outputs.needed == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           VERSION: ${{ steps.release_meta.outputs.version }}
           VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
@@ -233,11 +258,11 @@ jobs:
         run: node .github/scripts/publish-release-metadata.mjs
 
       - name: Clean signing material
-        if: always()
+        if: always() && steps.release_guard.outputs.needed == 'true'
         run: rm -f android/app/release.keystore
 
       - name: Upload Gradle log
-        if: always()
+        if: always() && steps.release_guard.outputs.needed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: papa-i-ya-gradle-log
@@ -246,7 +271,7 @@ jobs:
           retention-days: 7
 
       - name: Upload release APK artifact
-        if: always() && steps.release_meta.outcome == 'success'
+        if: always() && steps.release_guard.outputs.needed == 'true' && steps.release_meta.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: papa-i-ya-release-${{ steps.release_meta.outputs.version }}
