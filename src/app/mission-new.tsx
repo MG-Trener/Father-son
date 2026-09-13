@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  type ImageSourcePropType,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,33 +16,41 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import { brandAssets } from '../brandAssets';
+import {
+  createMission,
+  getSkillNode,
+  type MissionCategory,
+  type SkillNode,
+} from '../data/growthRepository';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, gradients, moduleColors, radius, shadows } from '../theme';
 
-type SkillNode = {
-  id: string;
-  path_id: string;
-  title: string;
-  description: string;
-  node_type: string;
-};
+type CategoryMeta = { image: ImageSourcePropType; title: string };
 
-type CategoryMeta = { image: number; title: string };
+const fallbackMeta: CategoryMeta = { image: brandAssets.features.together, title: 'Папа & Я' };
 
-const fallbackMeta: CategoryMeta = { image: require('../../assets/generated/feature-together.png'), title: 'Папа & Я' };
-
-const categoryMeta: Record<string, CategoryMeta> = {
-  school: { image: require('../../assets/generated/direction-school.png'), title: 'Школа' },
-  football: { image: require('../../assets/generated/direction-football.png'), title: 'Футбол' },
-  chess: { image: require('../../assets/generated/direction-chess.png'), title: 'Шахматы' },
-  english: { image: require('../../assets/generated/direction-english.png'), title: 'English' },
-  leadership: { image: require('../../assets/generated/direction-leadership.png'), title: 'Лидерство' },
+const categoryMeta: Record<MissionCategory, CategoryMeta> = {
+  school: { image: brandAssets.directions.school, title: 'Школа' },
+  football: { image: brandAssets.directions.football, title: 'Футбол' },
+  chess: { image: brandAssets.directions.chess, title: 'Шахматы' },
+  english: { image: brandAssets.directions.english, title: 'English' },
+  leadership: { image: brandAssets.directions.leadership, title: 'Лидерство' },
   together: fallbackMeta,
 };
 
-const categoryGradient = (category: string) => {
+const isMissionCategory = (value: unknown): value is MissionCategory => (
+  value === 'school'
+  || value === 'football'
+  || value === 'chess'
+  || value === 'english'
+  || value === 'leadership'
+  || value === 'together'
+);
+
+const categoryGradient = (category: MissionCategory) => {
   if (category === 'school') return gradients.school;
   if (category === 'football') return gradients.football;
   if (category === 'chess') return gradients.chess;
@@ -50,7 +59,7 @@ const categoryGradient = (category: string) => {
   return gradients.connection;
 };
 
-const categorySoft = (category: string) => {
+const categorySoft = (category: MissionCategory) => {
   if (category === 'school') return moduleColors.school.base;
   if (category === 'football') return moduleColors.football.base;
   if (category === 'chess') return moduleColors.chess.base;
@@ -78,39 +87,40 @@ export default function MissionNewScreen() {
 
   const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
   const parent = useMemo(() => members.find((member) => member.role === 'parent') ?? null, [members]);
-  const category = node?.path_id ?? (typeof params.category === 'string' ? params.category : 'together');
+  const category: MissionCategory = isMissionCategory(node?.path_id)
+    ? node.path_id
+    : isMissionCategory(params.category)
+      ? params.category
+      : 'together';
   const assignee = category === 'together'
     ? (me?.role === 'child' ? parent ?? me : child ?? me)
     : child ?? me;
-  const meta = categoryMeta[category] ?? fallbackMeta;
+  const meta = categoryMeta[category];
   const xpReward = rewardForNode(node?.node_type);
   const isTogether = category === 'together';
 
   useEffect(() => {
+    const client = supabase;
     const nodeId = typeof params.node === 'string' ? params.node : '';
-    if (!supabase || !nodeId) {
+    if (!client || !nodeId) {
       setLoading(false);
       return;
     }
 
     let mounted = true;
-    void supabase
-      .from('skill_nodes')
-      .select('id,path_id,title,description,node_type')
-      .eq('id', nodeId)
-      .eq('hidden', false)
-      .maybeSingle()
-      .then(({ data, error }) => {
+    void getSkillNode(client, nodeId)
+      .then((nextNode) => {
+        if (!mounted || !nextNode) return;
+        setNode(nextNode);
+        setTitle(nextNode.title);
+        setDescription(nextNode.description);
+      })
+      .catch((caught) => {
         if (!mounted) return;
-        if (error) {
-          Alert.alert('Не удалось открыть ступень', error.message);
-        } else if (data) {
-          const nextNode = data as SkillNode;
-          setNode(nextNode);
-          setTitle(nextNode.title);
-          setDescription(nextNode.description);
-        }
-        setLoading(false);
+        Alert.alert('Не удалось открыть ступень', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
       });
 
     return () => {
@@ -118,8 +128,9 @@ export default function MissionNewScreen() {
     };
   }, [params.node]);
 
-  const createMission = async () => {
-    if (!supabase || !family || !session || !assignee || busy) return;
+  const createMissionAction = async () => {
+    const client = supabase;
+    if (!client || !family || !session || !assignee || busy) return;
     if (!title.trim()) {
       Alert.alert('Добавь название', 'Коротко сформулируй, что нужно сделать.');
       return;
@@ -128,17 +139,16 @@ export default function MissionNewScreen() {
     setBusy(true);
     try {
       const dueAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-      const { error } = await supabase.rpc('create_mission', {
-        p_family_id: family.id,
-        p_category: category,
-        p_title: title.trim(),
-        p_description: description.trim() || null,
-        p_assigned_to: assignee.user_id,
-        p_due_at: dueAt,
-        p_xp_reward: xpReward,
-        p_skill_node_id: node?.id ?? null,
+      await createMission(client, {
+        familyId: family.id,
+        category,
+        title: title.trim(),
+        description: description.trim() || null,
+        assignedTo: assignee.user_id,
+        dueAt,
+        xpReward,
+        skillNodeId: node?.id ?? null,
       });
-      if (error) throw error;
 
       Alert.alert(
         'Миссия создана',
@@ -255,14 +265,14 @@ export default function MissionNewScreen() {
                 <View style={styles.routePreview}>
                   <View style={styles.routeDot} />
                   <View style={styles.routeLine} />
-                  <View style={styles.routeFlag}><Image source={require('../../assets/generated/utility-goal.png')} style={styles.routeFlagImage} resizeMode="contain" /></View>
+                  <View style={styles.routeFlag}><Image source={brandAssets.utility.goal} style={styles.routeFlagImage} resizeMode="contain" /></View>
                   <View style={styles.routeLine} />
                   <View style={styles.routeReward}><Text style={styles.routeRewardText}>+{xpReward}</Text></View>
                 </View>
 
                 <Pressable
                   style={[styles.primary, (!assignee || busy) && styles.disabled]}
-                  onPress={() => void createMission()}
+                  onPress={() => void createMissionAction()}
                   disabled={!assignee || busy}
                 >
                   <LinearGradient colors={categoryGradient(category)} style={styles.primaryGradient}>
@@ -273,7 +283,7 @@ export default function MissionNewScreen() {
               </View>
 
               <View style={styles.noteCard}>
-                <Image source={require('../../assets/generated/feature-path.png')} style={styles.noteImage} resizeMode="contain" />
+                <Image source={brandAssets.features.path} style={styles.noteImage} resizeMode="contain" />
                 <Text style={styles.note}>
                   {isTogether
                     ? 'Автор и второй участник смогут завершить миссию. Результат и XP попадут в общую Историю.'
