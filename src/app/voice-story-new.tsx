@@ -21,6 +21,12 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from 'expo-audio';
+import { brandAssets } from '../brandAssets';
+import {
+  registerVoiceStory,
+  removeVoiceStoryAudio,
+  uploadVoiceStoryAudio,
+} from '../data/memoryArchiveRepository';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
 import { notifyFamilyEvent } from '../lib/pushNotifications';
@@ -28,10 +34,10 @@ import { supabase } from '../lib/supabase';
 import { colors, gradients, radius, shadows } from '../theme';
 
 const artwork = {
-  voice: require('../../assets/generated/utility-voice.png'),
-  recognition: require('../../assets/generated/utility-recognition.png'),
-  together: require('../../assets/generated/nav-together.png'),
-  goal: require('../../assets/generated/utility-goal.png'),
+  voice: brandAssets.utility.voice,
+  recognition: brandAssets.utility.recognition,
+  together: brandAssets.navigation.together,
+  goal: brandAssets.utility.goal,
 } as const;
 
 const MAX_DURATION_MS = 20 * 60 * 1000;
@@ -139,7 +145,8 @@ export default function VoiceStoryNewScreen() {
   };
 
   const saveStory = async () => {
-    if (!supabase || !session || !family || !recordedUri || busy) return;
+    const client = supabase;
+    if (!client || !session || !family || !recordedUri || busy) return;
     if (recordedDuration < MIN_DURATION_MS) {
       Alert.alert('Слишком короткая запись', 'Запиши хотя бы несколько слов.');
       return;
@@ -156,36 +163,23 @@ export default function VoiceStoryNewScreen() {
 
       const suffix = cleanFileName(`${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
       const path = `${family.id}/${session.user.id}/${suffix}.m4a`;
-      const { error: uploadError } = await supabase.storage
-        .from('voice-stories')
-        .upload(path, audio, {
-          contentType: 'audio/mp4',
-          cacheControl: '3600',
-          upsert: false,
-        });
-      if (uploadError) throw uploadError;
+      await uploadVoiceStoryAudio(client, path, audio);
       uploadedPath = path;
 
-      const { data, error: registerError } = await supabase.rpc('register_voice_story', {
-        p_family_id: family.id,
-        p_storage_path: path,
-        p_duration_ms: Math.min(recordedDuration, MAX_DURATION_MS),
-        p_title: title.trim() || null,
-        p_prompt: prompt,
+      const result = await registerVoiceStory(client, {
+        familyId: family.id,
+        storagePath: path,
+        durationMs: Math.min(recordedDuration, MAX_DURATION_MS),
+        title: title.trim() || null,
+        prompt,
       });
-      if (registerError) throw registerError;
-
-      const result = data && typeof data === 'object' && !Array.isArray(data)
-        ? data as Record<string, unknown>
-        : {};
-      const eventId = typeof result.event_id === 'string' ? result.event_id : null;
-      if (eventId) void notifyFamilyEvent(eventId);
+      if (result.eventId) void notifyFamilyEvent(result.eventId);
 
       Alert.alert('Голосовая история сохранена', `${otherName} увидит её в вашей общей истории.`);
       router.back();
     } catch (caught) {
       if (uploadedPath) {
-        await supabase.storage.from('voice-stories').remove([uploadedPath]).catch(() => undefined);
+        await removeVoiceStoryAudio(client, uploadedPath).catch(() => undefined);
       }
       const message = caught instanceof Error ? caught.message : 'Попробуй ещё раз.';
       Alert.alert(
