@@ -172,7 +172,7 @@ export default function TodayScreen() {
         </View>
 
         <View style={[styles.hero, shadows.lift]}>
-          <ImageBackground source={require('../../assets/generated/family-hero.png')} resizeMode="cover" style={styles.heroBackground} imageStyle={styles.heroImage}>
+          <ImageBackground source={require('../../assets/generated/family-hero.webp')} resizeMode="cover" style={styles.heroBackground} imageStyle={styles.heroImage}>
             <LinearGradient colors={['rgba(5,29,39,0.22)', 'rgba(6,37,48,0.72)', 'rgba(5,24,33,0.96)']} locations={[0, 0.48, 1]} style={styles.heroOverlay}>
               <View style={styles.heroGlow} />
               <View style={styles.heroTopRow}>
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   topTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 1 },
   hero: { minHeight: 290, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.night },
   heroBackground: { flex: 1, minHeight: 290 },
-  heroImage: { borderRadius: radius.xl },
+  heroImage: { width: '100%', height: '100%', borderRadius: radius.xl },
   heroOverlay: { flex: 1, minHeight: 290, padding: 21, justifyContent: 'space-between' },
   heroGlow: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,215,106,0.10)', right: -70, top: -75 },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },

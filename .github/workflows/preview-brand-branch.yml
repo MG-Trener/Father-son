@@ -1,4 +1,4 @@
-name: Preview Feature Branch
+name: Signed Test APK
 
 on:
   workflow_dispatch:
@@ -41,6 +41,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Check image assets
+        run: npm run check:assets
+
       - name: TypeScript
         run: npm run typecheck
 
@@ -50,22 +53,57 @@ jobs:
       - name: Generate Android project
         run: CI=1 npx expo prebuild --platform android
 
-      - name: Build ARM64 preview APK
+      - name: Build signed ARM64 test APK
         working-directory: android
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/release.keystore
+          chmod 600 app/release.keystore
+          trap 'rm -f app/release.keystore' EXIT
           chmod +x gradlew
           ./gradlew :app:assembleRelease \
             -PreactNativeArchitectures=arm64-v8a \
+            "-Pandroid.injected.signing.store.file=$PWD/app/release.keystore" \
+            "-Pandroid.injected.signing.store.password=$ANDROID_KEYSTORE_PASSWORD" \
+            "-Pandroid.injected.signing.key.alias=$ANDROID_KEY_ALIAS" \
+            "-Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD" \
             --no-daemon \
             --max-workers=2 \
             --build-cache \
             --stacktrace \
             --console=plain
 
-      - name: Upload preview APK
+      - name: Verify signing identity and prepare download
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          BUILD_TOOLS_VERSION="$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          CERT_INFO="$("$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner" verify --print-certs "$APK")"
+          echo "$CERT_INFO"
+          echo "$CERT_INFO" | grep -F 'd87825e9cd301fb6001f4529a6719165e9ab953a47a9782e81009f98a11d988d'
+          mkdir -p test-apk
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          CODE="$(node -p "require('./app.json').expo.android.versionCode")"
+          cp "$APK" "test-apk/papa-i-ya-${VERSION}-${CODE}.apk"
+          (cd test-apk && sha256sum *.apk > SHA256SUMS.txt)
+          echo "Source commit: $GITHUB_SHA" > test-apk/BUILD.txt
+          echo "Signed test build; not published to the in-app update catalog." >> test-apk/BUILD.txt
+
+      - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
-          name: papa-i-ya-feature-preview-${{ github.sha }}
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: papa-i-ya-signed-test-${{ github.sha }}
+          path: test-apk/
           if-no-files-found: error
           retention-days: 7

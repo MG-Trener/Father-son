@@ -70,7 +70,7 @@ export default function SignInScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={[styles.hero, shadows.lift]}>
             <ImageBackground
-              source={require('../../assets/generated/family-hero.png')}
+              source={require('../../assets/generated/family-hero.webp')}
               resizeMode="cover"
               style={styles.heroBackground}
               imageStyle={styles.heroImage}
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: 18, gap: 18, justifyContent: 'center' },
   hero: { minHeight: 420, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.night },
   heroBackground: { flex: 1, minHeight: 420 },
-  heroImage: { borderRadius: radius.xl },
+  heroImage: { width: '100%', height: '100%', borderRadius: radius.xl },
   heroOverlay: { flex: 1, minHeight: 420, padding: 21, justifyContent: 'space-between' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   brandMark: { width: 58, height: 58, borderRadius: 19, backgroundColor: 'rgba(255,248,233,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },

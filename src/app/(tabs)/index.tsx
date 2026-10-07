@@ -172,7 +172,7 @@ export default function HomeScreen() {
         </View>
 
         <ImageBackground
-          source={require('../../../assets/generated/family-hero.png')}
+          source={require('../../../assets/generated/family-hero.webp')}
           style={[styles.hero, shadows.lift]}
           imageStyle={styles.heroImage}
         >
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   miniFaceText: { color: colors.white, fontWeight: '900', fontSize: 11 },
   teamChipText: { flexShrink: 1, color: colors.navy, fontSize: 9, fontWeight: '900' },
   hero: { height: 386, borderRadius: 30, overflow: 'hidden' },
-  heroImage: { borderRadius: 30 },
+  heroImage: { width: '100%', height: '100%', borderRadius: 30 },
   heroOverlay: { flex: 1, padding: 18, justifyContent: 'space-between' },
   heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modePill: { borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },

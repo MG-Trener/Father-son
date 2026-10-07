@@ -41,6 +41,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Check image assets
+        run: npm run check:assets
+
       - name: Expo Doctor
         run: npx expo-doctor
 

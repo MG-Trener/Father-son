@@ -61,7 +61,7 @@ export default function PathMapScreen() {
         </View>
 
         <View style={[styles.hero, shadows.lift]}>
-          <ImageBackground source={require('../../assets/generated/family-hero.png')} resizeMode="cover" imageStyle={styles.heroImage} style={styles.heroBackground}>
+          <ImageBackground source={require('../../assets/generated/family-hero.webp')} resizeMode="cover" imageStyle={styles.heroImage} style={styles.heroBackground}>
             <LinearGradient colors={['rgba(5,25,34,0.18)', 'rgba(5,25,34,0.72)', 'rgba(5,25,34,0.96)']} locations={[0, 0.55, 1]} style={styles.heroOverlay}>
               <View style={styles.heroBadge}>
                 <Image source={currentChapter.image} style={styles.heroBadgeImage} resizeMode="contain" />
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   topTitle: { color: colors.navyDeep, fontSize: 22, fontWeight: '900', marginTop: 2 },
   hero: { minHeight: 330, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.night },
   heroBackground: { flex: 1, minHeight: 330 },
-  heroImage: { borderRadius: radius.xl },
+  heroImage: { width: '100%', height: '100%', borderRadius: radius.xl },
   heroOverlay: { flex: 1, minHeight: 330, padding: 20, justifyContent: 'space-between' },
   heroBadge: { alignSelf: 'flex-end', width: 74, height: 74, borderRadius: 24, backgroundColor: 'rgba(255,248,233,0.92)', alignItems: 'center', justifyContent: 'center' },
   heroBadgeImage: { width: 68, height: 68 },

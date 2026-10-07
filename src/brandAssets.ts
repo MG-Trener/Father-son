@@ -3,7 +3,7 @@ export const brandAssets = {
     icon: require('../assets/generated/app-icon.png'),
     monochromeIcon: require('../assets/generated/app-icon-monochrome.png'),
     splash: require('../assets/generated/splash-screen.png'),
-    familyHero: require('../assets/generated/family-hero.png'),
+    familyHero: require('../assets/generated/family-hero.webp'),
   },
   navigation: {
     home: require('../assets/generated/nav-home.png'),

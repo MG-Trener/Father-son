@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Image, ImageBackground, type ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
+import { Image, type ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { brandAssets } from '../brandAssets';
 import { colors, radius, shadows } from '../theme';
@@ -22,43 +22,36 @@ const overlays = {
 } as const;
 
 const variantEmblems: Record<NonNullable<StoryHeroProps['variant']>, ImageSourcePropType> = {
-  adventure: brandAssets.badges.adventure,
-  warm: brandAssets.badges.courage,
+  adventure: brandAssets.features.path,
+  warm: brandAssets.features.together,
   book: brandAssets.navigation.book,
-  team: brandAssets.badges.team,
+  team: brandAssets.features.family,
 };
 
 export function StoryHero({ kicker, title, subtitle, emblem, emblemImage, variant = 'adventure', footer }: StoryHeroProps) {
-  const image = emblemImage ?? variantEmblems[variant];
+  const image = emblemImage ?? (emblem ? undefined : variantEmblems[variant]);
 
   return (
     <View style={[styles.shell, shadows.lift]}>
-      <ImageBackground
-        source={brandAssets.app.familyHero}
-        resizeMode="cover"
-        imageStyle={styles.image}
-        style={styles.background}
+      <LinearGradient
+        colors={overlays[variant]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.overlay}
       >
-        <LinearGradient
-          colors={overlays[variant]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.overlay}
-        >
-          <View style={styles.sunHalo} />
-          <View style={styles.topRow}>
-            <Text style={styles.kicker}>{kicker}</Text>
-            <View style={styles.emblem}>
-              {image ? <Image source={image} style={styles.emblemImage} resizeMode="contain" /> : <Text style={styles.emblemText}>{emblem}</Text>}
-            </View>
+        <View style={styles.sunHalo} />
+        <View style={styles.topRow}>
+          <Text style={styles.kicker}>{kicker}</Text>
+          <View style={styles.emblem}>
+            {image ? <Image accessible={false} source={image} style={styles.emblemImage} resizeMode="contain" /> : <Text style={styles.emblemText}>{emblem}</Text>}
           </View>
-          <View style={styles.copy}>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-          </View>
-          {footer ? <View style={styles.footer}>{footer}</View> : null}
-        </LinearGradient>
-      </ImageBackground>
+        </View>
+        <View style={styles.copy}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
+        </View>
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      </LinearGradient>
     </View>
   );
 }
@@ -70,8 +63,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.night,
   },
-  background: { flex: 1, minHeight: 286 },
-  image: { borderRadius: radius.xl },
   overlay: {
     flex: 1,
     minHeight: 286,

@@ -39,6 +39,7 @@ export function TeamLoadingScene({ topInset = 0, bottomInset = 0 }: Props) {
       <ImageBackground
         source={brandAssets.app.splash}
         style={styles.scene}
+        imageStyle={{ width: '100%', height: '100%' }}
         resizeMode="cover"
       >
         <LinearGradient

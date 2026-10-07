@@ -164,7 +164,7 @@ export default function AchievementsScreen() {
           subtitle={isChild
             ? 'Это не рейтинг и не гонка. Здесь остаются вещи, которые действительно случились и стали частью твоей истории.'
             : `Гербы не оценивают ${childName}. Они помогают не потерять реальные поступки, усилия и моменты взросления.`}
-          emblem="✦"
+          emblemImage={require('../../assets/generated/badge-adventure.png')}
           variant="adventure"
           footer={(
             <View style={styles.heroFooter}>

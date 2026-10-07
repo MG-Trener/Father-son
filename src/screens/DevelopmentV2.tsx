@@ -185,7 +185,7 @@ export default function DevelopmentV2() {
           subtitle={isChild
             ? `Сейчас ты — ${stageName(age)}. Здесь не нужно быть идеальным: пробуй, ошибайся, возвращайся и замечай, как становишься сильнее.`
             : `Здесь видны не оценки, а реальные шаги ${childName}: усилия, интерес, характер и то, что хочется запомнить.`}
-          emblem={isChild ? '🚀' : '🧭'}
+          emblemImage={require('../../assets/generated/feature-path.png')}
           variant={isChild ? 'adventure' : 'team'}
           footer={(
             <View style={styles.heroStats}>

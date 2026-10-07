@@ -206,7 +206,7 @@ export default function YearBookV2() {
           subtitle={isChild
             ? 'Здесь остаётся не «сколько процентов пройдено», а каким был этот год: что получилось, что было трудно и что мы прожили вместе.'
             : `Через много лет вы сможете открыть эту главу и снова услышать, каким был ${childName} в ${selectedAge}.`}
-          emblem="📖"
+          emblemImage={require('../../assets/generated/feature-book.png')}
           variant="book"
           footer={(
             <View style={styles.heroFooter}>
