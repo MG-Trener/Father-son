@@ -73,5 +73,3 @@ await db.exec('reset role');
 for(const name of ['security_invariants.sql','access_matrix_invariants.sql','client_privilege_invariants.sql','storage_invariants.sql']) await check(name,async()=>await db.exec(await read('supabase/tests/'+name)));
 console.log(JSON.stringify({passed,engine:'PGlite PostgreSQL',productionModified:false}));
 await db.close();
-
-
