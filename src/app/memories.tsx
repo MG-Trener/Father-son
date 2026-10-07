@@ -1,15 +1,29 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { Text } from 'react-native';
+import { ActivityIndicator, Text } from 'react-native';
 import { Button, Card, Heading, LoadError, Page, ui } from '../components/Everyday';
 import { useFamily } from '../context/FamilyContext';
+import { useAuth } from '../context/AuthContext';
 import { reflectionPageCursor } from '../domain/reflections';
-import { supabase } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 type Memory = { id: string; author_user_id: string; prompt: string | null; body: string; created_at: string };
 const PAGE_SIZE = 20;
 
 export default function MemoriesScreen() {
+  const { session, loading: authLoading } = useAuth();
+  const { family, me, loading: familyLoading } = useFamily();
+  if (isSupabaseConfigured) {
+    if (authLoading || familyLoading) return <Page><ActivityIndicator accessibilityLabel="Загружаем воспоминания" /></Page>;
+    if (!session) return <Redirect href="/sign-in" />;
+    if (!family) return <Redirect href="/team-setup" />;
+    if (me?.user_id !== session.user.id) return <Page><ActivityIndicator accessibilityLabel="Подключаем вашу семью" /></Page>;
+  }
+  // Never retain another account's previously loaded private notes on sign-in changes.
+  return <MemoryArchive key={`${session?.user.id ?? 'preview'}:${family?.id ?? 'none'}`} />;
+}
+
+function MemoryArchive() {
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === 'string' ? params.id : undefined;
   const { family, members } = useFamily();
