@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFamily } from "../context/FamilyContext";
 import { supabase } from "../lib/supabase";
 import { notifyFamilyEvent } from "../lib/pushNotifications";
+import { getChessNotice } from "../domain/chessPosition";
 import { Button, ui } from "./Everyday";
 import { useFeedback } from "./Feedback";
 
@@ -13,6 +14,7 @@ type Incoming = {
   event_type: string;
   actor_user_id: string | null;
   payload: unknown;
+  chessTitle?: string;
 };
 const types = [
   "five_minutes_ping",
@@ -57,7 +59,7 @@ export function ConversationBanner() {
       const chess = rows.some((r) => r.event_type === "chess_move")
         ? await supabase
             .from("chess_games")
-            .select("version,turn_user_id,finished")
+            .select("version,turn_user_id,finished,fen")
             .eq("family_id", family.id)
             .maybeSingle()
         : null;
@@ -76,8 +78,7 @@ export function ConversationBanner() {
           !answered.has(r.id) &&
           (r.event_type !== "chess_move" ||
             (chess?.data &&
-              !chess.data.finished &&
-              chess.data.turn_user_id === me.user_id &&
+              (chess.data.finished || chess.data.turn_user_id === me.user_id) &&
               (r.payload as { version?: number })?.version ===
                 chess.data.version)),
       );
@@ -92,7 +93,22 @@ export function ConversationBanner() {
           p_event_ids: [candidate.id],
         });
         setIncoming(null);
-      } else setIncoming(candidate ?? null);
+      } else
+        setIncoming(
+          candidate
+            ? {
+                ...candidate,
+                chessTitle:
+                  candidate.event_type === "chess_move" && chess?.data
+                    ? getChessNotice(
+                        chess.data.fen,
+                        chess.data.finished,
+                        chess.data.turn_user_id === me.user_id,
+                      ).title
+                    : undefined,
+              }
+            : null,
+        );
     } catch {
       // A reconnect/poll will retry; a transient notification error must not crash the app.
     } finally {
@@ -190,7 +206,8 @@ export function ConversationBanner() {
             {call
               ? `${actor} хочет поговорить`
               : incoming.event_type === "chess_move"
-                ? `Ваш ход в шахматах! ${actor} уже сходил`
+                ? (incoming.chessTitle ??
+                  `Ваш ход в шахматах! ${actor} уже сходил`)
                 : incoming.event_type === "connection_response"
                   ? (incoming.payload as { response?: string })?.response ===
                     "later"

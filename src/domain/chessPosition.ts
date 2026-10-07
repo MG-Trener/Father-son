@@ -1,6 +1,52 @@
 import { Chess, type Square } from "chess.js";
 import type { ChessGame } from "../types/database";
 
+export function getChessNotice(
+  fen: string,
+  finished: boolean,
+  myTurn: boolean,
+) {
+  const board = new Chess(fen);
+  const threatenedKing = board.isCheck()
+    ? (board
+        .board()
+        .flat()
+        .find((piece) => piece?.type === "k" && piece.color === board.turn())
+        ?.square ?? null)
+    : null;
+  if (board.isCheckmate())
+    return {
+      kind: "mate" as const,
+      title: "МАТ — ПАРТИЯ ЗАВЕРШЕНА",
+      threatenedKing,
+      detail: `Король ${board.turn() === "w" ? "белых" : "чёрных"} под шахом, защиты нет. Можно начать новую партию.`,
+    };
+  if (finished)
+    return {
+      kind: "draw" as const,
+      title: "НИЧЬЯ — ПАРТИЯ ЗАВЕРШЕНА",
+      threatenedKing: null,
+      detail: board.isStalemate()
+        ? "Пат: король не под шахом, но допустимых ходов нет."
+        : "Партия завершилась вничью. Можно сыграть ещё раз.",
+    };
+  if (board.isCheck())
+    return {
+      kind: "check" as const,
+      title: myTurn ? "ШАХ ВАШЕМУ КОРОЛЮ!" : "ШАХ СОПЕРНИКУ!",
+      threatenedKing,
+      detail: myTurn
+        ? "Ваш ход. Уведите короля, закройте его или возьмите атакующую фигуру. Подсвечиваются только допустимые ходы."
+        : "Соперник должен защитить своего короля. Ждём ответный ход.",
+    };
+  return {
+    kind: myTurn ? ("turn" as const) : ("waiting" as const),
+    title: myTurn ? "ВАШ ХОД — ИГРАЙТЕ!" : "ЖДЁМ ХОД СОПЕРНИКА",
+    threatenedKing: null,
+    detail: "",
+  };
+}
+
 export function optimisticMove(
   game: ChessGame,
   actor: string,

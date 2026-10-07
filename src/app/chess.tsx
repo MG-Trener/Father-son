@@ -24,7 +24,11 @@ import { useFamily } from "../context/FamilyContext";
 import { useLiveFamily } from "../hooks/useLiveFamily";
 import { supabase } from "../lib/supabase";
 import { notifyFamilyEvent } from "../lib/pushNotifications";
-import { optimisticMove, mergeConfirmed } from "../domain/chessPosition";
+import {
+  optimisticMove,
+  mergeConfirmed,
+  getChessNotice,
+} from "../domain/chessPosition";
 import { useIsFocused } from "expo-router";
 import { useFeedback } from "../components/Feedback";
 import type { ChessGame } from "../types/database";
@@ -101,6 +105,17 @@ export default function ChessScreen() {
   }, [family?.id]);
   useLiveFamily("chess_games", family?.id, load);
   const chess = useMemo(() => new Chess(game?.fen), [game?.fen]);
+  const notice = useMemo(
+    () =>
+      game
+        ? getChessNotice(
+            game.fen,
+            game.finished,
+            game.turn_user_id === me?.user_id,
+          )
+        : null,
+    [game?.fen, game?.finished, game?.turn_user_id, me?.user_id],
+  );
   const black = me?.user_id === game?.black_user_id;
   const ranks = black ? [1, 2, 3, 4, 5, 6, 7, 8] : [8, 7, 6, 5, 4, 3, 2, 1];
   const files = black ? "hgfedcba" : "abcdefgh";
@@ -119,16 +134,24 @@ export default function ChessScreen() {
       !focused ||
       busy ||
       !confirmed ||
-      confirmed.finished ||
-      confirmed.turn_user_id !== me?.user_id ||
+      (!confirmed.finished &&
+        confirmed.turn_user_id !== me?.user_id &&
+        !new Chess(confirmed.fen).isCheck()) ||
       notified.current >= confirmed.version
     )
       return;
     notified.current = confirmed.version;
-    feedback("Ваш ход в шахматах — выберите фигуру");
-    AccessibilityInfo.announceForAccessibility("Ваш ход в шахматах");
+    const alert = getChessNotice(
+      confirmed.fen,
+      confirmed.finished,
+      confirmed.turn_user_id === me?.user_id,
+    );
+    feedback(alert.title);
+    AccessibilityInfo.announceForAccessibility(alert.title);
     if (Platform.OS !== "web" && AppState.currentState === "active")
-      Vibration.vibrate([0, 160, 90, 160]);
+      Vibration.vibrate(
+        confirmed.finished ? [0, 250, 100, 250, 100, 250] : [0, 160, 90, 160],
+      );
   }, [confirmed?.version, confirmed?.turn_user_id, busy, focused, me?.user_id]);
   const commit = async (
     action: "new" | "move",
@@ -215,8 +238,15 @@ export default function ChessScreen() {
         accessibilityLiveRegion="polite"
         style={[
           styles.header,
+          !busy &&
+            (notice?.kind === "check" || notice?.kind === "mate") && {
+              backgroundColor: "#7D3437",
+              borderWidth: 2,
+              borderColor: "#DAADA0",
+            },
           myTurn &&
-            !busy && {
+            !busy &&
+            notice?.kind !== "check" && {
               backgroundColor: "#176B50",
               borderWidth: 2,
               borderColor: "#D7BD78",
@@ -228,20 +258,13 @@ export default function ChessScreen() {
             ? "СОХРАНЯЕМ ХОД…"
             : needsSync
               ? "НУЖНО ОБНОВИТЬ ДОСКУ"
-              : game?.finished
-                ? "ПАРТИЯ ЗАВЕРШЕНА"
-                : myTurn
-                  ? "ВАШ ХОД — ИГРАЙТЕ!"
-                  : game
-                    ? "ЖДЁМ ХОД СОПЕРНИКА"
-                    : "НАЧНЁМ ПАРТИЮ?"}
+              : (notice?.title ?? "НАЧНЁМ ПАРТИЮ?")}
         </Text>
         <Text style={styles.status}>
-          {game?.finished
-            ? "Спасибо за игру!"
-            : game
-              ? `${members.find((m) => m.user_id === game.turn_user_id)?.display_name ?? "Игрок"} · ${chess.turn() === "w" ? "белые" : "чёрные"}${chess.isCheck() ? " · шах" : ""}`
-              : `Вы и ${other?.display_name ?? "второй участник"}`}
+          {notice?.detail ||
+            (game
+              ? `${members.find((m) => m.user_id === game.turn_user_id)?.display_name ?? "Игрок"} · ${chess.turn() === "w" ? "белые" : "чёрные"}`
+              : `Вы и ${other?.display_name ?? "второй участник"}`)}
         </Text>
       </View>
       <View style={styles.board} accessibilityLabel="Шахматная доска">
@@ -251,12 +274,13 @@ export default function ChessScreen() {
               const square = `${file}${rank}` as Square;
               const piece = chess.get(square);
               const target = legal.some((m) => m.to === square);
+              const threatened = notice?.threatenedKing === square;
               const dark = (file.charCodeAt(0) - 97 + rank) % 2 === 1;
               return (
                 <Pressable
                   key={square}
                   accessibilityRole="button"
-                  accessibilityLabel={`${square}${piece ? `, ${piece.color === "w" ? "белые" : "чёрные"} ${pieceNames[piece.type]}` : ""}${target ? ", доступный ход" : ""}`}
+                  accessibilityLabel={`${square}${piece ? `, ${piece.color === "w" ? "белые" : "чёрные"} ${pieceNames[piece.type]}` : ""}${target ? ", доступный ход" : ""}${threatened ? ", король под шахом" : ""}`}
                   accessibilityState={{
                     selected: selected === square,
                     disabled: !myTurn || busy,
@@ -266,8 +290,11 @@ export default function ChessScreen() {
                   style={[
                     styles.square,
                     {
-                      backgroundColor:
-                        selected === square
+                      borderWidth: threatened ? 3 : 0,
+                      borderColor: "#A52C36",
+                      backgroundColor: threatened
+                        ? "#E9ABA0"
+                        : selected === square
                           ? "#D7BC68"
                           : dark
                             ? "#6B8B7B"

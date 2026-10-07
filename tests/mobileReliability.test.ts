@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Chess } from "chess.js";
 import { AudioOperation } from "../src/domain/audioOperation.ts";
 import { canEditRecord } from "../src/domain/recordEditing.ts";
-import { mergeConfirmed, optimisticMove } from "../src/domain/chessPosition.ts";
+import { getChessNotice, mergeConfirmed, optimisticMove } from "../src/domain/chessPosition.ts";
 
 test("editing window follows family midnight, not UTC midnight or elapsed 24 hours", () => {
   const created = "2026-10-07T18:59:00Z";
@@ -78,4 +78,32 @@ test("late polling cannot rewind an acknowledged move or a fast opponent respons
   assert.equal(mergeConfirmed(second, first), second);
   assert.equal(mergeConfirmed(first, second), second);
   assert.throws(() => mergeConfirmed(null, { ...initial(), fen: "corrupt" }));
+});
+
+
+test('check is explicit for both players and identifies the threatened king', () => {
+  const board = new Chess();
+  for (const move of ['e4', 'd5', 'Bb5+']) board.move(move);
+  const own = getChessNotice(board.fen(), false, true);
+  const other = getChessNotice(board.fen(), false, false);
+  assert.equal(own.kind, 'check');
+  assert.equal(own.title, 'ШАХ ВАШЕМУ КОРОЛЮ!');
+  assert.equal(other.title, 'ШАХ СОПЕРНИКУ!');
+  assert.equal(own.threatenedKing, 'e8');
+});
+test('mate has a distinct final notice instead of ordinary turn notification', () => {
+  const board = new Chess();
+  for (const move of ['f3','e5','g4','Qh4#']) board.move(move);
+  for (const myTurn of [true, false]) {
+    const notice = getChessNotice(board.fen(), true, myTurn);
+    assert.equal(notice.kind, 'mate');
+    assert.equal(notice.title, 'МАТ — ПАРТИЯ ЗАВЕРШЕНА');
+    assert.equal(notice.threatenedKing, 'e1');
+  }
+});
+test('stalemate is not mislabelled as checkmate', () => {
+  const notice = getChessNotice('7k/5K2/6Q1/8/8/8/8/8 b - - 0 1', true, true);
+  assert.equal(notice.kind, 'draw');
+  assert.match(notice.detail, /Пат/);
+  assert.equal(notice.threatenedKing, null);
 });
