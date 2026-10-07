@@ -13,7 +13,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { router, usePathname, type Href } from "expo-router";
+import { router, usePathname, useSegments, type Href } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { brandAssets } from "../brandAssets";
 import { useFamily } from "../context/FamilyContext";
@@ -88,6 +88,7 @@ const items = [
 
 export function AppNavigation({ children }: PropsWithChildren) {
   const path = usePathname();
+  const segments = useSegments();
   const { session } = useAuth();
   const { family, me } = useFamily();
   const [revision, setRevision] = useState(0);
@@ -117,7 +118,8 @@ export function AppNavigation({ children }: PropsWithChildren) {
                   onPress={() => {
                     Keyboard.dismiss();
                     setRevision((value) => value + 1);
-                    router.dismissTo(item.href as Href);
+                    if (segments[0] === "(tabs)") router.navigate(item.href as Href);
+                    else router.dismissTo(item.href as Href);
                   }}
                 >
                   <View style={[styles.icon, active && styles.active]}>
