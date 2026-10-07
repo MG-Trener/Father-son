@@ -54,6 +54,9 @@ type NullableRpcOverrides = {
 };
 
 type AppRpcAdditions = {
+  edit_reflection: { Args: { p_id: string; p_body: string; p_expected_body: string }; Returns: string };
+  edit_chat_message: { Args: { p_id: string; p_body: string; p_expected_body: string }; Returns: string };
+  replace_voice_story: { Args: { p_id: string; p_expected_path: string; p_storage_path: string; p_duration_ms: number; p_title: string | null }; Returns: Json };
   send_chat_message: { Args: { p_family_id: string; p_id: string; p_body: string }; Returns: string };
   get_account_access: {
     Args: Record<PropertyKey, never>;

@@ -102,5 +102,67 @@ await check('chess new board and optimistic concurrency',async()=>{
 await claims(child,null);
 await check('partner can read shared chess board',async()=>assert.equal((await db.query('select * from public.chess_games')).rows.length,1));
 await db.exec('reset role');
+
+const reflection='70000000-0000-0000-0000-000000000001';
+const voice='70000000-0000-0000-0000-000000000002';
+const oldPath=`${family}/${child}/old.m4a`, newPath=`${family}/${child}/new.m4a`;
+await db.exec(`insert into public.reflections(id,family_id,author_user_id,body) values('${reflection}','${family}','${child}','Original');
+insert into storage.objects(bucket_id,name) values('voice-stories','${oldPath}'),('voice-stories','${newPath}');
+insert into public.voice_stories(id,family_id,author_user_id,storage_path,duration_ms) values('${voice}','${family}','${child}','${oldPath}',1000);`);
+await claims(child,null);
+await check('author can edit today and retry without changing original timestamp',async()=>{
+ const before=(await scalar(`select created_at from public.reflections where id='${reflection}'`)).created_at;
+ for(let i=0;i<2;i++) await db.exec(`select public.edit_reflection('${reflection}','Edited','Original')`);
+ assert.equal((await scalar(`select body from public.reflections where id='${reflection}'`)).body,'Edited');
+ assert.deepEqual((await scalar(`select created_at from public.reflections where id='${reflection}'`)).created_at,before);
+ await assert.rejects(db.exec(`select public.edit_reflection('${reflection}','Overwrite','Original')`),/RECORD_CHANGED/);
+ await assert.rejects(db.exec(`select public.edit_reflection('${reflection}','  ','Edited')`),/INVALID_BODY/);
+ await assert.rejects(db.exec(`update public.reflections set created_at=now()`),/permission denied/);
+ await db.exec(`select public.edit_chat_message('${message}','Edited chat','Hello Dad')`);
+});
+await claims(owner,legacy);
+await check('partner cannot edit another author text or voice',async()=>{
+ await assert.rejects(db.exec(`select public.edit_reflection('${reflection}','bad','Edited')`),/EDIT_ACCESS_DENIED/);
+ await assert.rejects(db.exec(`select public.edit_chat_message('${message}','bad','Edited chat')`),/EDIT_ACCESS_DENIED/);
+ await assert.rejects(db.exec(`select public.replace_voice_story('${voice}','${oldPath}','${newPath}',1000,null)`),/EDIT_ACCESS_DENIED/);
+});
+await claims(child,null);
+await check('referenced audio cannot be overwritten or deleted through Storage',async()=>{
+ assert.equal((await db.query(`update storage.objects set metadata='{}' where name='${oldPath}' returning id`)).rows.length,0);
+ assert.equal((await db.query(`delete from storage.objects where name='${oldPath}' returning id`)).rows.length,0);
+});
+await check('voice replacement is atomic idempotent and keeps creation date',async()=>{
+ const before=(await scalar(`select created_at,recorded_at from public.voice_stories where id='${voice}'`));
+ await assert.rejects(db.exec(`select public.replace_voice_story('${voice}','${oldPath}','${family}/${child}/missing.m4a',1000,null)`),/VOICE_OBJECT_NOT_FOUND/);
+ for(let i=0;i<2;i++)await db.exec(`select public.replace_voice_story('${voice}','${oldPath}','${newPath}',1200,'New')`);
+ assert.equal((await scalar(`select storage_path from public.voice_stories where id='${voice}'`)).storage_path,newPath);
+ assert.deepEqual(await scalar(`select created_at,recorded_at from public.voice_stories where id='${voice}'`),before);
+ assert.equal((await db.query(`delete from storage.objects where name='${newPath}' returning id`)).rows.length,0);
+ assert.equal((await db.query(`delete from storage.objects where name='${oldPath}' returning id`)).rows.length,1);
+});
+await check('voice registration retries reuse the same story',async()=>{
+ for(let i=0;i<2;i++) assert.equal((await scalar(`select public.register_voice_story('${family}','${newPath}',1200,'New',null) as data`)).data.voice_story_id,voice);
+ assert.equal((await db.query('select * from public.voice_stories')).rows.length,1);
+});
+await db.exec(`reset role; update public.reflections set created_at=now()-interval '1 day'; update public.chat_messages set created_at=now()-interval '1 day'; update public.voice_stories set created_at=now()-interval '1 day';`);
+await claims(child,null);
+await check('next day server rejects all edits regardless of phone clock',async()=>{
+ await assert.rejects(db.exec(`select public.edit_reflection('${reflection}','Tomorrow','Edited')`),/EDIT_WINDOW_CLOSED/);
+ await assert.rejects(db.exec(`select public.edit_chat_message('${message}','Tomorrow','Edited chat')`),/EDIT_WINDOW_CLOSED/);
+ await assert.rejects(db.exec(`select public.replace_voice_story('${voice}','${newPath}','${oldPath}',1000,null)`),/EDIT_WINDOW_CLOSED/);
+ assert.equal((await db.query(`delete from storage.objects where name='${newPath}' returning id`)).rows.length,0);
+});
+await db.exec('reset role');
+await check('new edit RPCs are unavailable to anonymous clients',async()=>{
+ for(const fn of ['edit_reflection(uuid,text,text)','edit_chat_message(uuid,text,text)','replace_voice_story(uuid,text,text,integer,text)']) {
+  assert.equal((await scalar(`select has_function_privilege('anon','public.${fn}','execute') as ok`)).ok,false);
+ }
+});
+await check('chess acknowledgement includes the exact committed board',async()=>{
+ await db.exec('set role service_role');
+ const result=(await scalar(`select public.commit_chess_position('${family}','${owner}',1,'${startFen}','','${child}',false,'test',false,false) as data`)).data;
+ assert.equal(result.game.version,2); assert.equal(result.game.turn_user_id,child); assert.equal(result.game.fen,startFen);
+ await db.exec('reset role');
+});
 console.log(JSON.stringify({passed,engine:'PGlite PostgreSQL',productionModified:false}));
 await db.close();

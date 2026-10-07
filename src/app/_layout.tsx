@@ -10,6 +10,7 @@ import { PushNotificationsBridge } from '../components/PushNotificationsBridge';
 import { AuthProvider } from '../context/AuthContext';
 import { FamilyProvider } from '../context/FamilyContext';
 import { colors } from '../theme';
+export { RecoverableError as ErrorBoundary } from '../components/RecoverableError';
 
 export default function RootLayout() {
   return (

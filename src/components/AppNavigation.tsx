@@ -118,7 +118,8 @@ export function AppNavigation({ children }: PropsWithChildren) {
                   onPress={() => {
                     Keyboard.dismiss();
                     setRevision((value) => value + 1);
-                    if (segments[0] === "(tabs)") router.navigate(item.href as Href);
+                    if (segments[0] === "(tabs)")
+                      router.navigate(item.href as Href);
                     else router.dismissTo(item.href as Href);
                   }}
                 >
@@ -131,6 +132,8 @@ export function AppNavigation({ children }: PropsWithChildren) {
                   </View>
                   <Text
                     numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
                     style={[styles.label, active && styles.selected]}
                   >
                     {item.title}
@@ -172,6 +175,6 @@ const styles = StyleSheet.create({
   active: { backgroundColor: "#E2EEE6" },
   image: { width: 27, height: 27, resizeMode: "contain" },
   gear: { color: colors.navyDeep, fontSize: 27, lineHeight: 30 },
-  label: { fontSize: 11, color: "#596C72" },
+  label: { fontSize: 11, color: "#596C72", width: "100%", textAlign: "center" },
   selected: { color: colors.navyDeep, fontWeight: "700" },
 });

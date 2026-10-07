@@ -1,6 +1,9 @@
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { Text } from "react-native";
+import { Text, TextInput } from "react-native";
+import { useRecordEditing } from "../hooks/useRecordEditing";
+import { editWindowHint, recordEditError } from "../domain/recordEditing";
+import { useFeedback } from "../components/Feedback";
 import {
   ActionRow,
   Button,
@@ -30,7 +33,32 @@ export default function MemoriesScreen() {
     topic?: string;
     year?: string;
   }>();
-  const { family, members } = useFamily();
+  const { family, members, me } = useFamily();
+  const canEdit = useRecordEditing(me?.user_id);
+  const feedback = useFeedback();
+  const [editing, setEditing] = useState<Memory | null>(null);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const saveEdit = async () => {
+    if (!supabase || !editing || saving || !draft.trim()) return;
+    setSaving(true);
+    try {
+      const result = await supabase.rpc("edit_reflection", {
+        p_id: editing.id,
+        p_body: draft.trim(),
+        p_expected_body: editing.body,
+      });
+      if (result.error) throw result.error;
+      setEditing(null);
+      setError("");
+      feedback("Изменения сохранены");
+      await load();
+    } catch (e) {
+      setError(recordEditError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
   const [rows, setRows] = useState<Memory[]>([]);
   const [month, setMonth] = useState(0);
   const [author, setAuthor] = useState<string | null>(null);
@@ -150,13 +178,64 @@ export default function MemoriesScreen() {
               {row.prompt.replace(/ · Книга года \d+$/, "")}
             </Text>
           ) : null}
-          <Text
-            selectable={Boolean(id)}
-            numberOfLines={id ? undefined : 3}
-            style={ui.body}
-          >
-            {row.body}
-          </Text>
+          {editing?.id === row.id ? (
+            <>
+              <TextInput
+                accessibilityLabel="Редактировать воспоминание"
+                multiline
+                maxLength={4000}
+                value={draft}
+                onChangeText={setDraft}
+                style={[ui.input, ui.textArea]}
+                editable={
+                  !saving && canEdit(row.created_at, row.author_user_id)
+                }
+              />
+              <Text style={ui.caption}>{editWindowHint}</Text>
+              <Button
+                label="Сохранить изменения"
+                busy={saving}
+                disabled={
+                  !draft.trim() || !canEdit(row.created_at, row.author_user_id)
+                }
+                onPress={() => void saveEdit()}
+              />
+              <Button
+                label="Отмена"
+                secondary
+                disabled={saving}
+                onPress={() => {
+                  setEditing(null);
+                  setError("");
+                }}
+              />
+            </>
+          ) : (
+            <Text
+              selectable={Boolean(id)}
+              numberOfLines={id ? undefined : 3}
+              style={ui.body}
+            >
+              {row.body}
+            </Text>
+          )}
+          {id && !editing && canEdit(row.created_at, row.author_user_id) ? (
+            <Button
+              label="Редактировать текст"
+              secondary
+              onPress={() => {
+                setEditing(row);
+                setDraft(row.body);
+              }}
+            />
+          ) : null}
+          {id && row.author_user_id === me?.user_id && !editing ? (
+            <Text style={ui.caption}>
+              {canEdit(row.created_at, row.author_user_id)
+                ? editWindowHint
+                : "День создания закончился. Запись сохранена без возможности изменения."}
+            </Text>
+          ) : null}
           {!id ? (
             <Button
               label="Прочитать"

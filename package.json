@@ -1,6 +1,6 @@
 {
   "name": "papa-i-ya",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -9,7 +9,7 @@
     "android": "expo start --android",
     "web": "expo start --web",
     "check:assets": "node scripts/check-brand-assets.mjs",
-    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts tests/futureLetters.test.ts tests/rituals.test.ts tests/presentation.test.ts tests/reflections.test.ts tests/calendarDate.test.ts tests/ownerAccess.test.ts tests/chess.test.ts && npm run test:owner-access",
+    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts tests/futureLetters.test.ts tests/rituals.test.ts tests/presentation.test.ts tests/reflections.test.ts tests/calendarDate.test.ts tests/ownerAccess.test.ts tests/chess.test.ts tests/mobileReliability.test.ts && npm run test:owner-access",
     "typecheck": "tsc --noEmit",
     "test:owner-access": "node scripts/test-owner-access.mjs"
   },

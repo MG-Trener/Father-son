@@ -1,4 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useIsFocused } from "expo-router";
+import { useRecordEditing } from "../hooks/useRecordEditing";
+import { editWindowHint } from "../domain/recordEditing";
 import { Text, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -30,7 +33,11 @@ export default function VoiceStoriesScreen() {
     topic?: string;
     year?: string;
   }>();
-  const { family, members } = useFamily();
+  const { family, members, me } = useFamily();
+  const canEdit = useRecordEditing(me?.user_id);
+  const focused = useIsFocused();
+  const audioRequest = useRef(0);
+  const sourcePath = useRef<string | null>(null);
   const [rows, setRows] = useState<VoiceStory[]>([]);
   const [month, setMonth] = useState(0);
   const [author, setAuthor] = useState<string | null>(null);
@@ -43,6 +50,17 @@ export default function VoiceStoriesScreen() {
   const player = useAudioPlayer(null, { updateInterval: 250 });
   const status = useAudioPlayerStatus(player);
   const request = useRef(0);
+  useLayoutEffect(() => {
+    setOpening(null);
+    return () => {
+      audioRequest.current++;
+      try {
+        player.pause();
+      } catch {
+        /* Native player cleanup must precede hook release. */
+      }
+    };
+  }, [player, focused]);
   const load = useCallback(async () => {
     const revision = ++request.current;
     if (!supabase || !family) return;
@@ -87,30 +105,33 @@ export default function VoiceStoriesScreen() {
       void load();
       return () => {
         request.current++;
-        player.pause();
       };
     }, [load, player]),
   );
   const play = async (row: VoiceStory) => {
-    if (!supabase || opening) return;
-    if (playing === row.id) {
-      if (status.playing) player.pause();
-      else {
-        if (status.didJustFinish) await player.seekTo(0);
-        player.play();
-      }
-      return;
-    }
+    if (!supabase || opening || !focused) return;
+    const revision = ++audioRequest.current;
     setOpening(row.id);
     try {
-      const url = await createVoiceStorySignedUrl(supabase, row.storage_path);
-      player.replace(url);
-      setPlaying(row.id);
-      player.play();
+      if (playing === row.id && sourcePath.current === row.storage_path) {
+        if (status.playing) player.pause();
+        else {
+          if (status.didJustFinish) await player.seekTo(0);
+          if (revision === audioRequest.current) player.play();
+        }
+      } else {
+        const url = await createVoiceStorySignedUrl(supabase, row.storage_path);
+        if (revision !== audioRequest.current) return;
+        player.replace(url);
+        sourcePath.current = row.storage_path;
+        setPlaying(row.id);
+        player.play();
+      }
     } catch {
-      setError("Не удалось открыть аудио. Попробуйте ещё раз.");
+      if (revision === audioRequest.current)
+        setError("Не удалось открыть аудио. Попробуйте ещё раз.");
     } finally {
-      setOpening(null);
+      if (revision === audioRequest.current) setOpening(null);
     }
   };
   return (
@@ -174,6 +195,25 @@ export default function VoiceStoriesScreen() {
             busy={opening === row.id}
             onPress={() => void play(row)}
           />
+          {canEdit(row.created_at, row.author_user_id) ? (
+            <Button
+              label="Перезаписать сегодня"
+              secondary
+              onPress={() =>
+                router.push({
+                  pathname: "/voice-story-new",
+                  params: { replaceId: row.id },
+                })
+              }
+            />
+          ) : null}
+          {id && row.author_user_id === me?.user_id ? (
+            <Text style={ui.caption}>
+              {canEdit(row.created_at, row.author_user_id)
+                ? editWindowHint
+                : "День создания закончился. Эту запись можно только слушать."}
+            </Text>
+          ) : null}
           {playing === row.id ? (
             <View style={{ gap: 6 }}>
               <View

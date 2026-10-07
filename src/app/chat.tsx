@@ -18,9 +18,14 @@ import { useLiveFamily } from "../hooks/useLiveFamily";
 import { supabase } from "../lib/supabase";
 import { notifyFamilyEvent } from "../lib/pushNotifications";
 import type { ChatMessage } from "../types/database";
+import { useRecordEditing } from "../hooks/useRecordEditing";
+import { recordEditError } from "../domain/recordEditing";
 
 export default function ChatScreen() {
   const { family, me } = useFamily();
+  const canEdit = useRecordEditing(me?.user_id);
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
+  const unsentDraft = useRef("");
   const { otherName, other } = useFamilyPresentation();
   const feedback = useFeedback();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -60,6 +65,19 @@ export default function ChatScreen() {
     setBusy(true);
     setError("");
     try {
+      if (editing) {
+        const result = await supabase.rpc("edit_chat_message", {
+          p_id: editing.id,
+          p_body: text,
+          p_expected_body: editing.body,
+        });
+        if (result.error) throw result.error;
+        setEditing(null);
+        setBody(unsentDraft.current);
+        feedback("Сообщение изменено");
+        await load();
+        return;
+      }
       const result = await supabase.rpc("send_chat_message", {
         p_family_id: family.id,
         p_id: retryMessage.current!.id,
@@ -70,8 +88,12 @@ export default function ChatScreen() {
       setBody("");
       setPage(0);
       if (page === 0) await load();
-    } catch {
-      setError("Сообщение не отправлено. Текст сохранён — попробуйте ещё раз.");
+    } catch (e) {
+      setError(
+        editing
+          ? recordEditError(e)
+          : "Сообщение не отправлено. Текст сохранён — попробуйте ещё раз.",
+      );
     } finally {
       setBusy(false);
     }
@@ -135,60 +157,87 @@ export default function ChatScreen() {
             ) : null}
           </View>
         </View>
-        <FlatList
-          data={messages}
-          inverted
-          keyExtractor={(row) => row.id}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingBottom: 8,
-            gap: 8,
-          }}
-          renderItem={({ item }) => (
-            <View
-              style={{
-                maxWidth: "88%",
-                alignSelf:
-                  item.author_user_id === me?.user_id
-                    ? "flex-end"
-                    : "flex-start",
-                backgroundColor:
-                  item.author_user_id === me?.user_id ? "#DDEDE3" : "#FFFFFF",
-                padding: 13,
-                borderRadius: 18,
-                gap: 5,
-              }}
-            >
-              <Text selectable style={ui.body}>
-                {item.body}
-              </Text>
-              <Text style={[ui.caption, { textAlign: "right", fontSize: 11 }]}>
-                {new Date(item.created_at).toLocaleString("ru-RU", {
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </Text>
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text
-              style={[
-                ui.body,
-                {
-                  transform: [{ scaleY: -1 }],
-                  textAlign: "center",
-                  padding: 24,
-                },
-              ]}
-            >
+        {messages.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: "center", padding: 24 }}>
+            <Text style={[ui.body, { textAlign: "center" }]}>
               Здесь можно написать друг другу в любое время.
             </Text>
-          }
-        />
+          </View>
+        ) : (
+          <FlatList
+            data={messages}
+            inverted
+            keyExtractor={(row) => row.id}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingBottom: 8,
+              gap: 8,
+            }}
+            renderItem={({ item }) => (
+              <View
+                style={{
+                  maxWidth: "88%",
+                  alignSelf:
+                    item.author_user_id === me?.user_id
+                      ? "flex-end"
+                      : "flex-start",
+                  backgroundColor:
+                    item.author_user_id === me?.user_id ? "#DDEDE3" : "#FFFFFF",
+                  padding: 13,
+                  borderRadius: 18,
+                  gap: 5,
+                }}
+              >
+                <Text selectable style={ui.body}>
+                  {item.body}
+                </Text>
+                {canEdit(item.created_at, item.author_user_id) ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={busy}
+                    onPress={() => {
+                      if (!editing) unsentDraft.current = body;
+                      setEditing(item);
+                      setBody(item.body);
+                      setError("");
+                    }}
+                    style={{ paddingVertical: 6 }}
+                  >
+                    <Text style={[ui.link, { fontSize: 12 }]}>Изменить</Text>
+                  </Pressable>
+                ) : null}
+                <Text
+                  style={[ui.caption, { textAlign: "right", fontSize: 11 }]}
+                >
+                  {new Date(item.created_at).toLocaleString("ru-RU", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+            )}
+          />
+        )}
         <View style={{ padding: 12, gap: 8, backgroundColor: "white" }}>
+          {editing ? (
+            <View style={ui.between}>
+              <Text style={ui.caption}>Редактирование · только сегодня</Text>
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy}
+                onPress={() => {
+                  setEditing(null);
+                  setBody(unsentDraft.current);
+                  setError("");
+                }}
+              >
+                <Text style={ui.link}>Отмена</Text>
+              </Pressable>
+            </View>
+          ) : null}
           <TextInput
             accessibilityLabel="Сообщение"
             placeholder="Написать сообщение…"
@@ -200,9 +249,15 @@ export default function ChatScreen() {
             style={[ui.input, { maxHeight: 110 }]}
           />
           <Button
-            label="Отправить"
+            label={editing ? "Сохранить изменения" : "Отправить"}
             busy={busy}
-            disabled={!body.trim() || !other}
+            disabled={
+              !body.trim() ||
+              !other ||
+              Boolean(
+                editing && !canEdit(editing.created_at, editing.author_user_id),
+              )
+            }
             onPress={() => void send()}
           />
         </View>

@@ -1,4 +1,4 @@
-import { useFeedback } from '../components/Feedback';
+import { useFeedback } from "../components/Feedback";
 import {
   AudioModule,
   RecordingPresets,
@@ -7,194 +7,427 @@ import {
   useAudioPlayerStatus,
   useAudioRecorder,
   useAudioRecorderState,
-} from 'expo-audio';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Text,
-  TextInput
-} from 'react-native';
-import { Button, Card, Heading, Page, ui } from '../components/Everyday';
-import { useAuth } from '../context/AuthContext';
-import { useFamily } from '../context/FamilyContext';
+} from "expo-audio";
+import { File } from "expo-file-system";
+import * as Crypto from "expo-crypto";
+import { router, useLocalSearchParams } from "expo-router";
+import { useIsFocused } from "expo-router";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Platform, Text, TextInput } from "react-native";
+import { Button, Card, Heading, Page, ui } from "../components/Everyday";
+import { useAuth } from "../context/AuthContext";
+import { useFamily } from "../context/FamilyContext";
 import {
   registerVoiceStory,
   removeVoiceStoryAudio,
   uploadVoiceStoryAudio,
-} from '../data/memoryArchiveRepository';
-import { notifyFamilyEvent } from '../lib/pushNotifications';
-import { supabase } from '../lib/supabase';
+  type VoiceStory,
+} from "../data/memoryArchiveRepository";
+import { notifyFamilyEvent } from "../lib/pushNotifications";
+import { supabase } from "../lib/supabase";
+import { AudioOperation } from "../domain/audioOperation";
+import { editWindowHint, recordEditError } from "../domain/recordEditing";
+import { useRecordEditing } from "../hooks/useRecordEditing";
 
 const MAX_DURATION_MS = 20 * 60 * 1000;
-const MIN_DURATION_MS = 500;
-
-const formatDuration = (millis: number) => {
-  const totalSeconds = Math.max(0, Math.floor(millis / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-};
-
-const cleanFileName = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
+const formatDuration = (ms: number) =>
+  `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
 
 export default function VoiceStoryNewScreen() {
   const feedback = useFeedback();
-  const [error, setError] = useState('');
-  const params = useLocalSearchParams<{ prompt?: string }>();
+  const params = useLocalSearchParams<{
+    prompt?: string;
+    replaceId?: string;
+  }>();
   const { session } = useAuth();
-  const { family, members } = useFamily();
-  const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' });
+  const { family } = useFamily();
+  const canEdit = useRecordEditing(session?.user.id);
+  const focused = useIsFocused();
+  const focusRef = useRef(focused);
+  focusRef.current = focused;
+  const operation = useRef(new AudioOperation()).current;
+  const [error, setError] = useState("");
+  const recordingError = useRef(false);
+  const recorder = useAudioRecorder(
+    { ...RecordingPresets.HIGH_QUALITY, directory: "document" },
+    (status) => {
+      if (status.hasError && operation.active) {
+        recordingError.current = true;
+        setError("Микрофон был прерван. Запишите голос ещё раз.");
+      }
+    },
+  );
   const recorderState = useAudioRecorderState(recorder, 250);
-  const recordingRef = useRef(false);
-  recordingRef.current = recorderState.isRecording;
   const player = useAudioPlayer(null, { updateInterval: 250 });
   const playerStatus = useAudioPlayerStatus(player);
-
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState("");
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [recordedDuration, setRecordedDuration] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [original, setOriginal] = useState<VoiceStory | null>(null);
+  const [loading, setLoading] = useState(Boolean(params.replaceId));
+  const recording = useRef(false);
+  const startedAt = useRef(0);
+  // Keep the upload identity on retry. A lost RPC response must not duplicate the story.
+  const upload = useRef<{
+    uri: string;
+    path: string;
+    uploaded: boolean;
+    title: string;
+  } | null>(null);
+  const prompt =
+    original?.prompt ??
+    (typeof params.prompt === "string"
+      ? params.prompt.trim().slice(0, 500) || null
+      : null);
+  const editable =
+    !params.replaceId ||
+    Boolean(original && canEdit(original.created_at, original.author_user_id));
 
-  const prompt = typeof params.prompt === 'string' && params.prompt.trim()
-    ? params.prompt.trim().slice(0, 500)
-    : null;
-
-  const otherName = useMemo(
-    () => members.find((member) => member.user_id !== session?.user.id)?.display_name ?? 'другому участнику',
-    [members, session?.user.id],
-  );
+  useLayoutEffect(() => {
+    operation.activate();
+    return () => {
+      operation.dispose();
+      // Layout cleanup runs BEFORE expo-audio's passive cleanup releases the native player.
+      try {
+        player.pause();
+      } catch {
+        /* already stopped by the OS */
+      }
+      // The recorder hook owns disposal; calling stop() again here races its release.
+    };
+  }, [operation, player]);
 
   useEffect(() => {
-    if (!recorderState.isRecording || recorderState.durationMillis < MAX_DURATION_MS) return;
-    void stopRecording();
-    // recorderState intentionally drives the automatic 20-minute stop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recorderState.durationMillis, recorderState.isRecording]);
-
-  useEffect(() => () => {
-    if (recordingRef.current) {
-      void recorder.stop().catch(() => undefined);
-    }
-    void setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => undefined);
-  }, [recorder]);
+    if (!params.replaceId || !supabase || !family) return;
+    let cancelled = false;
+    void supabase
+      .from("voice_stories")
+      .select("*")
+      .eq("id", params.replaceId)
+      .eq("family_id", family.id)
+      .single()
+      .then(({ data, error: failure }) => {
+        if (cancelled) return;
+        setLoading(false);
+        if (failure || !data) {
+          setError("Запись недоступна. Вернитесь к голосовым историям.");
+          return;
+        }
+        setOriginal(data);
+        setTitle(data.title ?? "");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [params.replaceId, family?.id]);
 
   const startRecording = async () => {
-    if (busy || recorderState.isRecording) return;
-
+    if (!editable || recording.current || !focusRef.current) return;
+    const token = operation.begin();
+    if (token === null) return;
+    setBusy(true);
+    setError("");
     try {
       const permission = await AudioModule.requestRecordingPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Нужен микрофон', 'Разреши доступ к микрофону, чтобы записывать голосовые истории.');
-        return;
-      }
-
+      if (!operation.valid(token) || !focusRef.current) return;
+      if (!permission.granted) throw new Error("MICROPHONE_PERMISSION");
       player.pause();
-      setRecordedUri(null);
-      setRecordedDuration(0);
-
+      recordingError.current = false;
       await setAudioModeAsync({
         playsInSilentMode: true,
         allowsRecording: true,
       });
+      if (!operation.valid(token) || !focusRef.current) return;
       await recorder.prepareToRecordAsync();
+      if (!operation.valid(token) || !focusRef.current) return;
       recorder.record();
-    } catch (caught) {
-      Alert.alert('Не удалось начать запись', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
+      recording.current = true;
+      startedAt.current = Date.now();
+    } catch {
+      if (operation.valid(token))
+        setError(
+          "Не удалось начать запись. Проверьте разрешение на микрофон и попробуйте ещё раз.",
+        );
+    } finally {
+      if (operation.valid(token)) setBusy(false);
+      operation.finish(token);
     }
   };
 
   const stopRecording = async () => {
-    if (!recorderState.isRecording) return;
-
-    const duration = Math.max(MIN_DURATION_MS, recorderState.durationMillis);
+    if (!recording.current) return;
+    const token = operation.begin();
+    if (token === null) return;
+    recording.current = false;
+    setBusy(true);
+    const duration = Math.min(
+      MAX_DURATION_MS,
+      Math.max(recorderState.durationMillis, Date.now() - startedAt.current),
+    );
     try {
       await recorder.stop();
-      await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
+      if (!operation.valid(token)) return;
       const uri = recorder.uri;
-      if (!uri) throw new Error('Файл записи не найден.');
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        allowsRecording: false,
+      });
+      if (!operation.valid(token)) return;
+      if (!uri || recordingError.current || duration < 500)
+        throw new Error("RECORDING_INVALID");
       setRecordedUri(uri);
       setRecordedDuration(duration);
-      player.replace(uri);
-    } catch (caught) {
-      Alert.alert('Не удалось завершить запись', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
+      // Load for listening only on explicit playback, after the recorder is fully stopped.
+    } catch {
+      if (operation.valid(token))
+        setError(
+          "Запись не завершилась корректно. Попробуйте записать ещё раз.",
+        );
+    } finally {
+      if (operation.valid(token)) setBusy(false);
+      operation.finish(token);
     }
   };
+  useEffect(() => {
+    if (
+      recorderState.isRecording &&
+      recorderState.durationMillis >= MAX_DURATION_MS
+    )
+      void stopRecording();
+  }, [recorderState.durationMillis, recorderState.isRecording]);
+  useEffect(() => {
+    if (!focused) {
+      try {
+        player.pause();
+      } catch {
+        /* native lifecycle cleanup */
+      }
+      if (recording.current) void stopRecording();
+    }
+  }, [focused]);
 
+  const playbackSource = useRef<string | null>(null);
   const togglePlayback = async () => {
     if (!recordedUri) return;
-    if (playerStatus.playing) {
-      player.pause();
-      return;
+    const token = operation.begin();
+    if (token === null) return;
+    try {
+      if (playerStatus.playing) {
+        player.pause();
+        return;
+      }
+      if (playbackSource.current !== recordedUri) {
+        player.replace(recordedUri);
+        playbackSource.current = recordedUri;
+      } else if (playerStatus.didJustFinish) await player.seekTo(0);
+      if (operation.valid(token)) player.play();
+    } catch {
+      if (operation.valid(token))
+        setError("Не удалось прослушать запись. Попробуйте ещё раз.");
+    } finally {
+      operation.finish(token);
     }
-    if (playerStatus.didJustFinish || playerStatus.currentTime >= Math.max(0, playerStatus.duration - 0.2)) {
-      await player.seekTo(0);
-    }
-    player.play();
   };
 
   const saveStory = async () => {
     const client = supabase;
-    if (!client || !session || !family || !recordedUri || busy) return;
-    if (recordedDuration < MIN_DURATION_MS) {
-      Alert.alert('Слишком короткая запись', 'Запиши хотя бы несколько слов.');
+    if (!client || !session || !family || !recordedUri || !editable) return;
+    const token = operation.begin();
+    if (token === null) return;
+    setBusy(true);
+    setError("");
+    try {
+      player.pause();
+      if (!upload.current || upload.current.uri !== recordedUri)
+        upload.current = {
+          uri: recordedUri,
+          path: `${family.id}/${session.user.id}/${Crypto.randomUUID()}.m4a`,
+          uploaded: false,
+          title: title.trim(),
+        };
+      const attempt = upload.current;
+      if (!attempt.uploaded) {
+        const audio =
+          Platform.OS === "web"
+            ? await (await fetch(recordedUri)).arrayBuffer()
+            : await new File(recordedUri).arrayBuffer();
+        if (!audio.byteLength) throw new Error("EMPTY_RECORDING");
+        try {
+          await uploadVoiceStoryAudio(client, attempt.path, audio);
+        } catch (e) {
+          // The upload itself can succeed even when its response is lost.
+          const { data } = await client.storage
+            .from("voice-stories")
+            .info(attempt.path);
+          if (!data || data.size !== audio.byteLength) throw e;
+        }
+        attempt.uploaded = true;
+      }
+      let savedId: string;
+      if (original) {
+        const result = await client.rpc("replace_voice_story", {
+          p_id: original.id,
+          p_expected_path: original.storage_path,
+          p_storage_path: attempt.path,
+          p_duration_ms: recordedDuration,
+          p_title: attempt.title || null,
+        });
+        if (result.error) throw result.error;
+        savedId = original.id;
+        // Only an acknowledged replacement allows cleaning the old file. Referenced objects are protected by RLS.
+        void removeVoiceStoryAudio(client, original.storage_path).catch(
+          () => undefined,
+        );
+      } else {
+        const result = await registerVoiceStory(client, {
+          familyId: family.id,
+          storagePath: attempt.path,
+          durationMs: recordedDuration,
+          title: attempt.title || null,
+          prompt,
+        });
+        savedId = result.voiceStoryId;
+        if (result.eventId) void notifyFamilyEvent(result.eventId);
+      }
+      // Never delete the upload on an ambiguous failure: the server may already reference it.
+      if (!operation.valid(token) || !focusRef.current) return;
+      feedback(
+        original
+          ? "Голосовая запись заменена — можно слушать"
+          : "Голосовая история сохранена — можно слушать",
+      );
+      router.replace({ pathname: "/voice-stories", params: { id: savedId } });
+    } catch (caught) {
+      if (operation.valid(token))
+        setError(
+          original
+            ? recordEditError(caught)
+            : "Не удалось подтвердить сохранение. Запись остаётся здесь — нажмите сохранить ещё раз.",
+        );
+    } finally {
+      if (operation.valid(token)) setBusy(false);
+      operation.finish(token);
+    }
+  };
+  const resetRecording = () => {
+    if (busy) return;
+    try {
+      player.pause();
+    } catch {
       return;
     }
-
-    setBusy(true);
-    let uploadedPath: string | null = null;
-
-    try {
-      const response = await fetch(recordedUri);
-      if (!response.ok) throw new Error('Не удалось прочитать локальную запись.');
-      const audio = await response.arrayBuffer();
-      if (!audio.byteLength) throw new Error('Запись получилась пустой.');
-
-      const suffix = cleanFileName(`${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
-      const path = `${family.id}/${session.user.id}/${suffix}.m4a`;
-      await uploadVoiceStoryAudio(client, path, audio);
-      uploadedPath = path;
-
-      const result = await registerVoiceStory(client, {
-        familyId: family.id,
-        storagePath: path,
-        durationMs: Math.min(recordedDuration, MAX_DURATION_MS),
-        title: title.trim() || null,
-        prompt,
-      });
-      if (result.eventId) void notifyFamilyEvent(result.eventId);
-
-      player.pause();
-      feedback('Голосовая история сохранена — можно слушать');
-      router.replace({ pathname: '/voice-stories', params: { id: result.voiceStoryId } });
-    } catch (caught) {
-      if (uploadedPath) {
-        await removeVoiceStoryAudio(client, uploadedPath).catch(() => undefined);
-      }
-      setError('Не удалось сохранить запись. Она остаётся на этом экране — попробуйте ещё раз.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const resetRecording = () => {
-    player.pause();
     setRecordedUri(null);
     setRecordedDuration(0);
+    upload.current = null;
+    playbackSource.current = null;
   };
-
-  const shownDuration = recorderState.isRecording ? recorderState.durationMillis : recordedDuration;
-  const isReady = Boolean(recordedUri && !recorderState.isRecording);
-
-  return <Page>
-    <Heading title="Голосовая история" subtitle={prompt || 'Несколько слов, которые хочется сохранить своим голосом.'} back />
-    {error ? <Text accessibilityRole="alert" style={ui.body}>{error}</Text> : null}
-    <Card tone="warm">
-      <Text style={ui.sectionTitle}>{recorderState.isRecording ? 'Идёт запись' : isReady ? 'Запись готова' : 'Готовы начать?'}</Text>
-      <Text style={ui.title}>{formatDuration(shownDuration)}</Text>
-      <Text style={ui.body}>{recorderState.isRecording ? 'Говорите в своём темпе. Нажмите «Остановить», когда закончите.' : 'До 20 минут. Перед сохранением можно прослушать запись.'}</Text>
-      {recorderState.isRecording ? <Button label="Остановить запись" onPress={() => void stopRecording()} /> : !isReady ? <Button label="Начать запись" disabled={busy} onPress={() => void startRecording()} /> : <><Button label={playerStatus.playing ? 'Пауза' : 'Прослушать запись'} secondary onPress={() => void togglePlayback()} /><Button label="Записать заново" secondary disabled={busy} onPress={() => Alert.alert('Записать заново?', 'Текущая несохранённая запись будет заменена.', [{ text: 'Оставить', style: 'cancel' }, { text: 'Записать заново', onPress: resetRecording }])} /></>}
-    </Card>
-    {isReady ? <Card><Text style={ui.rowTitle}>Название — по желанию</Text><TextInput accessibilityLabel="Название голосовой истории" style={ui.input} value={title} onChangeText={setTitle} maxLength={120} placeholder="Например: наша прогулка" /><Text style={ui.caption}>После сохранения историю смогут послушать папа и сын.</Text><Button label="Сохранить голосовую историю" busy={busy} onPress={() => void saveStory()} /></Card> : null}
-  </Page>;
+  const isRecording = recorderState.isRecording;
+  const isReady = Boolean(recordedUri && !isRecording);
+  return (
+    <Page>
+      <Heading
+        title={params.replaceId ? "Перезаписать голос" : "Голосовая история"}
+        subtitle={
+          prompt || "Несколько слов, которые хочется сохранить своим голосом."
+        }
+        back
+      />
+      {error ? (
+        <Text accessibilityRole="alert" style={ui.body}>
+          {error}
+        </Text>
+      ) : null}
+      {loading ? (
+        <Text style={ui.caption}>Открываем запись…</Text>
+      ) : !editable ? (
+        <Card>
+          <Text style={ui.body}>{editWindowHint}</Text>
+          <Button label="Вернуться к записи" onPress={() => router.back()} />
+        </Card>
+      ) : (
+        <>
+          {original ? (
+            <Text style={ui.caption}>
+              Старая запись останется доступной до сохранения новой.{" "}
+              {editWindowHint}
+            </Text>
+          ) : null}
+          <Card tone="warm">
+            <Text style={ui.sectionTitle}>
+              {isRecording
+                ? "Идёт запись"
+                : isReady
+                  ? "Запись готова"
+                  : "Готовы начать?"}
+            </Text>
+            <Text style={ui.title}>
+              {formatDuration(
+                isRecording ? recorderState.durationMillis : recordedDuration,
+              )}
+            </Text>
+            <Text style={ui.body}>
+              {isRecording
+                ? "Говорите в своём темпе. Нажмите «Остановить», когда закончите."
+                : "До 20 минут. Перед сохранением можно прослушать запись."}
+            </Text>
+            {isRecording ? (
+              <Button
+                label="Остановить запись"
+                busy={busy}
+                onPress={() => void stopRecording()}
+              />
+            ) : !isReady ? (
+              <Button
+                label="Начать запись"
+                busy={busy}
+                onPress={() => void startRecording()}
+              />
+            ) : (
+              <>
+                <Button
+                  label={playerStatus.playing ? "Пауза" : "Прослушать запись"}
+                  secondary
+                  disabled={busy}
+                  onPress={() => void togglePlayback()}
+                />
+                <Button
+                  label="Записать заново"
+                  secondary
+                  disabled={busy}
+                  onPress={resetRecording}
+                />
+              </>
+            )}
+          </Card>
+          {isReady ? (
+            <Card>
+              <Text style={ui.rowTitle}>Название — по желанию</Text>
+              <TextInput
+                accessibilityLabel="Название голосовой истории"
+                style={ui.input}
+                value={title}
+                onChangeText={setTitle}
+                editable={!busy && !upload.current?.uploaded}
+                maxLength={120}
+                placeholder="Например: наша прогулка"
+              />
+              <Text style={ui.caption}>
+                После сохранения запись появится на экране прослушивания.
+              </Text>
+              <Button
+                label={
+                  original
+                    ? "Заменить голосовую запись"
+                    : "Сохранить голосовую историю"
+                }
+                busy={busy}
+                onPress={() => void saveStory()}
+              />
+            </Card>
+          ) : null}
+        </>
+      )}
+    </Page>
+  );
 }

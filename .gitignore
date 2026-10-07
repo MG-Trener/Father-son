@@ -1,6 +1,7 @@
 node_modules/
 supabase/.temp/
 .audit/
+.codex-remote-attachments/
 android/
 ios/
 *.log

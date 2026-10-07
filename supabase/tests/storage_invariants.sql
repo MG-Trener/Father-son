@@ -69,7 +69,7 @@ begin
   from pg_policies
   where schemaname = 'storage'
     and tablename = 'objects'
-    and policyname = 'voice_stories_objects_delete_own';
+    and policyname = 'voice_stories_objects_delete_unused';
 
   if insert_check is null or position('owns_voice_object' in insert_check) = 0 then
     raise exception 'STORAGE_INVARIANT_FAILED: voice insert is not ownership-restricted';
@@ -77,12 +77,11 @@ begin
   if select_check is null or position('can_access_voice_object' in select_check) = 0 then
     raise exception 'STORAGE_INVARIANT_FAILED: voice select is not family-restricted';
   end if;
-  if update_using is null or position('owns_voice_object' in update_using) = 0
-     or update_check is null or position('owns_voice_object' in update_check) = 0 then
-    raise exception 'STORAGE_INVARIANT_FAILED: voice update is not ownership-restricted';
+  if update_using is not null or update_check is not null then
+    raise exception 'STORAGE_INVARIANT_FAILED: voice overwrite must be forbidden';
   end if;
-  if delete_using is null or position('owns_voice_object' in delete_using) = 0 then
-    raise exception 'STORAGE_INVARIANT_FAILED: voice delete is not ownership-restricted';
+  if delete_using is null or position('can_delete_unused_voice' in delete_using) = 0 then
+    raise exception 'STORAGE_INVARIANT_FAILED: referenced voice objects must be protected';
   end if;
 end $$;
 

@@ -54,6 +54,13 @@ export function ConversationBanner() {
         );
       if (reads.error) return;
       const read = new Set((reads.data ?? []).map((r) => r.event_id));
+      const chess = rows.some((r) => r.event_type === "chess_move")
+        ? await supabase
+            .from("chess_games")
+            .select("version,turn_user_id,finished")
+            .eq("family_id", family.id)
+            .maybeSingle()
+        : null;
       const answered = new Set(
         rows
           .filter((r) => r.event_type === "connection_response")
@@ -66,12 +73,17 @@ export function ConversationBanner() {
           r.actor_user_id !== me.user_id &&
           !read.has(r.id) &&
           !dismissed.current.has(r.id) &&
-          !answered.has(r.id),
+          !answered.has(r.id) &&
+          (r.event_type !== "chess_move" ||
+            (chess?.data &&
+              !chess.data.finished &&
+              chess.data.turn_user_id === me.user_id &&
+              (r.payload as { version?: number })?.version ===
+                chess.data.version)),
       );
       if (
         candidate &&
-        ((path === "/chat" &&
-          candidate.event_type === "chat_message") ||
+        ((path === "/chat" && candidate.event_type === "chat_message") ||
           (path === "/chess" && candidate.event_type === "chess_move"))
       ) {
         dismissed.current.add(candidate.id);
@@ -81,6 +93,8 @@ export function ConversationBanner() {
         });
         setIncoming(null);
       } else setIncoming(candidate ?? null);
+    } catch {
+      // A reconnect/poll will retry; a transient notification error must not crash the app.
     } finally {
       fetching.current = false;
     }
@@ -176,9 +190,10 @@ export function ConversationBanner() {
             {call
               ? `${actor} хочет поговорить`
               : incoming.event_type === "chess_move"
-                ? `${actor} сделал ход`
+                ? `Ваш ход в шахматах! ${actor} уже сходил`
                 : incoming.event_type === "connection_response"
-                  ? (incoming.payload as { response?: string })?.response === "later"
+                  ? (incoming.payload as { response?: string })?.response ===
+                    "later"
                     ? `${actor} сможет поговорить чуть позже`
                     : `${actor} принял приглашение — можно писать`
                   : `Новое сообщение от ${actor}`}

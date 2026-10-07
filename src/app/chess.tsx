@@ -1,5 +1,15 @@
-import { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AccessibilityInfo,
+  AppState,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  Vibration,
+  View,
+} from "react-native";
 import { Chess, type Square } from "chess.js";
 import {
   ActionRow,
@@ -14,6 +24,9 @@ import { useFamily } from "../context/FamilyContext";
 import { useLiveFamily } from "../hooks/useLiveFamily";
 import { supabase } from "../lib/supabase";
 import { notifyFamilyEvent } from "../lib/pushNotifications";
+import { optimisticMove, mergeConfirmed } from "../domain/chessPosition";
+import { useIsFocused } from "expo-router";
+import { useFeedback } from "../components/Feedback";
 import type { ChessGame } from "../types/database";
 
 const pieces = {
@@ -30,7 +43,23 @@ const pieceNames = {
 };
 export default function ChessScreen() {
   const { family, me, members } = useFamily();
-  const [game, setGame] = useState<ChessGame | null>(null);
+  const [confirmed, setConfirmed] = useState<ChessGame | null>(null);
+  const [pending, setPending] = useState<ChessGame | null>(null);
+  const game =
+    pending && (!confirmed || confirmed.version < pending.version)
+      ? pending
+      : confirmed;
+  const confirmedRef = useRef<ChessGame | null>(null);
+  const busyRef = useRef(false);
+  const [needsSync, setNeedsSync] = useState(false);
+  const focused = useIsFocused();
+  const feedback = useFeedback();
+  const notified = useRef(0);
+  const receive = useCallback((incoming: ChessGame | null) => {
+    const next = mergeConfirmed(confirmedRef.current, incoming);
+    confirmedRef.current = next;
+    setConfirmed(next);
+  }, []);
   const [selected, setSelected] = useState<Square | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,16 +70,34 @@ export default function ChessScreen() {
   } | null>(null);
   const load = useCallback(async () => {
     if (!supabase || !family) return;
-    const result = await supabase
-      .from("chess_games")
-      .select("*")
-      .eq("family_id", family.id)
-      .maybeSingle();
-    if (result.error) {
-      setError("Не удалось обновить доску.");
-      return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const result = await supabase
+        .from("chess_games")
+        .select("*")
+        .eq("family_id", family.id)
+        .abortSignal(controller.signal)
+        .maybeSingle();
+      if (result.error) {
+        setError("Не удалось обновить доску.");
+        setNeedsSync(true);
+        return;
+      }
+      try {
+        receive(result.data);
+        setNeedsSync(false);
+        setError("");
+      } catch {
+        setError("Не удалось прочитать позицию. Обновите доску.");
+        setNeedsSync(true);
+      }
+    } catch {
+      setError("Не удалось обновить доску. Проверьте интернет.");
+      setNeedsSync(true);
+    } finally {
+      clearTimeout(timeout);
     }
-    setGame(result.data);
   }, [family?.id]);
   useLiveFamily("chess_games", family?.id, load);
   const chess = useMemo(() => new Chess(game?.fen), [game?.fen]);
@@ -58,7 +105,7 @@ export default function ChessScreen() {
   const ranks = black ? [1, 2, 3, 4, 5, 6, 7, 8] : [8, 7, 6, 5, 4, 3, 2, 1];
   const files = black ? "hgfedcba" : "abcdefgh";
   const myTurn = Boolean(
-    game && !game.finished && game.turn_user_id === me?.user_id,
+    game && !game.finished && game.turn_user_id === me?.user_id && !needsSync,
   );
   const legal = useMemo(
     () =>
@@ -67,46 +114,80 @@ export default function ChessScreen() {
         : [],
     [chess, selected, myTurn],
   );
+  useEffect(() => {
+    if (
+      !focused ||
+      busy ||
+      !confirmed ||
+      confirmed.finished ||
+      confirmed.turn_user_id !== me?.user_id ||
+      notified.current >= confirmed.version
+    )
+      return;
+    notified.current = confirmed.version;
+    feedback("Ваш ход в шахматах — выберите фигуру");
+    AccessibilityInfo.announceForAccessibility("Ваш ход в шахматах");
+    if (Platform.OS !== "web" && AppState.currentState === "active")
+      Vibration.vibrate([0, 160, 90, 160]);
+  }, [confirmed?.version, confirmed?.turn_user_id, busy, focused, me?.user_id]);
   const commit = async (
     action: "new" | "move",
     from?: Square,
     to?: Square,
     promote = "q",
   ) => {
-    if (!supabase || !family || busy) return;
+    if (!supabase || !family || busyRef.current || needsSync) return;
+    const base = confirmedRef.current;
+    let preview: ChessGame | null = null;
+    try {
+      if (action === "move" && base && from && to && me)
+        preview = optimisticMove(base, me.user_id, from, to, promote);
+    } catch {
+      setError("Этот ход недоступен. Обновите доску.");
+      return;
+    }
+    busyRef.current = true;
+    setPending(preview);
     setBusy(true);
     setError("");
+    setSelected(null);
+    setPromotion(null);
     try {
       const result = await supabase.functions.invoke("chess-game", {
+        timeout: 15000,
         body: {
           action,
           family_id: family.id,
-          version: game?.version ?? 0,
+          version: base?.version ?? 0,
           from,
           to,
           promotion: promote,
           notify,
         },
       });
-      if (result.error) {
-        let reason = "";
-        try {
-          reason = (await result.error.context.json()).error;
-        } catch {}
-        throw new Error(reason);
-      }
+      if (result.error) throw result.error;
+      if (result.data?.game) receive(result.data.game);
+      else await load(); // compatibility with a server that has not yet been upgraded
       if (result.data?.event_id) void notifyFamilyEvent(result.data.event_id);
-      setSelected(null);
-      setPromotion(null);
-      await load();
-    } catch (caught) {
+      setPending(null);
+    } catch {
+      setPending(null);
+      setNeedsSync(true);
       setError(
-        caught instanceof Error && caught.message === "STALE_POSITION"
-          ? "Позиция уже изменилась. Доска обновлена — выберите ход ещё раз."
-          : "Ход не сохранён. Проверьте связь и очередность хода.",
+        "Не удалось подтвердить ход. Проверяем доску; при отсутствии связи нажмите «Повторить».",
       );
       await load();
+      if (
+        (confirmedRef.current?.version ?? 0) >=
+        (preview?.version ?? (base?.version ?? 0) + 1)
+      )
+        setError("");
+      else
+        setError(
+          "Ход не подтверждён. После обновления доски можно повторить его.",
+        );
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -129,15 +210,31 @@ export default function ChessScreen() {
         back
       />
       {error ? <LoadError message={error} retry={() => void load()} /> : null}
-      <View style={styles.header}>
+      <View
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
+        style={[
+          styles.header,
+          myTurn &&
+            !busy && {
+              backgroundColor: "#176B50",
+              borderWidth: 2,
+              borderColor: "#D7BD78",
+            },
+        ]}
+      >
         <Text style={styles.kicker}>
-          {game?.finished
-            ? "ПАРТИЯ ЗАВЕРШЕНА"
-            : myTurn
-              ? "ВАШ ХОД"
-              : game
-                ? "ЖДЁМ ХОД СОПЕРНИКА"
-                : "НАЧНЁМ ПАРТИЮ?"}
+          {busy
+            ? "СОХРАНЯЕМ ХОД…"
+            : needsSync
+              ? "НУЖНО ОБНОВИТЬ ДОСКУ"
+              : game?.finished
+                ? "ПАРТИЯ ЗАВЕРШЕНА"
+                : myTurn
+                  ? "ВАШ ХОД — ИГРАЙТЕ!"
+                  : game
+                    ? "ЖДЁМ ХОД СОПЕРНИКА"
+                    : "НАЧНЁМ ПАРТИЮ?"}
         </Text>
         <Text style={styles.status}>
           {game?.finished
@@ -234,9 +331,11 @@ export default function ChessScreen() {
         />
       ) : (
         <Text style={ui.caption}>
-          {myTurn
-            ? "Нажмите на фигуру — подсветятся доступные ходы."
-            : "Позиция сохранена. Можно закрыть приложение и вернуться позже."}
+          {busy
+            ? "Фигура перемещена. Ждём подтверждения сервера…"
+            : myTurn
+              ? "Нажмите на фигуру — подсветятся доступные ходы."
+              : "Позиция сохранена. Можно закрыть приложение и вернуться позже."}
           {game.last_move ? ` Последний ход: ${game.last_move}.` : ""}
         </Text>
       )}
@@ -264,7 +363,7 @@ const styles = StyleSheet.create({
   header: { backgroundColor: "#183E3C", borderRadius: 18, padding: 16, gap: 6 },
   kicker: {
     color: "#D7BD78",
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: "800",
     letterSpacing: 1,
   },
