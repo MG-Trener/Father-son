@@ -1,5 +1,10 @@
 project_id = "father-son"
 
+[auth]
+# Registration confirmations without an explicit redirect must return to the APK.
+site_url = "papaiya://auth-callback"
+additional_redirect_urls = ["papaiya://auth-callback"]
+
 [functions.send-family-push]
 verify_jwt = true
 
