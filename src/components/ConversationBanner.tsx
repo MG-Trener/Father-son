@@ -71,9 +71,7 @@ export function ConversationBanner() {
       if (
         candidate &&
         ((path === "/chat" &&
-          ["chat_message", "connection_response"].includes(
-            candidate.event_type,
-          )) ||
+          candidate.event_type === "chat_message") ||
           (path === "/chess" && candidate.event_type === "chess_move"))
       ) {
         dismissed.current.add(candidate.id);
@@ -180,7 +178,9 @@ export function ConversationBanner() {
               : incoming.event_type === "chess_move"
                 ? `${actor} сделал ход`
                 : incoming.event_type === "connection_response"
-                  ? `${actor} ответил на приглашение`
+                  ? (incoming.payload as { response?: string })?.response === "later"
+                    ? `${actor} сможет поговорить чуть позже`
+                    : `${actor} принял приглашение — можно писать`
                   : `Новое сообщение от ${actor}`}
           </Text>
           <Pressable
