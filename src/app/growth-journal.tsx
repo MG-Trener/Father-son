@@ -1,21 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Image,
   type ImageSourcePropType,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+  Text
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Button, Card, Heading, LoadError, Page, Section, ui } from '../components/Everyday';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
-import { colors, radius, shadows } from '../theme';
 
 type GrowthCategory = 'school' | 'football' | 'chess' | 'english' | 'leadership';
 
@@ -95,8 +86,9 @@ export default function GrowthJournalScreen() {
   const { family, members, me } = useFamily();
   const category: GrowthCategory = isCategory(params.category) ? params.category : 'football';
   const config = configs[category];
-  const target = useMemo(() => members.find((member) => member.role === 'child') ?? me ?? null, [members, me]);
+  const target = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members, me]);
   const names = useMemo(() => new Map(members.map((member) => [member.user_id, member.display_name])), [members]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [entries, setEntries] = useState<GrowthEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -108,33 +100,25 @@ export default function GrowthJournalScreen() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('growth_entries')
-      .select('id,user_id,category,entry_type,activity_date,title,note,metrics,created_by,created_at')
-      .eq('family_id', family.id)
-      .eq('user_id', target.user_id)
-      .eq('category', category)
-      .order('activity_date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(80);
+    setLoadError(null);
+    try {
+      const { data, error } = await supabase
+        .from('growth_entries')
+        .select('id,user_id,category,entry_type,activity_date,title,note,metrics,created_by,created_at')
+        .eq('family_id', family.id)
+        .eq('user_id', target.user_id)
+        .eq('category', category)
+        .order('activity_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(80);
 
-    if (!error) setEntries((data ?? []) as GrowthEntry[]);
-    setLoading(false);
+      if (error) throw error;
+      setEntries((data ?? []) as GrowthEntry[]);
+    } catch { setLoadError('Не удалось обновить записи. Проверьте интернет.'); }
+    finally { setLoading(false); }
   }, [family, target, category]);
 
-  useEffect(() => { void load(); }, [load]);
-
-  const recent30 = useMemo(() => {
-    const threshold = new Date();
-    threshold.setDate(threshold.getDate() - 29);
-    threshold.setHours(0, 0, 0, 0);
-    return entries.filter((entry) => new Date(`${entry.activity_date}T00:00:00`) >= threshold).length;
-  }, [entries]);
-
-  const totalMinutes = useMemo(() => entries.reduce((sum, entry) => {
-    const value = entry.metrics?.duration_min;
-    return sum + (typeof value === 'number' && Number.isFinite(value) ? value : 0);
-  }, 0), [entries]);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -142,88 +126,19 @@ export default function GrowthJournalScreen() {
     setRefreshing(false);
   };
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={config.strong} />}>
-        <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} style={[styles.backButton, shadows.soft]}><Text style={styles.backText}>‹</Text></Pressable>
-          <View style={styles.topText}><Text style={styles.topKicker}>ЖУРНАЛ РОСТА</Text><Text style={styles.topTitle}>{config.title}</Text></View>
-          <View style={[styles.topIcon, { backgroundColor: config.accent }]}><Image source={config.image} style={styles.topIconImage} resizeMode="contain" /></View>
-        </View>
-
-        <LinearGradient colors={config.gradient} style={[styles.hero, shadows.lift]}>
-          <View style={styles.heroOrb} />
-          <View style={styles.heroOrbit} />
-          <Image source={config.image} style={styles.heroImage} resizeMode="contain" />
-          <Text style={styles.heroKicker}>{target?.display_name ?? 'Артур'} · {config.title.toUpperCase()}</Text>
-          <Text style={styles.heroTitle}>{config.subtitle}</Text>
-          <View style={styles.heroNumbers}>
-            <View style={styles.heroNumber}><Text style={styles.heroNumberValue}>{entries.length}</Text><Text style={styles.heroNumberLabel}>всего моментов</Text></View>
-            <View style={styles.heroDivider} />
-            <View style={styles.heroNumber}><Text style={styles.heroNumberValue}>{recent30}</Text><Text style={styles.heroNumberLabel}>за 30 дней</Text></View>
-            {totalMinutes > 0 ? <><View style={styles.heroDivider} /><View style={styles.heroNumber}><Text style={styles.heroNumberValue}>{totalMinutes}</Text><Text style={styles.heroNumberLabel}>минут</Text></View></> : null}
-          </View>
-        </LinearGradient>
-
-        <Pressable style={[styles.addCard, { backgroundColor: config.accent }, shadows.soft]} onPress={() => router.push({ pathname: '/growth-entry-new', params: { category } })}>
-          <View style={[styles.addIcon, { backgroundColor: 'rgba(255,255,255,0.72)' }]}><Image source={config.image} style={styles.addIconImage} resizeMode="contain" /></View>
-          <View style={styles.addCopy}><Text style={[styles.addTitle, { color: config.deep }]}>Сохранить новый момент</Text><Text style={[styles.addText, { color: config.deep }]}>Тренировка, вывод, победа, ошибка или то, что просто хочется запомнить.</Text></View>
-          <Text style={[styles.addArrow, { color: config.strong }]}>↗</Text>
-        </Pressable>
-
-        <View style={styles.sectionHead}>
-          <View><Text style={styles.sectionKicker}>ЛЕТОПИСЬ НАПРАВЛЕНИЯ</Text><Text style={styles.sectionTitle}>Что происходило</Text></View>
-          <View style={[styles.sectionBadge, { backgroundColor: config.accent }]}><Text style={[styles.sectionBadgeText, { color: config.deep }]}>{entries.length}</Text></View>
-        </View>
-
-        {loading ? <ActivityIndicator size="large" color={config.strong} style={styles.loader} /> : entries.length ? (
-          <View style={styles.timeline}>
-            {entries.map((entry, index) => {
-              const metrics = Object.entries(entry.metrics ?? {})
-                .map(([key, value]) => ({ key, label: metricLabels[key] ?? key, value: metricValue(key, value) }))
-                .filter((item) => item.value !== null)
-                .slice(0, 5);
-              return (
-                <View key={entry.id} style={styles.timelineRow}>
-                  <View style={styles.rail}>
-                    <View style={[styles.dot, { backgroundColor: config.strong }]}><Text style={styles.dotText}>{index + 1}</Text></View>
-                    {index < entries.length - 1 ? <View style={[styles.line, { backgroundColor: config.accent }]} /> : null}
-                  </View>
-                  <View style={[styles.card, shadows.soft]}>
-                    <View style={styles.cardHeader}>
-                      <View style={styles.cardText}>
-                        <View style={styles.typeRow}><Image source={config.image} style={styles.entryImage} resizeMode="contain" /><View style={[styles.typePill, { backgroundColor: config.accent }]}><Text style={[styles.entryType, { color: config.deep }]}>{config.entryLabels[entry.entry_type] ?? entry.entry_type}</Text></View></View>
-                        <Text style={styles.entryTitle}>{entry.title || 'Без заголовка'}</Text>
-                      </View>
-                      <Text style={styles.date}>{formatDate(entry.activity_date)}</Text>
-                    </View>
-                    {entry.note ? <Text style={styles.note}>{entry.note}</Text> : null}
-                    {metrics.length ? <View style={styles.metrics}>{metrics.map((metric) => <View key={metric.key} style={[styles.metricChip, { borderColor: config.accent }]}><Text style={styles.metricLabel}>{metric.label}</Text><Text style={[styles.metricValue, { color: config.deep }]}>{metric.value}</Text></View>)}</View> : null}
-                    <Text style={styles.author}>сохранил · {names.get(entry.created_by) ?? 'участник команды'}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        ) : (
-          <View style={[styles.empty, { backgroundColor: config.accent }, shadows.soft]}>
-            <View style={styles.emptyIconBox}><Image source={config.image} style={styles.emptyImage} resizeMode="contain" /></View>
-            <Text style={[styles.emptyTitle, { color: config.deep }]}>Первая запись ещё впереди</Text>
-            <Text style={[styles.emptyText, { color: config.deep }]}>Сохраняйте не только успехи. Сложный матч, непонятная тема или неудачная партия тоже становятся частью роста.</Text>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  );
+  return <Page refreshing={loading || refreshing} onRefresh={onRefresh}>
+    <Heading title={category === 'english' ? 'Английский' : config.title} subtitle={config.subtitle} back />
+    {loadError ? <LoadError message={loadError} retry={() => void load()} /> : null}
+    <Button label="Добавить запись о занятии" onPress={() => router.push({ pathname: '/growth-entry-new', params: { category } })} />
+    <Section title="Последние записи">
+      {!loading && !loadError && !entries.length ? <Card><Text style={ui.rowTitle}>Здесь появятся первые шаги</Text><Text style={ui.body}>Расскажи, что получилось, что было трудно или что хочется попробовать в следующий раз.</Text></Card> : null}
+      {entries.map(entry => <Card key={entry.id}>
+        <Text style={ui.caption}>{formatDate(entry.activity_date)} · {config.entryLabels[entry.entry_type] ?? entry.entry_type}</Text>
+        <Text style={ui.rowTitle}>{entry.title || 'Заметка о занятии'}</Text>
+        {entry.note ? <Text style={ui.body}>{entry.note}</Text> : null}
+        {Object.entries(entry.metrics ?? {}).map(([key, value]) => metricValue(key, value) === null ? null : <Text key={key} style={ui.body}>{metricLabels[key] ?? key}: {metricValue(key, value)}</Text>)}
+        <Text style={ui.caption}>Сохранил: {names.get(entry.created_by) ?? 'участник семьи'}</Text>
+      </Card>)}
+    </Section>
+  </Page>;
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.sand }, content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32, gap: 18 },
-  topBar: { flexDirection: 'row', alignItems: 'center', gap: 11 }, backButton: { width: 42, height: 42, borderRadius: 16, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.lineWarm, alignItems: 'center', justifyContent: 'center' }, backText: { color: colors.navy, fontSize: 31, lineHeight: 33, marginTop: -2 }, topText: { flex: 1 }, topKicker: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 }, topTitle: { color: colors.navyDeep, fontSize: 25, fontWeight: '900', marginTop: 1 },
-  topIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, topIconImage: { width: 44, height: 44 },
-  hero: { minHeight: 270, borderRadius: radius.xl, padding: 20, overflow: 'hidden' }, heroOrb: { position: 'absolute', width: 190, height: 190, borderRadius: 95, right: -58, top: -70, backgroundColor: 'rgba(255,255,255,0.10)' }, heroOrbit: { position: 'absolute', width: 190, height: 82, borderRadius: 100, right: -20, top: 55, borderWidth: 2, borderColor: 'rgba(255,255,255,0.13)', transform: [{ rotate: '-18deg' }] }, heroImage: { position: 'absolute', width: 126, height: 126, right: 10, top: 18, opacity: 0.92 }, heroKicker: { color: 'rgba(255,255,255,0.72)', fontSize: 9, fontWeight: '900', letterSpacing: 1.1 }, heroTitle: { color: colors.white, fontSize: 24, lineHeight: 29, fontWeight: '900', maxWidth: '68%', marginTop: 10 }, heroNumbers: { minHeight: 70, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: radius.lg, paddingHorizontal: 8, marginTop: 'auto' }, heroNumber: { flex: 1, alignItems: 'center' }, heroNumberValue: { color: colors.white, fontSize: 20, fontWeight: '900' }, heroNumberLabel: { color: 'rgba(255,255,255,0.72)', fontSize: 8, fontWeight: '800', marginTop: 2 }, heroDivider: { width: 1, height: 31, backgroundColor: 'rgba(255,255,255,0.16)' },
-  addCard: { minHeight: 105, borderRadius: radius.xl, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 12 }, addIcon: { width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, addIconImage: { width: 47, height: 47 }, addCopy: { flex: 1 }, addTitle: { fontSize: 15, fontWeight: '900' }, addText: { fontSize: 9, lineHeight: 14, opacity: 0.72, marginTop: 3 }, addArrow: { fontSize: 20, fontWeight: '900' },
-  sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 3 }, sectionKicker: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1.05 }, sectionTitle: { color: colors.navyDeep, fontSize: 22, fontWeight: '900', marginTop: 3 }, sectionBadge: { minWidth: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' }, sectionBadgeText: { fontSize: 11, fontWeight: '900' },
-  loader: { marginVertical: 38 }, timeline: { gap: 0 }, timelineRow: { flexDirection: 'row' }, rail: { width: 35, alignItems: 'center' }, dot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 16 }, dotText: { color: colors.white, fontSize: 8, fontWeight: '900' }, line: { width: 2, flex: 1, marginVertical: 4 }, card: { flex: 1, backgroundColor: colors.paper, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineWarm, padding: 15, gap: 10, marginBottom: 12 }, cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 }, cardText: { flex: 1 }, typeRow: { flexDirection: 'row', alignItems: 'center', gap: 7 }, entryImage: { width: 30, height: 30 }, typePill: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 5 }, entryType: { fontSize: 8, fontWeight: '900', letterSpacing: 0.6, textTransform: 'uppercase' }, entryTitle: { color: colors.navyDeep, fontSize: 16, lineHeight: 20, fontWeight: '900', marginTop: 7 }, date: { color: colors.muted, fontSize: 8, fontWeight: '800', maxWidth: 74, textAlign: 'right' }, note: { color: colors.muted, fontSize: 11, lineHeight: 17 }, metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, metricChip: { backgroundColor: colors.white, borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 6, flexDirection: 'row', gap: 4 }, metricLabel: { color: colors.muted, fontSize: 8, fontWeight: '800' }, metricValue: { fontSize: 8, fontWeight: '900' }, author: { color: colors.muted, fontSize: 8, fontWeight: '700', marginTop: 1 },
-  empty: { borderRadius: radius.xl, padding: 25, alignItems: 'center' }, emptyIconBox: { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.66)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, emptyImage: { width: 70, height: 70 }, emptyTitle: { fontSize: 17, fontWeight: '900', marginTop: 14 }, emptyText: { fontSize: 10, lineHeight: 16, textAlign: 'center', opacity: 0.72, marginTop: 5, maxWidth: '88%' },
-});

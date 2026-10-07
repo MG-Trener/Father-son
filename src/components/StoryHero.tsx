@@ -58,14 +58,14 @@ export function StoryHero({ kicker, title, subtitle, emblem, emblemImage, varian
 
 const styles = StyleSheet.create({
   shell: {
-    minHeight: 286,
+
     borderRadius: radius.xl,
     overflow: 'hidden',
     backgroundColor: colors.night,
   },
   overlay: {
     flex: 1,
-    minHeight: 286,
+
     padding: 20,
     justifyContent: 'space-between',
   },
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     top: -56,
   },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  kicker: { color: '#D7E5E5', fontSize: 9, fontWeight: '900', letterSpacing: 1.2, flex: 1 },
+  kicker: { color: '#D7E5E5', fontSize: 13, fontWeight: '900', letterSpacing: 1.2, flex: 1 },
   emblem: {
     width: 54,
     height: 54,
@@ -93,9 +93,9 @@ const styles = StyleSheet.create({
   },
   emblemImage: { width: 49, height: 49 },
   emblemText: { color: colors.white, fontSize: 22, fontWeight: '900' },
-  copy: { marginTop: 54, maxWidth: '84%' },
-  title: { color: colors.white, fontSize: 31, lineHeight: 33, fontWeight: '900', letterSpacing: -1 },
-  subtitle: { color: '#E5EEEE', fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 8 },
+  copy: { marginTop: 14 },
+  title: { color: colors.white, fontSize: 25, lineHeight: 31, fontWeight: '900', letterSpacing: -1 },
+  subtitle: { color: '#E5EEEE', fontSize: 15, lineHeight: 23, fontWeight: '700', marginTop: 8 },
   footer: {
     marginTop: 22,
     paddingTop: 13,

@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { Heading } from '../components/Everyday';
 import { StoryHero } from '../components/StoryHero';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
@@ -42,7 +43,7 @@ type AnnualPrompt = {
   note: string;
 };
 
-const chapterAges = [11, 12, 13, 14, 15, 16, 17] as const;
+const chapterAges = [11, 12, 13, 14, 15, 16, 17, 18] as const;
 const categories: Category[] = [
   { id: 'school', title: 'Школа', image: require('../../assets/generated/direction-school.png'), colors: ['#E4F1FB', '#C8E2F4'], ink: '#35698D' },
   { id: 'football', title: 'Футбол', image: require('../../assets/generated/direction-football.png'), colors: ['#E1F3E7', '#C7E5D1'], ink: '#397058' },
@@ -75,7 +76,7 @@ const ageFromBirthDate = (birthDate: string | null) => {
   const now = new Date();
   let result = now.getFullYear() - birth.getFullYear();
   if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) result -= 1;
-  return Math.max(11, Math.min(17, result));
+  return Math.max(11, Math.min(18, result));
 };
 const chapterRange = (birthDate: string | null, age: number) => {
   if (!birthDate) {
@@ -200,6 +201,7 @@ export default function YearBookV2() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.navy} />}>
+        <Heading title="Книга года" back />
         <StoryHero
           kicker="КНИГА ГОДА · НАША ИСТОРИЯ"
           title={`${childName} · ${selectedAge} лет`}
@@ -319,66 +321,66 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 15, paddingTop: 10, paddingBottom: 34, gap: 16 },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   heroFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  heroPeriod: { color: '#E4ECEE', fontSize: 9, fontWeight: '800', flex: 1 },
+  heroPeriod: { color: '#E4ECEE', fontSize: 14, fontWeight: '800', flex: 1 },
   heroStats: { flexDirection: 'row', gap: 5 },
-  heroStat: { color: colors.white, fontSize: 9, fontWeight: '900' },
+  heroStat: { color: colors.white, fontSize: 14, fontWeight: '900' },
   ageRow: { gap: 8, paddingVertical: 2 },
   ageChip: { width: 62, minHeight: 58, borderRadius: 20, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: '#E7DFD2', alignItems: 'center', justifyContent: 'center' },
   ageChipActive: { backgroundColor: colors.navyDeep, borderColor: colors.navyDeep, transform: [{ translateY: -2 }] },
   ageChipFuture: { opacity: 0.6 },
   ageText: { color: colors.navyDeep, fontSize: 17, fontWeight: '900' },
   ageTextActive: { color: colors.white },
-  ageLabel: { color: colors.muted, fontSize: 7, fontWeight: '800', marginTop: 2 },
+  ageLabel: { color: colors.muted, fontSize: 14, fontWeight: '800', marginTop: 2 },
   ageLabelActive: { color: '#D7E5E5' },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 10 },
-  kicker: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  kicker: { color: colors.muted, fontSize: 14, fontWeight: '900', letterSpacing: 1.1 },
   sectionTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 3, letterSpacing: -0.4 },
-  sectionNote: { color: colors.muted, fontSize: 9, fontWeight: '800' },
+  sectionNote: { color: colors.muted, fontSize: 14, fontWeight: '800' },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   categoryCard: { width: '31.6%', minHeight: 112, borderRadius: 22, padding: 10 },
   categoryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   categoryIconShell: { width: 42, height: 42, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   categoryIconImage: { width: 40, height: 40 },
   categoryCount: { fontSize: 20, fontWeight: '900' },
-  categoryTitle: { fontSize: 10, fontWeight: '900', marginTop: 14 },
+  categoryTitle: { fontSize: 14, fontWeight: '900', marginTop: 14 },
   summaryRibbon: { minHeight: 86, borderRadius: radius.xl, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryValue: { color: colors.navyDeep, fontSize: 21, fontWeight: '900' },
-  summaryLabel: { color: '#72562B', fontSize: 8, fontWeight: '800', marginTop: 2, textAlign: 'center' },
+  summaryLabel: { color: '#72562B', fontSize: 14, fontWeight: '800', marginTop: 2, textAlign: 'center' },
   summaryDivider: { width: 1, height: 37, backgroundColor: 'rgba(87,64,32,0.18)' },
-  introText: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: -8 },
+  introText: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: -8 },
   promptList: { gap: 10 },
   promptCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, borderWidth: 1, borderColor: '#E8DFD1', padding: 17 },
   promptTop: { flexDirection: 'row', gap: 11 },
   promptIcon: { width: 52, height: 52, borderRadius: 17, backgroundColor: '#FFF0C9', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   promptIconImage: { width: 49, height: 49 },
   promptCopy: { flex: 1 },
-  promptTitle: { color: colors.navyDeep, fontSize: 12, fontWeight: '900' },
+  promptTitle: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
   promptQuestion: { color: colors.navyDeep, fontSize: 16, lineHeight: 20, fontWeight: '900', marginTop: 3 },
-  promptNote: { color: colors.muted, fontSize: 9, lineHeight: 13, marginTop: 10 },
+  promptNote: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 10 },
   voiceRow: { flexDirection: 'row', gap: 7, marginTop: 12 },
   voiceBadge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: '#F1ECE4' },
   voiceBadgeDone: { backgroundColor: '#DDEEE4' },
-  voiceBadgeText: { color: colors.muted, fontSize: 8, fontWeight: '900' },
+  voiceBadgeText: { color: colors.muted, fontSize: 14, fontWeight: '900' },
   voiceBadgeTextDone: { color: colors.green },
   answerButton: { minHeight: 43, borderRadius: 15, backgroundColor: colors.navyDeep, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   answerButtonSecondary: { backgroundColor: '#EEF2EF', borderWidth: 1, borderColor: '#D6E0D9' },
-  answerButtonText: { color: colors.white, fontSize: 10, fontWeight: '900' },
+  answerButtonText: { color: colors.white, fontSize: 14, fontWeight: '900' },
   answerButtonTextSecondary: { color: colors.green },
-  futureHint: { color: colors.muted, fontSize: 9, fontStyle: 'italic', marginTop: 12 },
+  futureHint: { color: colors.muted, fontSize: 14, fontStyle: 'italic', marginTop: 12 },
   timelineCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, borderWidth: 1, borderColor: '#E8DFD1', padding: 18 },
   timelineRow: { flexDirection: 'row', gap: 11, paddingVertical: 12 },
   timelineBorder: { borderTopWidth: 1, borderTopColor: '#EEE7DC' },
   timelineIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   timelineIconImage: { width: 41, height: 41 },
   timelineCopy: { flex: 1 },
-  timelineTitle: { color: colors.navyDeep, fontSize: 11, lineHeight: 15, fontWeight: '900' },
-  timelineDetail: { color: colors.muted, fontSize: 9, lineHeight: 13, marginTop: 3 },
-  timelineDate: { color: '#96A1A0', fontSize: 8, marginTop: 4 },
+  timelineTitle: { color: colors.navyDeep, fontSize: 14, lineHeight: 20, fontWeight: '900' },
+  timelineDetail: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 3 },
+  timelineDate: { color: '#96A1A0', fontSize: 14, marginTop: 4 },
   emptyState: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 12 },
   emptyImage: { width: 90, height: 90 },
   emptyTitle: { color: colors.navyDeep, fontSize: 14, fontWeight: '900', marginTop: 7 },
-  emptyText: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 4 },
+  emptyText: { color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 4 },
   historyButton: { minHeight: 42, borderRadius: 14, backgroundColor: '#F1ECE4', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  historyButtonText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900' },
+  historyButtonText: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
 });

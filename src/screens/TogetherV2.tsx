@@ -1,25 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { StoryHero } from '../components/StoryHero';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, Text, TextInput, View } from 'react-native';
+import { ActionRow, Button, Card, Chip, Heading, LoadError, Page, Section, ui } from '../components/Everyday';
 import { useAuth } from '../context/AuthContext';
 import { useFamily } from '../context/FamilyContext';
+import { useFamilyPresentation } from '../hooks/useFamilyPresentation';
 import { notifyFamilyEvent } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
-import { colors, radius, shadows } from '../theme';
 
 type TogetherMission = {
   id: string;
@@ -82,21 +69,10 @@ const timeLabel = (value: string) => {
   return sameDay ? date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 };
 
-const eventArtwork = (eventType: string) => {
-  if (eventType === 'voice_story_added') return artwork.voice;
-  if (eventType === 'reflection_added') return artwork.recognition;
-  if (eventType === 'advice_requested') return artwork.recognition;
-  if (eventType === 'five_minutes_ping' || eventType === 'connection_response') return artwork.together;
-  return artwork.goal;
-};
-
 export default function TogetherV2() {
   const { session } = useAuth();
   const { family, members, me } = useFamily();
-  const other = useMemo(() => members.find((member) => member.user_id !== me?.user_id) ?? null, [members, me]);
-  const isChild = me?.role === 'child';
-  const myName = me?.display_name ?? (isChild ? 'Артур' : 'Михаил');
-  const otherName = other?.display_name ?? (isChild ? 'Михаил' : 'Артур');
+  const { other, isChild, otherName } = useFamilyPresentation();
   const names = useMemo(() => new Map(members.map((member) => [member.user_id, member.display_name])), [members]);
   const [mission, setMission] = useState<TogetherMission | null>(null);
   const [events, setEvents] = useState<RecentEvent[]>([]);
@@ -106,6 +82,7 @@ export default function TogetherV2() {
   const [adviceNote, setAdviceNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const respondedSignalIds = useMemo(() => {
@@ -129,17 +106,20 @@ export default function TogetherV2() {
       setLoading(false);
       return;
     }
-    const [missionResult, eventsResult] = await Promise.all([
-      supabase.from('missions').select('id,title,description,xp_reward,due_at,created_by,assigned_to').eq('family_id', family.id).eq('category', 'together').eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('activity_events').select('id,actor_user_id,event_type,occurred_at,payload').eq('family_id', family.id).in('event_type', ['five_minutes_ping', 'advice_requested', 'reflection_added', 'connection_response', 'voice_story_added']).order('occurred_at', { ascending: false }).limit(24),
-    ]);
-    if (missionResult.error) Alert.alert('Не удалось загрузить общую миссию', missionResult.error.message);
-    else setMission((missionResult.data as TogetherMission | null) ?? null);
-    if (!eventsResult.error) setEvents((eventsResult.data ?? []) as RecentEvent[]);
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const [missionResult, eventsResult] = await Promise.all([
+        supabase.from('missions').select('id,title,description,xp_reward,due_at,created_by,assigned_to').eq('family_id', family.id).eq('category', 'together').eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('activity_events').select('id,actor_user_id,event_type,occurred_at,payload').eq('family_id', family.id).in('event_type', ['five_minutes_ping', 'advice_requested', 'reflection_added', 'connection_response', 'voice_story_added']).order('occurred_at', { ascending: false }).limit(24),
+      ]);
+      if (missionResult.error || eventsResult.error) throw missionResult.error ?? eventsResult.error;
+      setMission((missionResult.data as TogetherMission | null) ?? null);
+      setEvents((eventsResult.data ?? []) as RecentEvent[]);
+    } catch { setLoadError('Не удалось обновить ответы и общие дела. Проверьте интернет.'); }
+    finally { setLoading(false); }
   }, [family]);
 
-  useEffect(() => { void load(); }, [load]);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -168,7 +148,7 @@ export default function TogetherV2() {
       setAdviceOpen(false);
       setAdviceNote('');
       await load();
-      Alert.alert(type === 'five_minutes' ? 'Сигнал отправлен ✦' : 'Запрос отправлен', `${otherName} увидит его на своём телефоне.`);
+      Alert.alert(type === 'five_minutes' ? 'Сигнал отправлен ✦' : 'Запрос отправлен', `${otherName} увидит приглашение в разделе «Вместе», когда откроет приложение.`);
     } catch (caught) {
       Alert.alert('Не удалось отправить', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
     } finally {
@@ -202,7 +182,7 @@ export default function TogetherV2() {
       const record = data && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : {};
       const achievement = typeof record.achievement_title === 'string' ? record.achievement_title : null;
       await load();
-      Alert.alert('Общая миссия выполнена ✦', achievement ? `Открыта веха «${achievement}».` : `+${mission.xp_reward} XP вашей команде.`);
+      Alert.alert('Общая миссия выполнена ✦', achievement ? `Открыта веха «${achievement}».` : 'Ваше общее дело сохранено в истории.');
     } catch (caught) {
       Alert.alert('Не удалось завершить миссию', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
     } finally {
@@ -225,223 +205,47 @@ export default function TogetherV2() {
     return `${actor} сохранил важную мысль`;
   };
 
-  if (loading) {
-    return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.loader}><ActivityIndicator size="large" color={colors.navy} /></View></SafeAreaView>;
-  }
-
   const pendingActor = pendingSignal?.actor_user_id ? names.get(pendingSignal.actor_user_id) ?? otherName : otherName;
   const pendingMessage = pendingSignal?.event_type === 'advice_requested' ? payloadText(pendingSignal.payload, 'message') : null;
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.navy} />}
-      >
-        <StoryHero
-          kicker="НАША БАЗА · ПАПА & Я"
-          title={isChild ? `Я и папа — одна команда` : `Мы рядом, даже когда далеко`}
-          subtitle={isChild
-            ? `Здесь можно позвать папу, спросить совет, придумать тему для разговора или сохранить то, что хочется помнить.`
-            : `Не только контроль и советы. Это место, где ${myName} и ${otherName} остаются частью жизни друг друга каждый день.`}
-          variant="warm"
-          emblemImage={artwork.together}
-          footer={(
-            <View style={styles.heroPeople}>
-              <View><Text style={styles.heroName}>{myName}</Text><Text style={styles.heroRole}>{isChild ? 'сын' : 'папа'}</Text></View>
-              <View style={styles.heroBridge}><View style={styles.heroLine} /><View style={styles.heroStar}><Image source={artwork.together} style={styles.heroStarImage} resizeMode="contain" /></View><View style={styles.heroLine} /></View>
-              <View style={styles.heroPersonRight}><Text style={styles.heroName}>{otherName}</Text><Text style={styles.heroRole}>{isChild ? 'папа' : 'сын'}</Text></View>
-            </View>
-          )}
-        />
-
-        {pendingSignal ? (
-          <LinearGradient colors={['#FFCF69', '#F5A34B', '#E97B5A']} style={[styles.incoming, shadows.lift]}>
-            <View style={styles.signalGlow} />
-            <View style={styles.signalHeader}>
-              <View style={styles.signalImageShell}><Image source={pendingSignal.event_type === 'advice_requested' ? artwork.recognition : artwork.together} style={styles.signalImage} resizeMode="contain" /></View>
-              <View style={styles.signalCopy}><Text style={styles.signalKicker}>СИГНАЛ ОТ {pendingActor.toUpperCase()}</Text><Text style={styles.signalTitle}>{pendingSignal.event_type === 'five_minutes_ping' ? 'Есть 5 минут?' : 'Мне нужен твой совет'}</Text></View>
-            </View>
-            {pendingMessage ? <Text style={styles.signalMessage}>{pendingMessage}</Text> : null}
-            <View style={styles.signalActions}>
-              <Pressable style={styles.hereButton} disabled={busy} onPress={() => void respond('here')}><Text style={styles.hereText}>Я рядом</Text></Pressable>
-              <Pressable style={styles.laterButton} disabled={busy} onPress={() => void respond('later')}><Text style={styles.laterText}>Чуть позже</Text></Pressable>
-            </View>
-          </LinearGradient>
-        ) : null}
-
-        <View style={styles.sectionHead}>
-          <View><Text style={styles.kicker}>БЫСТРО</Text><Text style={styles.sectionTitle}>Что делаем?</Text></View>
-        </View>
-
-        <View style={styles.actionGrid}>
-          <Pressable style={styles.actionPressable} disabled={busy} onPress={() => void sendSignal('five_minutes')}>
-            <LinearGradient colors={['#FFF1C8', '#FFD786']} style={[styles.actionCard, shadows.soft]}>
-              <View style={styles.actionImageShell}><Image source={artwork.together} style={styles.actionImage} resizeMode="contain" /></View>
-              <Text style={styles.actionTitle}>Есть 5 минут?</Text><Text style={styles.actionText}>Позвать {otherName}</Text>
-            </LinearGradient>
-          </Pressable>
-          <Pressable style={styles.actionPressable} onPress={() => setAdviceOpen((value) => !value)}>
-            <LinearGradient colors={['#DFF0F3', '#B9DDE4']} style={[styles.actionCard, shadows.soft]}>
-              <View style={styles.actionImageShell}><Image source={artwork.recognition} style={styles.actionImage} resizeMode="contain" /></View>
-              <Text style={styles.actionTitle}>Нужен совет</Text><Text style={styles.actionText}>Можно без длинных объяснений</Text>
-            </LinearGradient>
-          </Pressable>
-          <Pressable style={styles.actionPressable} onPress={() => router.push('/meeting-plan')}>
-            <LinearGradient colors={['#E3F0E6', '#C8E4D0']} style={[styles.actionCard, shadows.soft]}>
-              <View style={styles.actionImageShell}><Image source={artwork.calendar} style={styles.actionImage} resizeMode="contain" /></View>
-              <Text style={styles.actionTitle}>Наша встреча</Text><Text style={styles.actionText}>Запланировать время вместе</Text>
-            </LinearGradient>
-          </Pressable>
-          <Pressable style={styles.actionPressable} onPress={() => router.push('/voice-story-new')}>
-            <LinearGradient colors={['#EEE8FA', '#D9CEF2']} style={[styles.actionCard, shadows.soft]}>
-              <View style={styles.actionImageShell}><Image source={artwork.voice} style={styles.actionImage} resizeMode="contain" /></View>
-              <Text style={styles.actionTitle}>Голосом</Text><Text style={styles.actionText}>Оставить историю друг другу</Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
-
-        {adviceOpen ? (
-          <View style={[styles.adviceCard, shadows.soft]}>
-            <View style={styles.adviceHeader}>
-              <View><Text style={styles.kicker}>ЗАПРОС СОВЕТА</Text><Text style={styles.sectionTitle}>О чём?</Text></View>
-              <Image source={artwork.recognition} style={styles.adviceImage} resizeMode="contain" />
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topicRow}>
-              {adviceTopics.map((topic) => (
-                <Pressable key={topic} onPress={() => setAdviceTopic(topic)} style={[styles.topicChip, adviceTopic === topic && styles.topicChipActive]}>
-                  <Text style={[styles.topicText, adviceTopic === topic && styles.topicTextActive]}>{topic}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <TextInput
-              value={adviceNote}
-              onChangeText={setAdviceNote}
-              placeholder="Коротко: что случилось? Можно оставить пустым."
-              placeholderTextColor="#9AA6A6"
-              multiline
-              style={styles.adviceInput}
-            />
-            <Pressable disabled={busy} style={[styles.primaryButton, busy && styles.disabled]} onPress={() => void sendSignal('advice', `${adviceTopic}${adviceNote.trim() ? `: ${adviceNote.trim()}` : ''}`)}>
-              <Text style={styles.primaryButtonText}>Отправить {otherName} →</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        <LinearGradient colors={['#6D63A8', '#8E80C4', '#C3B8E7']} style={[styles.questionCard, shadows.soft]}>
-          <View style={styles.questionArtwork}><Image source={artwork.together} style={styles.questionArtworkImage} resizeMode="contain" /></View>
-          <Text style={styles.questionKicker}>ВОПРОС ДЛЯ НАС ДВОИХ</Text>
-          <Text style={styles.question}>{question}</Text>
-          <View style={styles.questionActions}>
-            <Pressable style={styles.questionButton} onPress={() => router.push({ pathname: '/reflection-new', params: { prompt: question } })}><Text style={styles.questionButtonText}>Ответить</Text></Pressable>
-            <Pressable onPress={drawQuestion}><Text style={styles.anotherQuestion}>Другой вопрос ↻</Text></Pressable>
-          </View>
-        </LinearGradient>
-
-        {mission ? (
-          <View style={[styles.missionCard, shadows.soft]}>
-            <View style={styles.missionTop}><View style={styles.missionImageShell}><Image source={artwork.team} style={styles.missionImage} resizeMode="contain" /></View><View style={styles.missionCopy}><Text style={styles.kicker}>ОБЩАЯ МИССИЯ</Text><Text style={styles.missionTitle}>{mission.title}</Text></View><View style={styles.xp}><Text style={styles.xpText}>+{mission.xp_reward}</Text></View></View>
-            {mission.description ? <Text style={styles.missionText}>{mission.description}</Text> : null}
-            <Pressable disabled={busy} style={[styles.missionButton, busy && styles.disabled]} onPress={() => void completeMission()}><Text style={styles.missionButtonText}>Мы это сделали ✓</Text></Pressable>
-          </View>
-        ) : null}
-
-        <View style={[styles.timelineCard, shadows.soft]}>
-          <View style={styles.sectionHead}><View><Text style={styles.kicker}>СЛЕДЫ НАШЕГО ДНЯ</Text><Text style={styles.sectionTitle}>Последние моменты</Text></View><Pressable onPress={() => router.push('/(tabs)/yearbook')}><Text style={styles.link}>В книгу →</Text></Pressable></View>
-          {events.slice(0, 6).map((event, index) => (
-            <View key={event.id} style={[styles.eventRow, index > 0 && styles.eventBorder]}>
-              <View style={styles.eventImageShell}><Image source={eventArtwork(event.event_type)} style={styles.eventImage} resizeMode="contain" /></View>
-              <View style={styles.eventCopy}><Text style={styles.eventTitle}>{eventSummary(event)}</Text><Text style={styles.eventTime}>{timeLabel(event.occurred_at)}</Text></View>
-            </View>
-          ))}
-          {!events.length ? (
-            <View style={styles.emptyState}><Image source={artwork.book} style={styles.emptyImage} resizeMode="contain" /><Text style={styles.emptyText}>Первые сигналы, ответы и истории появятся здесь.</Text></View>
-          ) : null}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+  return <Page refreshing={refreshing || loading} onRefresh={onRefresh}>
+    <Heading title="Вместе" subtitle={isChild ? 'Поговорить с папой, договориться о встрече, сделать что-то вместе.' : 'Быть рядом с сыном: слушать, поддерживать и находить время друг для друга.'} />
+    {loadError ? <LoadError message={loadError} retry={() => void load()} /> : null}
+    {pendingSignal ? <Card tone="warm">
+      <Text style={ui.sectionTitle}>{pendingActor} хочет поговорить</Text>
+      <Text style={ui.body}>{pendingMessage || 'Есть пять минут друг для друга?'}</Text>
+      <Text style={ui.caption}>{timeLabel(pendingSignal.occurred_at)}</Text>
+      <Button label="Я рядом, можем поговорить" busy={busy} onPress={() => void respond('here')} />
+      <Button label="Смогу чуть позже" secondary disabled={busy} onPress={() => void respond('later')} />
+    </Card> : null}
+    {!other ? <ActionRow title="Подключить второй телефон" description="Приглашение и участники семьи" to="/(tabs)/us" /> : null}
+    <Card tone="warm">
+      <Text style={ui.sectionTitle}>{isChild ? 'Папа, есть минутка?' : 'Найдём время поговорить?'}</Text>
+      <Text style={ui.body}>Отправь приглашение. Когда второй участник откроет приложение, он сможет ответить: «Я рядом» или «Чуть позже».</Text>
+      <Button label={isChild ? 'Позвать папу на разговор' : 'Позвать сына на разговор'} disabled={!other} busy={busy} onPress={() => void sendSignal('five_minutes')} />
+      <Button label={adviceOpen ? 'Закрыть тему разговора' : 'Хочу обсудить кое-что'} secondary onPress={() => setAdviceOpen(!adviceOpen)} />
+      {adviceOpen ? <View style={ui.stack}>
+        <Text style={ui.rowTitle}>О чём поговорим?</Text>
+        <View style={ui.wrap}>{adviceTopics.map(topic => <Chip key={topic} label={topic} selected={adviceTopic === topic} onPress={() => setAdviceTopic(topic)} />)}</View>
+        <TextInput accessibilityLabel="Тема разговора — подробности" style={[ui.input, ui.textArea]} multiline value={adviceNote} onChangeText={setAdviceNote} placeholder="Можно добавить пару слов" placeholderTextColor="#697A80" maxLength={1000} />
+        <Button label="Отправить тему" busy={busy} disabled={!other} onPress={() => void sendSignal('advice', [adviceTopic, adviceNote.trim()].filter(Boolean).join(': '))} />
+      </View> : null}
+    </Card>
+    <Section title="Наше время">
+      <ActionRow title="Встречи и планы" description="Выбрать день и придумать, что сделаем" image={artwork.calendar} to="/meeting-plan" />
+      <ActionRow title="Общие привычки" description="Маленькие дела, которые нас сближают" image={artwork.team} to="/rituals" />
+      <ActionRow title="Наши договорённости" description="Обсудить правила, удобные обоим" image={artwork.goal} to="/agreements" />
+      <ActionRow title="Сказать спасибо" description="Замечать заботу, смелость и старание" image={artwork.recognition} to="/recognitions" />
+      <ActionRow title="Идеи для разговоров" description="Выбрать тему и узнать друг друга лучше" to="/conversation-cards" />
+      <ActionRow title="Наш месяц" description="Встречи и общие дела за месяц" to="/month-together" />
+    </Section>
+    {mission ? <Card tone="mint">
+      <Text style={ui.caption}>Наше общее дело</Text><Text style={ui.sectionTitle}>{mission.title}</Text>
+      {mission.description ? <Text style={ui.body}>{mission.description}</Text> : null}
+      <Button label="Мы это сделали" busy={busy} onPress={() => void completeMission()} />
+    </Card> : null}
+    <ActionRow title="Придумать общее дело" description="Одна цель для вас двоих" to={{ pathname: '/mission-new', params: { category: 'together' } }} />
+    <Card><Text style={ui.sectionTitle}>Если не знаем, с чего начать</Text><Text style={ui.body}>{question}</Text><Button secondary label="Другой вопрос" onPress={drawQuestion} /></Card>
+    {events.length ? <Section title="Последние отклики">{events.slice(0, 3).map(event => <Card key={event.id}><Text style={ui.rowTitle}>{eventSummary(event)}</Text><Text style={ui.caption}>{timeLabel(event.occurred_at)}</Text></Card>)}</Section> : null}
+  </Page>;
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F6F1E8' },
-  content: { paddingHorizontal: 15, paddingTop: 10, paddingBottom: 34, gap: 16 },
-  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  heroPeople: { flexDirection: 'row', alignItems: 'center' },
-  heroName: { color: colors.white, fontSize: 13, fontWeight: '900' },
-  heroRole: { color: '#D7E5E5', fontSize: 9, fontWeight: '700', marginTop: 1 },
-  heroPersonRight: { alignItems: 'flex-end' },
-  heroBridge: { flex: 1, flexDirection: 'row', alignItems: 'center', marginHorizontal: 12 },
-  heroLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.28)' },
-  heroStar: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  heroStarImage: { width: 31, height: 31 },
-  incoming: { borderRadius: radius.xl, padding: 19, overflow: 'hidden' },
-  signalGlow: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.16)', right: -38, top: -60 },
-  signalHeader: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  signalImageShell: { width: 58, height: 58, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.56)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  signalImage: { width: 54, height: 54 },
-  signalCopy: { flex: 1 },
-  signalKicker: { color: '#62401D', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  signalTitle: { color: colors.navyDeep, fontSize: 25, fontWeight: '900', marginTop: 5 },
-  signalMessage: { color: '#65472C', fontSize: 11, lineHeight: 16, fontWeight: '700', marginTop: 10 },
-  signalActions: { flexDirection: 'row', gap: 8, marginTop: 15 },
-  hereButton: { flex: 1, minHeight: 45, borderRadius: 15, backgroundColor: colors.navyDeep, alignItems: 'center', justifyContent: 'center' },
-  hereText: { color: colors.white, fontSize: 11, fontWeight: '900' },
-  laterButton: { flex: 1, minHeight: 45, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.56)', alignItems: 'center', justifyContent: 'center' },
-  laterText: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' },
-  sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 },
-  kicker: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
-  sectionTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 3, letterSpacing: -0.4 },
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  actionPressable: { width: '48.5%' },
-  actionCard: { minHeight: 154, borderRadius: radius.lg, padding: 15 },
-  actionImageShell: { width: 56, height: 56, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.62)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  actionImage: { width: 52, height: 52 },
-  actionTitle: { color: colors.navyDeep, fontSize: 15, fontWeight: '900', marginTop: 10 },
-  actionText: { color: '#5E7479', fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 4 },
-  adviceCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: '#E8DED0' },
-  adviceHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  adviceImage: { width: 62, height: 62 },
-  topicRow: { gap: 7, paddingTop: 13, paddingBottom: 10 },
-  topicChip: { paddingHorizontal: 11, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: '#F1ECE3' },
-  topicChipActive: { backgroundColor: colors.navyDeep },
-  topicText: { color: colors.muted, fontSize: 9, fontWeight: '900' },
-  topicTextActive: { color: colors.white },
-  adviceInput: { minHeight: 86, borderRadius: radius.md, backgroundColor: '#F6F1E8', padding: 12, color: colors.navyDeep, fontSize: 11, textAlignVertical: 'top' },
-  primaryButton: { minHeight: 46, borderRadius: 15, backgroundColor: colors.teal, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  primaryButtonText: { color: colors.white, fontSize: 11, fontWeight: '900' },
-  disabled: { opacity: 0.55 },
-  questionCard: { borderRadius: radius.xl, padding: 19, overflow: 'hidden' },
-  questionArtwork: { position: 'absolute', right: 11, top: 7, width: 84, height: 84, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  questionArtworkImage: { width: 77, height: 77, opacity: 0.82 },
-  questionKicker: { color: '#E9E4FA', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  question: { color: colors.white, fontSize: 21, lineHeight: 27, fontWeight: '900', marginTop: 12, maxWidth: '79%' },
-  questionActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 },
-  questionButton: { backgroundColor: colors.white, paddingHorizontal: 16, paddingVertical: 10, borderRadius: radius.pill },
-  questionButtonText: { color: '#5C5294', fontSize: 10, fontWeight: '900' },
-  anotherQuestion: { color: '#F2EFFB', fontSize: 9, fontWeight: '900' },
-  missionCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: '#E8DED0' },
-  missionTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  missionImageShell: { width: 62, height: 62, borderRadius: 19, backgroundColor: '#FFF0CF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  missionImage: { width: 58, height: 58 },
-  missionCopy: { flex: 1 },
-  missionTitle: { color: colors.navyDeep, fontSize: 16, fontWeight: '900', marginTop: 2 },
-  xp: { backgroundColor: '#FFF0C7', borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 6 },
-  xpText: { color: '#A56E16', fontSize: 9, fontWeight: '900' },
-  missionText: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 10 },
-  missionButton: { minHeight: 45, borderRadius: 15, backgroundColor: colors.green, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
-  missionButtonText: { color: colors.white, fontSize: 11, fontWeight: '900' },
-  timelineCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: '#E8DED0' },
-  link: { color: colors.teal, fontSize: 10, fontWeight: '900' },
-  eventRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  eventBorder: { borderTopWidth: 1, borderTopColor: '#EEE7DC' },
-  eventImageShell: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F6EFE3', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  eventImage: { width: 41, height: 41 },
-  eventCopy: { flex: 1 },
-  eventTitle: { color: colors.navyDeep, fontSize: 11, fontWeight: '800' },
-  eventTime: { color: colors.muted, fontSize: 8, marginTop: 2 },
-  emptyState: { alignItems: 'center', paddingTop: 16 },
-  emptyImage: { width: 72, height: 72 },
-  emptyText: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 8, textAlign: 'center' },
-});
