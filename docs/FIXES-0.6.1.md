@@ -24,4 +24,12 @@
 
 ## Выпуск
 
-APK 0.6.1 / versionCode 21 подготовлен к подписанной сборке. Метаданные опубликованного APK добавляются после проверки артефакта.
+Опубликован [релиз 0.6.1 / Android 21](https://github.com/MG-Trener/Father-son-releases/releases/tag/android-v21): [скачать APK](https://github.com/MG-Trener/Father-son-releases/releases/download/android-v21/papa-i-ya-0.6.1.apk). Устанавливается поверх предыдущей версии; обновить оба телефона.
+
+- Исходный коммит APK: `3cdcae1e27769bb5c9c172d66eb2635159c6b76b`.
+- [Подписанная сборка](https://github.com/MG-Trener/Father-son/actions/runs/37662608575) и [CI](https://github.com/MG-Trener/Father-son/actions/runs/37662619172) завершились успешно.
+- Package: `com.mgtrener.fatherson`; ARM64; target SDK 36; размер: `55 517 356` байт.
+- SHA-256 APK: `aa306d18ab4aa77284123b97e33acfb67b7cb0be6fe8e30aff8fd028399ff676`.
+- SHA-256 сертификата: `d87825e9cd301fb6001f4529a6719165e9ab953a47a9782e81009f98a11d988d`, совпадает с предыдущими выпусками.
+- Полный артефакт Actions скачан и проверен локально: версия, подпись, хеш и 16 KB ZIP alignment. Размер и серверный digest публичного GitHub asset совпали; анонимная загрузка диапазона вернула HTTP 206. Повторная полная загрузка публичной копии не выполнялась.
+- Каталог Supabase обновлён; клиентский RPC `get_latest_app_release` подтвердил версию 21, URL, размер и SHA-256. Обновление необязательное.
