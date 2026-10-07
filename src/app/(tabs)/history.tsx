@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, type ImageSourcePropType, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Heading } from '../../components/Everyday';
+import { router, useFocusEffect } from 'expo-router';
+import { Button, Heading } from '../../components/Everyday';
 import { useFamily } from '../../context/FamilyContext';
 import { supabase } from '../../lib/supabase';
 import { colors, gradients, moduleColors, radius, shadows } from '../../theme';
@@ -146,7 +147,7 @@ export default function HistoryScreen() {
     setLoading(false);
   }, [family]);
 
-  useEffect(() => { void loadEvents(); }, [loadEvents]);
+  useFocusEffect(useCallback(() => { void loadEvents(); }, [loadEvents]));
   const onRefresh = async () => { setRefreshing(true); await loadEvents(); setRefreshing(false); };
   const ages = [11, 12, 13, 14, 15, 16, 17, 18];
 
@@ -160,7 +161,7 @@ export default function HistoryScreen() {
           <View style={styles.timeline}>{events.map((event, index) => {
             const actorName = event.actor_user_id ? names.get(event.actor_user_id) ?? 'Кто-то из команды' : 'Команда';
             const view = eventView(event, actorName);
-            return <View key={event.id} style={styles.event}><View style={styles.rail}><View style={[styles.iconBubble, { backgroundColor: view.base }]}><Image source={view.image} style={styles.eventImage} resizeMode="contain" /></View>{index < events.length - 1 ? <View style={styles.line} /> : null}</View><View style={[styles.eventCard, shadows.soft]}><View style={styles.eventHead}><Text style={styles.date}>{formatDate(event.occurred_at)}</Text><View style={[styles.categoryMark, { backgroundColor: view.color }]} /></View><Text style={styles.eventTitle}>{view.title}</Text><Text style={styles.eventText}>{view.text}</Text><View style={styles.eventFoot}><Text style={[styles.actor, { color: view.color }]}>{actorName}</Text><Text style={styles.footArrow}>↗</Text></View></View></View>;
+            return <View key={event.id} style={styles.event}><View style={styles.rail}><View style={[styles.iconBubble, { backgroundColor: view.base }]}><Image source={view.image} style={styles.eventImage} resizeMode="contain" /></View>{index < events.length - 1 ? <View style={styles.line} /> : null}</View><View style={[styles.eventCard, shadows.soft]}><View style={styles.eventHead}><Text style={styles.date}>{formatDate(event.occurred_at)}</Text><View style={[styles.categoryMark, { backgroundColor: view.color }]} /></View><Text style={styles.eventTitle}>{view.title}</Text><Text style={styles.eventText}>{view.text}</Text>{event.event_type === 'reflection_added' && payloadText(event.payload, 'reflection_id') ? <Button label="Читать полностью" secondary onPress={() => router.push({ pathname: '/memories', params: { id: payloadText(event.payload, 'reflection_id')! } })} /> : null}<View style={styles.eventFoot}><Text style={[styles.actor, { color: view.color }]}>{actorName}</Text><Text style={styles.footArrow}>↗</Text></View></View></View>;
           })}</View>
         ) : <View style={[styles.emptyCard, shadows.soft]}><View style={styles.emptyPlanet}><Image source={artwork.book} style={styles.emptyImage} resizeMode="contain" /></View><Text style={styles.emptyTitle}>История начинается сейчас</Text><Text style={styles.emptyText}>Первый разговор, миссия, встреча или голосовая история автоматически станет первой точкой вашего маршрута.</Text></View>}
       </ScrollView>

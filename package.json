@@ -9,7 +9,7 @@
     "android": "expo start --android",
     "web": "expo start --web",
     "check:assets": "node scripts/check-brand-assets.mjs",
-    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts tests/futureLetters.test.ts tests/rituals.test.ts tests/presentation.test.ts",
+    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts tests/futureLetters.test.ts tests/rituals.test.ts tests/presentation.test.ts tests/reflections.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
