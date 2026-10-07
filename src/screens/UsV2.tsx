@@ -1,5 +1,7 @@
+import { AvatarEditor } from '../components/AvatarEditor';
 import { router } from 'expo-router';
-import Constants from 'expo-constants';
+import * as Application from 'expo-application';
+import appConfig from '../../app.json';
 import { useMemo, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { ActionRow, Button, Card, Heading, Page, ui } from '../components/Everyday';
@@ -73,6 +75,7 @@ export default function UsV2() {
 
   return <Page>
     <Heading title="Настройки" subtitle="Семья, подключение телефона и приложение." back familyLink={false} />
+    <AvatarEditor />
     <Card>
       <Text style={ui.sectionTitle}>{teamName}</Text>
       <Text style={ui.rowTitle}>Папа · {parentName}{me?.role === 'parent' ? ' (вы)' : ''}</Text><Text style={ui.body}>{parent ? 'Аккаунт подключён' : 'Ожидаем подключения'}</Text>
@@ -85,10 +88,10 @@ export default function UsV2() {
       {invite ? <><Text selectable style={ui.title}>{invite.invite_code}</Text><Text style={ui.caption}>Действует до {new Date(invite.invite_expires_at).toLocaleString('ru-RU')}</Text></> : null}
       <Button label={invite ? 'Создать новый код' : 'Получить код приглашения'} busy={busy} onPress={() => void createInvite()} />
     </Card> : null}
-    <ActionRow title="Как пользоваться приложением" description="Четыре раздела и первые шаги" to="/onboarding" />
+    <ActionRow title="Как пользоваться приложением" description="Разделы приложения и первые шаги" to="/onboarding" />
     <Card>
       <Text style={ui.sectionTitle}>Обновление приложения</Text>
-      <Text style={ui.caption}>Установлена версия {Constants.expoConfig?.version ?? '—'}</Text>
+      <Text style={ui.caption}>Установлена версия {Application.nativeApplicationVersion ?? appConfig.expo.version}</Text>
       <Text style={ui.body}>{updateStatus?.available ? 'Доступна новая опубликованная версия.' : 'Проверка опубликованных версий приложения.'}</Text>
       <Button label="Проверить обновления" secondary busy={checkingUpdate} onPress={() => void checkUpdate()} />
       {updateStatus?.available ? <Button label="Скачать обновление" onPress={() => void installUpdate()} /> : null}

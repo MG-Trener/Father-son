@@ -1,3 +1,4 @@
+import { AppScrollView as ScrollView } from '../components/AppScrollView';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -6,7 +7,6 @@ import {
   type ImageSourcePropType,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,

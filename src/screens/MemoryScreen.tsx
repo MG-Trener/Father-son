@@ -14,7 +14,7 @@ export default function MemoryScreen() {
     </Card>
     <Section title="Наша история">
       <ActionRow title="Текстовые воспоминания" description="Прочитать ваши истории и ответы целиком" image={brandAssets.actions.memories} to="/memories" />
-      <ActionRow title="Все события и записи" description="Лента общих дел, мыслей и успехов" image={brandAssets.actions.timeline} to="/(tabs)/history" />
+      <ActionRow title="Важные события" description="По месяцам: встречи, занятия и достижения" image={brandAssets.actions.timeline} to="/(tabs)/history" />
       <ActionRow title="Голосовые истории" description="Послушать друг друга снова" image={brandAssets.utility.voice} to="/voice-stories" />
       <ActionRow title="Письма в будущее" description="Себе или друг другу — на выбранную дату" image={brandAssets.utility.letter} to="/letters" />
       <ActionRow title="Книга года" description="Собрать важные моменты взросления" image={brandAssets.actions.yearbook} to="/year-review" />

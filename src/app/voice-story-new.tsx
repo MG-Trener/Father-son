@@ -1,3 +1,4 @@
+import { useFeedback } from '../components/Feedback';
 import {
   AudioModule,
   RecordingPresets,
@@ -38,6 +39,8 @@ const formatDuration = (millis: number) => {
 const cleanFileName = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
 
 export default function VoiceStoryNewScreen() {
+  const feedback = useFeedback();
+  const [error, setError] = useState('');
   const params = useLocalSearchParams<{ prompt?: string }>();
   const { session } = useAuth();
   const { family, members } = useFamily();
@@ -161,19 +164,14 @@ export default function VoiceStoryNewScreen() {
       });
       if (result.eventId) void notifyFamilyEvent(result.eventId);
 
-      Alert.alert('Голосовая история сохранена', `${otherName} увидит её в вашей общей истории.`);
-      router.back();
+      player.pause();
+      feedback('Голосовая история сохранена — можно слушать');
+      router.replace({ pathname: '/voice-stories', params: { id: result.voiceStoryId } });
     } catch (caught) {
       if (uploadedPath) {
         await removeVoiceStoryAudio(client, uploadedPath).catch(() => undefined);
       }
-      const message = caught instanceof Error ? caught.message : 'Попробуй ещё раз.';
-      Alert.alert(
-        'Не удалось сохранить запись',
-        message.toLowerCase().includes('bucket')
-          ? 'Хранилище голосовых ещё не развёрнуто. Локальная запись остаётся на устройстве — попробуй после обновления backend.'
-          : message,
-      );
+      setError('Не удалось сохранить запись. Она остаётся на этом экране — попробуйте ещё раз.');
     } finally {
       setBusy(false);
     }
@@ -190,6 +188,7 @@ export default function VoiceStoryNewScreen() {
 
   return <Page>
     <Heading title="Голосовая история" subtitle={prompt || 'Несколько слов, которые хочется сохранить своим голосом.'} back />
+    {error ? <Text accessibilityRole="alert" style={ui.body}>{error}</Text> : null}
     <Card tone="warm">
       <Text style={ui.sectionTitle}>{recorderState.isRecording ? 'Идёт запись' : isReady ? 'Запись готова' : 'Готовы начать?'}</Text>
       <Text style={ui.title}>{formatDuration(shownDuration)}</Text>

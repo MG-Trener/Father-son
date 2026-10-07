@@ -1,74 +1,194 @@
-import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Text } from 'react-native';
-import { Button, Card, Heading, LoadError, Page, ui } from '../components/Everyday';
-import { useFamily } from '../context/FamilyContext';
-import { useAuth } from '../context/AuthContext';
-import { reflectionPageCursor } from '../domain/reflections';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
-
-type Memory = { id: string; author_user_id: string; prompt: string | null; body: string; created_at: string };
-const PAGE_SIZE = 20;
-
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useRef, useState } from "react";
+import { Text } from "react-native";
+import {
+  ActionRow,
+  Button,
+  Card,
+  Heading,
+  LoadError,
+  Page,
+  ui,
+} from "../components/Everyday";
+import {
+  ArchiveControls,
+  ArchivePages,
+  monthBounds,
+} from "../components/ArchiveControls";
+import { useFamily } from "../context/FamilyContext";
+import { supabase } from "../lib/supabase";
+type Memory = {
+  id: string;
+  author_user_id: string;
+  prompt: string | null;
+  body: string;
+  created_at: string;
+};
 export default function MemoriesScreen() {
-  const { session, loading: authLoading } = useAuth();
-  const { family, me, loading: familyLoading } = useFamily();
-  if (isSupabaseConfigured) {
-    if (authLoading || familyLoading) return <Page><ActivityIndicator accessibilityLabel="Загружаем воспоминания" /></Page>;
-    if (!session) return <Redirect href="/sign-in" />;
-    if (!family) return <Redirect href="/team-setup" />;
-    if (me?.user_id !== session.user.id) return <Page><ActivityIndicator accessibilityLabel="Подключаем вашу семью" /></Page>;
-  }
-  // Never retain another account's previously loaded private notes on sign-in changes.
-  return <MemoryArchive key={`${session?.user.id ?? 'preview'}:${family?.id ?? 'none'}`} />;
-}
-
-function MemoryArchive() {
-  const params = useLocalSearchParams<{ id?: string }>();
-  const id = typeof params.id === 'string' ? params.id : undefined;
+  const { id, topic, year } = useLocalSearchParams<{
+    id?: string;
+    topic?: string;
+    year?: string;
+  }>();
   const { family, members } = useFamily();
   const [rows, setRows] = useState<Memory[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [month, setMonth] = useState(0);
+  const [author, setAuthor] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [more, setMore] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState("");
   const request = useRef(0);
-
-  const load = useCallback(async (after?: Memory) => {
-    const current = ++request.current;
-    if (!supabase || !family) { setLoading(false); return; }
+  const load = useCallback(async () => {
+    const revision = ++request.current;
+    if (!supabase || !family) return;
     setLoading(true);
-    setError(null);
-    try {
-      let query = supabase.from('reflections').select('id,author_user_id,prompt,body,created_at')
-        .eq('family_id', family.id).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(id ? 1 : PAGE_SIZE);
-      if (id) query = query.eq('id', id);
-      if (after && !id) {
-        query = query.or(reflectionPageCursor(after));
+    let query = supabase
+      .from("reflections")
+      .select("id,author_user_id,prompt,body,created_at")
+      .eq("family_id", family.id)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
+    if (id) query = query.eq("id", id).limit(1);
+    else {
+      if (topic && /^\d{4}$/.test(year ?? ""))
+        query = query
+          .like("prompt", `${topic.replace(/[%_\\]/g, "\\$&")}%`)
+          .or(
+            `prompt.like.% · Книга года ${year},and(prompt.like.% · Книга года __,created_at.gte.${year}-01-01,created_at.lt.${Number(year) + 1}-01-01)`,
+          );
+      else {
+        const range = monthBounds(month);
+        query = query
+          .gte("created_at", range.from)
+          .lt("created_at", range.until);
       }
-      const result = await query;
-      if (result.error) throw result.error;
-      if (current !== request.current) return;
-      const page = result.data ?? [];
-      setRows(previous => after ? [...previous, ...page.filter(row => !previous.some(old => old.id === row.id))] : page);
-      setHasMore(!id && page.length === PAGE_SIZE);
-    } catch { if (current === request.current) setError('Не удалось загрузить воспоминания. Проверьте интернет и попробуйте снова.'); }
-    finally { if (current === request.current) setLoading(false); }
-  }, [family?.id, id]);
-
-  useFocusEffect(useCallback(() => { void load(); return () => { request.current++; }; }, [load]));
-
-  return <Page refreshing={loading} onRefresh={() => void load()}>
-    <Heading title={id ? 'Воспоминание' : 'Текстовые воспоминания'} subtitle={id ? undefined : 'Ваши истории и ответы — целиком, в одном месте.'} back />
-    {error ? <LoadError message={error} retry={() => void load()} /> : null}
-    {!id ? <Button label="Записать воспоминание" onPress={() => router.push({ pathname: '/reflection-new', params: { mode: 'story' } })} /> : null}
-    {!loading && !error && !rows.length ? <Card><Text style={ui.body}>{id ? 'Запись не найдена или недоступна вашему аккаунту.' : 'Первая история ещё впереди. Можно начать с нескольких слов о сегодняшнем дне.'}</Text></Card> : null}
-    {rows.map(row => <Card key={row.id}>
-      <Text style={ui.caption}>{members.find(member => member.user_id === row.author_user_id)?.display_name ?? 'Участник семьи'} · {new Date(row.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
-      {row.prompt ? <Text style={ui.rowTitle}>{row.prompt}</Text> : null}
-      <Text selectable style={ui.body} numberOfLines={id || expanded === row.id ? undefined : 4}>{row.body}</Text>
-      {!id ? <Button label={expanded === row.id ? 'Свернуть' : 'Читать полностью'} secondary onPress={() => setExpanded(expanded === row.id ? null : row.id)} /> : null}
-    </Card>)}
-    {hasMore ? <Button label="Более ранние воспоминания" secondary busy={loading} onPress={() => void load(rows.at(-1))} /> : null}
-  </Page>;
+      if (author) query = query.eq("author_user_id", author);
+      query = query.range(page * 10, page * 10 + 10);
+    }
+    const result = await query;
+    if (revision !== request.current) return;
+    setLoading(false);
+    if (result.error) {
+      setError("Не удалось загрузить воспоминания.");
+      return;
+    }
+    setError("");
+    setRows((result.data ?? []).slice(0, id ? 1 : 10));
+    setMore((result.data?.length ?? 0) > 10);
+  }, [family?.id, id, topic, year, month, author, page]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+      return () => {
+        request.current++;
+      };
+    }, [load]),
+  );
+  return (
+    <Page refreshing={loading} onRefresh={() => void load()}>
+      <Heading
+        title={
+          id
+            ? "Воспоминание"
+            : topic
+              ? "Ответы в Книге года"
+              : "Текстовые воспоминания"
+        }
+        subtitle={topic}
+        back
+      />
+      {!id && !topic ? (
+        <>
+          <Button
+            label="Записать воспоминание"
+            onPress={() =>
+              router.push({
+                pathname: "/reflection-new",
+                params: { mode: "story" },
+              })
+            }
+          />
+          <ArchiveControls
+            month={month}
+            setMonth={(n) => {
+              setMonth(n);
+              setPage(0);
+            }}
+            author={author}
+            setAuthor={(a) => {
+              setAuthor(a);
+              setPage(0);
+            }}
+          />
+        </>
+      ) : null}
+      {error ? <LoadError message={error} retry={() => void load()} /> : null}
+      {!loading && !error && !rows.length ? (
+        <Card>
+          <Text style={ui.body}>
+            {id
+              ? "Запись недоступна."
+              : "За выбранный период записей пока нет."}
+          </Text>
+        </Card>
+      ) : null}
+      {rows.map((row) => (
+        <Card key={row.id}>
+          <Text style={ui.caption}>
+            {members.find((m) => m.user_id === row.author_user_id)
+              ?.display_name ?? "Участник"}{" "}
+            ·{" "}
+            {new Date(row.created_at).toLocaleDateString("ru-RU", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </Text>
+          {row.prompt ? (
+            <Text numberOfLines={id ? undefined : 2} style={ui.rowTitle}>
+              {row.prompt.replace(/ · Книга года \d+$/, "")}
+            </Text>
+          ) : null}
+          <Text
+            selectable={Boolean(id)}
+            numberOfLines={id ? undefined : 3}
+            style={ui.body}
+          >
+            {row.body}
+          </Text>
+          {!id ? (
+            <Button
+              label="Прочитать"
+              secondary
+              onPress={() =>
+                router.push({ pathname: "/memories", params: { id: row.id } })
+              }
+            />
+          ) : null}
+        </Card>
+      ))}
+      {!id ? (
+        <ArchivePages
+          page={page}
+          hasMore={more}
+          busy={loading}
+          onPage={setPage}
+        />
+      ) : (
+        <ActionRow
+          title={
+            rows[0]?.prompt?.includes("Книга года")
+              ? "Вернуться в Книгу года"
+              : "Все воспоминания"
+          }
+          to={
+            rows[0]?.prompt?.includes("Книга года")
+              ? "/year-review"
+              : "/memories"
+          }
+        />
+      )}
+    </Page>
+  );
 }

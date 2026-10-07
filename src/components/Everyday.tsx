@@ -1,15 +1,16 @@
+import { AppScrollView as ScrollView } from './AppScrollView';
 import type { PropsWithChildren } from 'react';
-import { ActivityIndicator, Image, type ImageSourcePropType, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, type ImageSourcePropType, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { colors } from '../theme';
 
 export function Page({ children, refreshing = false, onRefresh }: PropsWithChildren<{ refreshing?: boolean; onRefresh?: () => void }>) {
   const insets = useSafeAreaInsets();
-  return <SafeAreaView style={ui.safe} edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={[ui.content, { paddingBottom: 40 + insets.bottom }]} keyboardShouldPersistTaps="handled" refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} /> : undefined}>{children}</ScrollView></SafeAreaView>;
+  return <SafeAreaView style={ui.safe} edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={[ui.content, { paddingBottom: 24 }]} keyboardShouldPersistTaps="handled" refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} /> : undefined}>{children}</ScrollView></SafeAreaView>;
 }
 
-export function Heading({ title, subtitle, back = false, familyLink = true }: { title: string; subtitle?: string; back?: boolean; familyLink?: boolean }) {
+export function Heading({ title, subtitle, back = false, familyLink = false }: { title: string; subtitle?: string; back?: boolean; familyLink?: boolean }) {
   return <View style={ui.heading}>
     <View style={ui.between}>{back ? <Pressable accessibilityRole="button" accessibilityLabel="Назад" style={ui.smallButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}><Text style={ui.link}>‹ Назад</Text></Pressable> : <Text style={ui.brand}>Папа & Я</Text>}
       {familyLink ? <Pressable accessibilityRole="button" accessibilityLabel="Настройки" style={ui.smallButton} onPress={() => router.navigate('/settings')}><Text style={ui.link}>Настройки</Text></Pressable> : null}
@@ -46,7 +47,7 @@ export function LoadError({ message, retry }: { message: string; retry: () => vo
 
 export const ui = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F4F6F3' },
-  content: { padding: 20, paddingBottom: 40, gap: 26, width: '100%', maxWidth: 680, alignSelf: 'center' },
+  content: { padding: 20, paddingBottom: 40, gap: 20, width: '100%', maxWidth: 680, alignSelf: 'center' },
   heading: { gap: 8 }, brand: { color: colors.teal, fontSize: 16, fontWeight: '700' },
   title: { color: colors.navyDeep, fontSize: 30, lineHeight: 36, fontWeight: '700', letterSpacing: -0.7 },
   section: { gap: 12 }, sectionTitle: { color: colors.navyDeep, fontSize: 20, lineHeight: 27, fontWeight: '700' },

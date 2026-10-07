@@ -1,6 +1,6 @@
 {
   "name": "papa-i-ya",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -9,7 +9,7 @@
     "android": "expo start --android",
     "web": "expo start --web",
     "check:assets": "node scripts/check-brand-assets.mjs",
-    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts tests/futureLetters.test.ts tests/rituals.test.ts tests/presentation.test.ts tests/reflections.test.ts tests/calendarDate.test.ts tests/ownerAccess.test.ts && npm run test:owner-access",
+    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts tests/futureLetters.test.ts tests/rituals.test.ts tests/presentation.test.ts tests/reflections.test.ts tests/calendarDate.test.ts tests/ownerAccess.test.ts tests/chess.test.ts && npm run test:owner-access",
     "typecheck": "tsc --noEmit",
     "test:owner-access": "node scripts/test-owner-access.mjs"
   },
@@ -19,6 +19,7 @@
   "dependencies": {
     "@react-native-community/datetimepicker": "9.1.0",
     "@supabase/supabase-js": "2.116.0",
+    "chess.js": "1.4.0",
     "expo": "57.0.27",
     "expo-application": "57.0.3",
     "expo-asset": "57.0.19",
@@ -27,6 +28,8 @@
     "expo-crypto": "57.0.3",
     "expo-device": "57.0.2",
     "expo-file-system": "57.0.7",
+    "expo-image-manipulator": "~57.0.21",
+    "expo-image-picker": "~57.0.20",
     "expo-intent-launcher": "57.0.1",
     "expo-linear-gradient": "57.0.2",
     "expo-linking": "57.0.12",

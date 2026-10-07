@@ -1,3 +1,5 @@
+import { Chip, ui } from '../components/Everyday';
+import { AppScrollView as ScrollView } from '../components/AppScrollView';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -5,7 +7,6 @@ import {
   Image,
   type ImageSourcePropType,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -68,6 +69,7 @@ export default function WeeklyFocusScreen() {
   const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
   const childName = child?.display_name ?? 'Артур';
   const weekStart = useMemo(currentMonday, []);
+  const [scope, setScope] = useState<Slot>('child');
   const [rows, setRows] = useState<Focus[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -204,7 +206,7 @@ export default function WeeklyFocusScreen() {
           <>
             <Text style={styles.emptyTitle}>{slot === 'together' ? 'Что важно прожить вместе?' : `На чём ${childName} хочет сосредоточиться?`}</Text>
             <Text style={styles.copy}>Не задача и не обещание — просто ориентир, к которому можно возвращаться.</Text>
-            <Pressable style={[styles.primary, { backgroundColor: info.ink }]} onPress={() => openEditor(slot)}><Text style={styles.primaryText}>Задать фокус →</Text></Pressable>
+            <Pressable style={[styles.primary, { backgroundColor: info.ink }]} onPress={() => openEditor(slot)}><Text style={styles.primaryText}>{slot === 'child' ? 'Выбрать цель недели' : 'Выбрать общее дело'}</Text></Pressable>
           </>
         )}
       </View>
@@ -220,20 +222,11 @@ export default function WeeklyFocusScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.top}>
           <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
-          <View><Text style={styles.topKicker}>РАЗВИТИЕ БЕЗ ГОНКИ</Text><Text style={styles.topTitle}>Фокус недели</Text></View>
+          <View><Text style={styles.topKicker}>РАЗВИТИЕ БЕЗ ГОНКИ</Text><Text style={styles.topTitle}>Цель недели</Text></View>
         </View>
 
-        <StoryHero
-          kicker={`НЕДЕЛЯ · ${weekLabel(weekStart).toUpperCase()}`}
-          title="Два ориентира вместо списка обязанностей"
-          subtitle={`Один для ${childName}, один для вас двоих. Пауза ничего не обнуляет.`}
-          emblemImage={require('../../assets/generated/utility-goal.png')}
-          variant="team"
-          footer={<Text style={styles.heroRule}>Без XP · без серии · без «провалено»</Text>}
-        />
-
-        {focusCard('child', childFocus)}
-        {focusCard('together', togetherFocus)}
+        <View style={ui.wrap}><Chip label={`Цель ${childName}`} selected={scope === 'child'} onPress={() => { setScope('child'); setEditing(null); }} /><Chip label="Наше общее дело" selected={scope === 'together'} onPress={() => { setScope('together'); setEditing(null); }} /></View>
+        {!editing ? focusCard(scope, currentFor(scope)) : null}
 
         {editing ? (
           <View style={[styles.editor, shadows.soft]}>

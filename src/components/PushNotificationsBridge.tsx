@@ -8,6 +8,8 @@ import { notifyFamilyEvent, registerPushDevice } from '../lib/pushNotifications'
 import { supabase } from '../lib/supabase';
 
 const pushEventTypes = new Set([
+  'chat_message',
+  'chess_move',
   'five_minutes_ping',
   'advice_requested',
   'connection_response',
@@ -21,8 +23,10 @@ const openNotification = async (response: Notifications.NotificationResponse | n
   if (!response) return;
 
   const url = response.notification.request.content.data?.url;
-  if (url === '/together') {
-    router.push('/(tabs)/together');
+  if (url === '/chess') {
+    router.navigate('/chess');
+  } else if (url === '/chat' || url === '/together') {
+    router.navigate('/chat');
   } else if (url === '/voice-stories') {
     router.push('/voice-stories');
   } else if (url === '/recognitions') {

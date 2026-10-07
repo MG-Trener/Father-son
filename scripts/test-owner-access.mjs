@@ -71,5 +71,36 @@ await claims('10000000-0000-0000-0000-000000000099',null);
 await check('deleted account token cannot access family',async()=>assert.equal((await scalar('select private.is_app_session_allowed() as ok')).ok,false));
 await db.exec('reset role');
 for(const name of ['security_invariants.sql','access_matrix_invariants.sql','client_privilege_invariants.sql','storage_invariants.sql']) await check(name,async()=>await db.exec(await read('supabase/tests/'+name)));
+
+const message='30000000-0000-0000-0000-000000000001';
+await claims(child,null);
+await check('chat send is idempotent on network retry',async()=>{
+ for(let i=0;i<2;i++)await db.exec(`select public.send_chat_message('${family}','${message}','Hello Dad')`);
+ assert.equal((await db.query('select * from public.chat_messages')).rows.length,1);
+ assert.equal((await db.query("select * from public.activity_events where event_type='chat_message'")).rows.length,1);
+});
+await check('chat direct spoofed inserts are forbidden',async()=>await assert.rejects(db.exec(`insert into public.chat_messages(id,family_id,author_user_id,body) values(gen_random_uuid(),'${family}','${owner}','spoof')`),/permission denied/));
+await check('client cannot commit a forged chess position',async()=>await assert.rejects(db.exec(`select public.commit_chess_position('${family}','${child}',0,'fake','', '${child}',false,null,true,true)`),/permission denied/));
+await check('avatar is private but writable by its own member',async()=>{
+ await db.exec(`insert into storage.objects(bucket_id,name) values('family-avatars','${family}/${child}.jpg')`);
+ assert.equal((await db.query("select * from storage.objects where bucket_id='family-avatars'")).rows.length,1);
+ await assert.rejects(db.exec(`insert into storage.objects(bucket_id,name) values('family-avatars','${family}/${owner}.jpg')`),/row-level security/);
+});
+await claims(owner,password);
+await check('unapproved owner cannot read new chat or avatars',async()=>{
+ assert.equal((await db.query('select * from public.chat_messages')).rows.length,0);
+ assert.equal((await db.query("select * from storage.objects where bucket_id='family-avatars'")).rows.length,0);
+ await assert.rejects(db.exec(`select public.send_chat_message('${family}',gen_random_uuid(),'blocked')`),/FAMILY_ACCESS_DENIED/);
+});
+await db.exec('reset role');await db.exec('set role service_role');
+const startFen='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+await check('chess new board and optimistic concurrency',async()=>{
+ await db.exec(`select public.commit_chess_position('${family}','${owner}',0,'${startFen}','','${owner}',false,null,false,true)`);
+ await assert.rejects(db.exec(`select public.commit_chess_position('${family}','${owner}',0,'${startFen}','','${owner}',false,null,false,true)`),/STALE_POSITION/);
+ await assert.rejects(db.exec(`select public.commit_chess_position('${family}','${child}',1,'${startFen}','','${owner}',false,null,false,false)`),/NOT_YOUR_TURN/);
+});
+await claims(child,null);
+await check('partner can read shared chess board',async()=>assert.equal((await db.query('select * from public.chess_games')).rows.length,1));
+await db.exec('reset role');
 console.log(JSON.stringify({passed,engine:'PGlite PostgreSQL',productionModified:false}));
 await db.close();

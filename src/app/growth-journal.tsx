@@ -4,7 +4,7 @@ import {
   type ImageSourcePropType,
   Text
 } from 'react-native';
-import { Button, Card, Heading, LoadError, Page, Section, ui } from '../components/Everyday';
+import { ActionRow, Button, Card, Heading, LoadError, Page, Section, ui } from '../components/Everyday';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 
@@ -128,6 +128,8 @@ export default function GrowthJournalScreen() {
 
   return <Page refreshing={loading || refreshing} onRefresh={onRefresh}>
     <Heading title={category === 'english' ? 'Английский' : config.title} subtitle={config.subtitle} back />
+    {category === 'chess' ? <ActionRow title="Сыграть друг с другом" description="Общая доска без счёта побед" to="/chess" /> : null}
+    {category === 'school' ? <ActionRow title="Школьное расписание" description="Уроки, время и кабинеты" to="/school-schedule" /> : null}
     {loadError ? <LoadError message={loadError} retry={() => void load()} /> : null}
     <Button label="Добавить запись о занятии" onPress={() => router.push({ pathname: '/growth-entry-new', params: { category } })} />
     <Section title="Последние записи">

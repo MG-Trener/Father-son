@@ -54,6 +54,7 @@ type NullableRpcOverrides = {
 };
 
 type AppRpcAdditions = {
+  send_chat_message: { Args: { p_family_id: string; p_id: string; p_body: string }; Returns: string };
   get_account_access: {
     Args: Record<PropertyKey, never>;
     Returns: Json;
@@ -76,8 +77,12 @@ type AppRpcAdditions = {
  * immediately; the raw snapshot is regenerated from production on the next
  * full schema sync.
  */
+export type ChatMessage = { id: string; family_id: string; author_user_id: string; body: string; created_at: string };
+export type ChessGame = { family_id: string; white_user_id: string; black_user_id: string; fen: string; pgn: string; turn_user_id: string; version: number; finished: boolean; last_move: string | null; updated_at: string };
+type ReadTable<T> = { Row: T; Insert: never; Update: never; Relationships: [] };
 export type Database = Omit<GeneratedDatabase, 'public'> & {
-  public: Omit<PublicSchema, 'Functions'> & {
+  public: Omit<PublicSchema, 'Functions' | 'Tables'> & {
+    Tables: PublicSchema['Tables'] & { chat_messages: ReadTable<ChatMessage>; chess_games: ReadTable<ChessGame> };
     Functions: Omit<GeneratedFunctions, keyof NullableRpcOverrides> & NullableRpcOverrides & AppRpcAdditions;
   };
 };

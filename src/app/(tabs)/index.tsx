@@ -1,3 +1,4 @@
+import { Avatar } from '../../components/Avatar';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { Image, Text, View } from 'react-native';
@@ -51,12 +52,12 @@ export default function TodayScreen() {
   const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return <Page refreshing={loading} onRefresh={() => void load()}>
-    <Heading title={`Привет, ${myName}`} subtitle={date} />
+    <View style={ui.row}><Avatar familyId={family?.id} userId={me?.user_id} name={myName} /><View style={ui.flex}><Heading title={`Привет, ${myName}`} subtitle={date} /></View></View>
     {error ? <LoadError message={error} retry={() => void load()} /> : null}
     <Section title="Что хочется сегодня?">
       <Card tone="warm">
         <View style={ui.row}><Image source={brandAssets.features.together} style={ui.icon} accessible={false} /><View style={ui.flex}><Text style={ui.rowTitle}>{isChild ? 'Мы с папой' : 'Мы с сыном'}</Text><Text style={ui.description}>{otherMood ? `${other?.display_name}: сегодня ${moodLabels[otherMood.mood] ?? 'поделился настроением'}` : 'Поговорить, спросить совет или просто побыть рядом.'}</Text></View></View>
-        <Button label={isChild ? 'Связаться с папой' : 'Связаться с сыном'} onPress={() => router.navigate('/(tabs)/together')} />
+        <Button label={isChild ? 'Связаться с папой' : 'Связаться с сыном'} onPress={() => router.navigate('/chat')} />
       </Card>
       <Card tone="mint">
         <View style={ui.row}><Image source={brandAssets.features.path} style={ui.icon} accessible={false} /><View style={ui.flex}><Text style={ui.rowTitle}>{isChild ? 'Мой следующий шаг' : 'Развитие сына'}</Text><Text style={ui.description}>{focus?.title ?? (isChild ? 'Выбери занятие и сохрани то, что получилось.' : 'Посмотрите занятия и выберите посильную цель вместе.')}</Text></View></View>
@@ -69,6 +70,6 @@ export default function TodayScreen() {
     <Section title="Как ты сегодня?">
       <ActionRow image={brandAssets.actions.mood} title={myMood ? `Сегодня ${moodLabels[myMood.mood] ?? 'есть отметка'}` : 'Поделиться настроением'} description={myMood ? 'Можно изменить отметку или добавить пару слов' : 'Одним нажатием или парой слов — как захочется'} to="/mood-check-in" />
     </Section>
-    <ActionRow title="Что нового у нас" description="События, ответы и новые записи" image={brandAssets.actions.news} to="/notifications" />
+
   </Page>;
 }

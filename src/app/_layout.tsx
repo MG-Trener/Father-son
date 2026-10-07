@@ -1,3 +1,6 @@
+import { ConversationBanner } from '../components/ConversationBanner';
+import { AppNavigation } from '../components/AppNavigation';
+import { FeedbackProvider } from '../components/Feedback';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -15,6 +18,8 @@ export default function RootLayout() {
         <AppUpdateGate />
         <AccountAccessGate>
         <FamilyProvider>
+          <FeedbackProvider>
+          <AppNavigation>
           <PushNotificationsBridge />
           <StatusBar style="dark" />
           <Stack
@@ -23,6 +28,9 @@ export default function RootLayout() {
               contentStyle: { backgroundColor: colors.sand },
             }}
           />
+          <ConversationBanner />
+          </AppNavigation>
+          </FeedbackProvider>
         </FamilyProvider>
         </AccountAccessGate>
       </AuthProvider>
