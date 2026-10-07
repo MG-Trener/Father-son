@@ -13,6 +13,8 @@ import {
 } from '../data/memoryArchiveRepository';
 import { useFamily } from '../context/FamilyContext';
 import { futureLetterRecipients } from '../domain/futureLetters';
+import { addCalendarMonths, formatCalendarDate, parseIsoDay as parseDay, toIsoDay } from '../domain/calendarDate';
+import LetterDateField from '../components/LetterDateField';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
 
@@ -21,22 +23,6 @@ const artwork = {
   letter: brandAssets.utility.letter,
   family: brandAssets.features.family,
 } as const;
-
-const toIsoDay = (date: Date) => {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
-};
-
-const parseDay = (value: string) => {
-  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(year, month - 1, day, 12, 0, 0);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
-  return date;
-};
 
 const nextBirthday = (birthDate: string | null) => {
   if (!birthDate) return null;
@@ -66,7 +52,7 @@ export default function FutureLetterComposer() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [recipientId, setRecipientId] = useState('');
-  const [unlockDay, setUnlockDay] = useState('');
+  const [unlockDay, setUnlockDay] = useState(() => toIsoDay(addCalendarMonths(new Date(), 12)));
   const [loading, setLoading] = useState(Boolean(letterId));
   const [busy, setBusy] = useState(false);
 
@@ -76,13 +62,9 @@ export default function FutureLetterComposer() {
 
   const recipient = recipients.find(option => option.id === recipientId);
 
-  useEffect(() => {
-    if (!unlockDay) {
-      const fallback = new Date();
-      fallback.setFullYear(fallback.getFullYear() + 1);
-      setUnlockDay(toIsoDay(fallback));
-    }
-  }, [unlockDay]);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minimumDay = toIsoDay(tomorrow);
 
   const loadDraft = useCallback(async () => {
     const client = supabase;
@@ -109,16 +91,16 @@ export default function FutureLetterComposer() {
   useEffect(() => { void loadDraft(); }, [loadDraft]);
 
   const presets = useMemo(() => {
-    const result: { label: string; date: Date }[] = [];
+    const result: { label: string; date: Date }[] = [
+      { label: 'Через месяц', date: addCalendarMonths(new Date(), 1) },
+      { label: 'Через год', date: addCalendarMonths(new Date(), 12) },
+    ];
     const next = nextBirthday(recipient?.birthDate ?? null);
     if (next) result.push({ label: 'Следующий день рождения', date: next });
     const fifteen = recipient?.role === 'child' ? birthdayAtAge(recipient.birthDate, 15) : null;
     if (fifteen) result.push({ label: 'В 15 лет', date: fifteen });
     const eighteen = recipient?.role === 'child' ? birthdayAtAge(recipient.birthDate, 18) : null;
     if (eighteen) result.push({ label: 'В 18 лет', date: eighteen });
-    const year = new Date();
-    year.setFullYear(year.getFullYear() + 1);
-    result.push({ label: 'Через год', date: year });
     return result;
   }, [recipient?.birthDate, recipient?.role]);
 
@@ -129,7 +111,7 @@ export default function FutureLetterComposer() {
     if (!cleanTitle) { Alert.alert('Добавь заголовок', 'Например: «Тебе через год».'); return null; }
     if (!cleanBody) { Alert.alert('Письмо пустое', 'Напиши хотя бы несколько слов.'); return null; }
     if (!recipientId || !recipient) { Alert.alert('Выбери адресата', 'Получатель должен быть участником вашей семьи.'); return null; }
-    if (!date || date.getTime() <= Date.now()) { Alert.alert('Проверь дату', 'Нужна будущая дата в формате ГГГГ-ММ-ДД.'); return null; }
+    if (!date || unlockDay < minimumDay) { Alert.alert('Выбери будущую дату', 'Открой календарь и выбери завтрашний день или более позднюю дату.'); return null; }
     return { cleanTitle, cleanBody, date };
   };
 
@@ -262,15 +244,15 @@ export default function FutureLetterComposer() {
           <Text style={styles.counter}>{body.length}/8000</Text>
 
           <Text style={styles.label}>КОГДА ОТКРЫТЬ</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presets}>
+          <View style={styles.presets}>
             {presets.map((preset) => {
               const day = toIsoDay(preset.date);
               const active = unlockDay === day;
               return <Pressable key={`${preset.label}-${day}`} onPress={() => setUnlockDay(day)} style={[styles.preset, active && styles.presetActive]}><Text style={[styles.presetText, active && styles.presetTextActive]}>{preset.label}</Text></Pressable>;
             })}
-          </ScrollView>
-          <TextInput accessibilityLabel="Дата открытия письма" value={unlockDay} onChangeText={setUnlockDay} keyboardType="numbers-and-punctuation" maxLength={10} placeholder="ГГГГ-ММ-ДД" placeholderTextColor="#A1AAA9" style={styles.dateInput} />
-          <Text style={styles.dateHint}>Можно выбрать готовую дату выше или ввести свою.</Text>
+          </View>
+          <LetterDateField value={unlockDay} minimumDay={minimumDay} onChange={setUnlockDay} disabled={busy} />
+          <Text style={styles.dateHint}>{parseDay(unlockDay) ? `Письмо откроется ${formatCalendarDate(unlockDay)} в 12:00 по времени этого телефона.` : 'Выбери день в календаре. Вводить дату вручную не нужно.'}</Text>
         </View>
 
         <View style={[styles.sealInfo, shadows.soft]}>
@@ -318,7 +300,7 @@ const styles = StyleSheet.create({
   input: { minHeight: 48, borderRadius: 16, backgroundColor: '#F5F0E7', paddingHorizontal: 13, color: colors.navyDeep, fontSize: 14, fontWeight: '700' },
   bodyInput: { minHeight: 190, borderRadius: 18, backgroundColor: '#F5F0E7', padding: 13, color: colors.navyDeep, fontSize: 14, lineHeight: 20, textAlignVertical: 'top' },
   counter: { alignSelf: 'flex-end', color: colors.muted, fontSize: 14, marginTop: 4 },
-  presets: { gap: 7, paddingBottom: 7 },
+  presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingBottom: 12 },
   preset: { paddingHorizontal: 11, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: '#F1ECE4' },
   presetActive: { backgroundColor: colors.navyDeep },
   presetText: { color: colors.muted, fontSize: 14, fontWeight: '900' },
