@@ -48,11 +48,13 @@ export default function VoiceStoryNewScreen() {
   const operation = useRef(new AudioOperation()).current;
   const [error, setError] = useState("");
   const recordingError = useRef(false);
+  const recording = useRef(false);
   const recorder = useAudioRecorder(
     { ...RecordingPresets.HIGH_QUALITY, directory: "document" },
     (status) => {
       if (status.hasError && operation.active) {
         recordingError.current = true;
+        recording.current = false;
         setError("Микрофон был прерван. Запишите голос ещё раз.");
       }
     },
@@ -66,7 +68,6 @@ export default function VoiceStoryNewScreen() {
   const [busy, setBusy] = useState(false);
   const [original, setOriginal] = useState<VoiceStory | null>(null);
   const [loading, setLoading] = useState(Boolean(params.replaceId));
-  const recording = useRef(false);
   const startedAt = useRef(0);
   // Keep the upload identity on retry. A lost RPC response must not duplicate the story.
   const upload = useRef<{
