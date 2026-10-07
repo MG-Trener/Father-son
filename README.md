@@ -51,6 +51,8 @@
 
 `package-lock.json` фиксирует полное дерево зависимостей. Обновляйте его вместе с `package.json`; для обычной установки и CI используйте `npm ci`. Генерируемые `android/`, `ios/` и локальные результаты `.audit/` не коммитятся.
 
+Для локальной нативной сборки нужен JDK 17 и Android SDK. На Windows используйте короткий путь checkout: CMake/Ninja может упереться в лимит 260 символов в generated codegen. `npm run android` запускает Metro; нативный проект создаётся `npx expo prebuild --platform android`.
+
 ## Android APK и обновления
 
 Release-пайплайн:
