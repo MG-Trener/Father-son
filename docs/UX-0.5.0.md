@@ -61,11 +61,13 @@
 
 ## Готовый APK
 
-- [Скачать архив APK 0.5.0 / 17](https://github.com/MG-Trener/Father-son/actions/runs/37599105154/artifacts/11471849328); срок хранения артефакта — до 14 октября 2026.
+- [Скачать APK 0.5.0 / 17](https://github.com/MG-Trener/Father-son-releases/releases/download/android-v17/papa-i-ya-0.5.0.apk), [публичный релиз](https://github.com/MG-Trener/Father-son-releases/releases/tag/android-v17). GitHub-аккаунт для скачивания не нужен.
 - [Native build](https://github.com/MG-Trener/Father-son/actions/runs/37599105154): PASS; [CI](https://github.com/MG-Trener/Father-son/actions/runs/37599106103): PASS.
 - Исходный код: `d587c2fb22e1c8727afb116b3293bf31faf8cde9`.
-- Файл: `papa-i-ya-0.5.0-17.apk`, 54 746 368 байт, `arm64-v8a`.
+- Файл релиза: `papa-i-ya-0.5.0.apk`, 54 746 368 байт, `arm64-v8a`. Это тот же бинарный файл, что и тестовый `papa-i-ya-0.5.0-17.apk`.
 - SHA-256: `4c7b3b3c93acf38d8bd7dd4b66fdf01ec85da625a0a50246cee97bea72bbe69e`.
 - Сертификат SHA-256: `d87825e9cd301fb6001f4529a6719165e9ab953a47a9782e81009f98a11d988d` — совпадает с предыдущим APK.
 - Локально подтверждены подпись, package `com.mgtrener.fatherson`, versionName `0.5.0`, versionCode `17`, checksum загрузки и 16 KB ZIP alignment.
-- Сборка не опубликована в каталоге обновлений Supabase. Физическая проверка двух телефонов остаётся за пользователем.
+- Опубликовано 7 октября 2026 по поручению владельца в `Father-son-releases`, тег `android-v17`, latest, не prerelease. Проверены публичное скачивание без авторизации и SHA-256 полученного файла.
+- Каталог Supabase `android/preview` (существующий канал приложения) возвращает `0.5.0/17`, правильный публичный URL, размер и SHA-256. `minimum_supported_code=1`: обновление добровольное. Проверен реальный HTTP RPC с publishable key. При запуске старой версии появляется предложение обновиться; установленная 0.5.0/17 не предлагает саму себя.
+- Физическая проверка установки и синхронизации двух телефонов остаётся за пользователем. Публикация не изменяла схему или семейные данные.
