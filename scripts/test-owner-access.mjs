@@ -36,7 +36,7 @@ await db.exec(`insert into auth.users values ('${owner}','owner@example.test',nu
 insert into public.families(id,created_by) values ('${family}','${owner}');
 insert into public.family_members(family_id,user_id,role,display_name) values ('${family}','${owner}','parent','Owner');
 insert into auth.sessions values ('${legacy}','${owner}',null);`);
-await db.exec(await read('supabase/migrations/20261007105508_protect_owner_access.sql'));
+await db.exec(await read('supabase/migrations/20261007111031_protect_owner_access.sql'));
 await db.exec(`insert into auth.sessions values ('${password}','${owner}',null),('${otp}','${owner}',null); insert into auth.mfa_amr_claims values ('${password}','password'),('${otp}','otp');`);
 let passed=0;
 const claims = async(user,session,extra={}) => { await db.exec('reset role'); await db.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:user,session_id:session,role:'authenticated',...extra})]); await db.exec('set role authenticated'); };
@@ -73,4 +73,5 @@ await db.exec('reset role');
 for(const name of ['security_invariants.sql','access_matrix_invariants.sql','client_privilege_invariants.sql','storage_invariants.sql']) await check(name,async()=>await db.exec(await read('supabase/tests/'+name)));
 console.log(JSON.stringify({passed,engine:'PGlite PostgreSQL',productionModified:false}));
 await db.close();
+
 
