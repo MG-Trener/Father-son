@@ -1,4 +1,8 @@
 node_modules/
+.audit/
+android/
+ios/
+*.log
 .expo/
 dist/
 web-build/

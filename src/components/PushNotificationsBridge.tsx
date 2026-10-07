@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../context/AuthContext';
@@ -43,6 +44,9 @@ export function PushNotificationsBridge() {
   }, [family?.id, session?.user.id]);
 
   useEffect(() => {
+    // Expo's notification-response API only exists in native builds.
+    if (Platform.OS === 'web') return;
+
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       void openNotification(response);
     });
