@@ -2,7 +2,7 @@
   "expo": {
     "name": "Папа & Я",
     "slug": "papa-i-ya",
-    "version": "0.4.1",
+    "version": "0.6.1",
     "orientation": "portrait",
     "scheme": "papaiya",
     "userInterfaceStyle": "light",
@@ -10,7 +10,7 @@
     "icon": "./assets/generated/app-icon.png",
     "android": {
       "package": "com.mgtrener.fatherson",
-      "versionCode": 15,
+      "versionCode": 21,
       "icon": "./assets/generated/app-icon.png",
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES"
@@ -45,6 +45,15 @@
           "recordAudioAndroid": true,
           "enableBackgroundPlayback": false,
           "enableBackgroundRecording": false
+        }
+      ],
+      "expo-asset",
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Выбрать фото для аватара.",
+          "cameraPermission": false
         }
       ]
     ],

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Image, ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { brandAssets } from '../brandAssets';
 import { colors, radius } from '../theme';
 
 type Props = {
@@ -36,8 +37,9 @@ export function TeamLoadingScene({ topInset = 0, bottomInset = 0 }: Props) {
   return (
     <View style={[styles.safe, { paddingTop: topInset, paddingBottom: bottomInset }]}>
       <ImageBackground
-        source={require('../../assets/generated/splash-screen.png')}
+        source={brandAssets.app.splash}
         style={styles.scene}
+        imageStyle={{ width: '100%', height: '100%' }}
         resizeMode="cover"
       >
         <LinearGradient
@@ -47,7 +49,7 @@ export function TeamLoadingScene({ topInset = 0, bottomInset = 0 }: Props) {
         >
           <View style={styles.loadingWrap}>
             <View style={styles.brandBadge}>
-              <Image source={require('../../assets/generated/app-icon.png')} style={styles.brandIcon} resizeMode="cover" />
+              <Image source={brandAssets.app.icon} style={styles.brandIcon} resizeMode="cover" />
             </View>
             <Text style={styles.loadingTitle}>Одна команда. Где бы мы ни были.</Text>
             <View style={styles.loadingPill}>

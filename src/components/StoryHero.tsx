@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { Image, ImageBackground, type ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
+import { Image, type ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { brandAssets } from '../brandAssets';
 import { colors, radius, shadows } from '../theme';
 
 type StoryHeroProps = {
@@ -21,59 +22,50 @@ const overlays = {
 } as const;
 
 const variantEmblems: Record<NonNullable<StoryHeroProps['variant']>, ImageSourcePropType> = {
-  adventure: require('../../assets/generated/badge-adventure.png'),
-  warm: require('../../assets/generated/badge-courage.png'),
-  book: require('../../assets/generated/nav-book.png'),
-  team: require('../../assets/generated/badge-team.png'),
+  adventure: brandAssets.features.path,
+  warm: brandAssets.features.together,
+  book: brandAssets.navigation.book,
+  team: brandAssets.features.family,
 };
 
 export function StoryHero({ kicker, title, subtitle, emblem, emblemImage, variant = 'adventure', footer }: StoryHeroProps) {
-  const image = emblemImage ?? variantEmblems[variant];
+  const image = emblemImage ?? (emblem ? undefined : variantEmblems[variant]);
 
   return (
     <View style={[styles.shell, shadows.lift]}>
-      <ImageBackground
-        source={require('../../assets/generated/family-hero.png')}
-        resizeMode="cover"
-        imageStyle={styles.image}
-        style={styles.background}
+      <LinearGradient
+        colors={overlays[variant]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.overlay}
       >
-        <LinearGradient
-          colors={overlays[variant]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.overlay}
-        >
-          <View style={styles.sunHalo} />
-          <View style={styles.topRow}>
-            <Text style={styles.kicker}>{kicker}</Text>
-            <View style={styles.emblem}>
-              {image ? <Image source={image} style={styles.emblemImage} resizeMode="contain" /> : <Text style={styles.emblemText}>{emblem}</Text>}
-            </View>
+        <View style={styles.sunHalo} />
+        <View style={styles.topRow}>
+          <Text style={styles.kicker}>{kicker}</Text>
+          <View style={styles.emblem}>
+            {image ? <Image accessible={false} source={image} style={styles.emblemImage} resizeMode="contain" /> : <Text style={styles.emblemText}>{emblem}</Text>}
           </View>
-          <View style={styles.copy}>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-          </View>
-          {footer ? <View style={styles.footer}>{footer}</View> : null}
-        </LinearGradient>
-      </ImageBackground>
+        </View>
+        <View style={styles.copy}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
+        </View>
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   shell: {
-    minHeight: 286,
+
     borderRadius: radius.xl,
     overflow: 'hidden',
     backgroundColor: colors.night,
   },
-  background: { flex: 1, minHeight: 286 },
-  image: { borderRadius: radius.xl },
   overlay: {
     flex: 1,
-    minHeight: 286,
+
     padding: 20,
     justifyContent: 'space-between',
   },
@@ -87,7 +79,7 @@ const styles = StyleSheet.create({
     top: -56,
   },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  kicker: { color: '#D7E5E5', fontSize: 9, fontWeight: '900', letterSpacing: 1.2, flex: 1 },
+  kicker: { color: '#D7E5E5', fontSize: 13, fontWeight: '900', letterSpacing: 1.2, flex: 1 },
   emblem: {
     width: 54,
     height: 54,
@@ -101,9 +93,9 @@ const styles = StyleSheet.create({
   },
   emblemImage: { width: 49, height: 49 },
   emblemText: { color: colors.white, fontSize: 22, fontWeight: '900' },
-  copy: { marginTop: 54, maxWidth: '84%' },
-  title: { color: colors.white, fontSize: 31, lineHeight: 33, fontWeight: '900', letterSpacing: -1 },
-  subtitle: { color: '#E5EEEE', fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 8 },
+  copy: { marginTop: 14 },
+  title: { color: colors.white, fontSize: 25, lineHeight: 31, fontWeight: '900', letterSpacing: -1 },
+  subtitle: { color: '#E5EEEE', fontSize: 15, lineHeight: 23, fontWeight: '700', marginTop: 8 },
   footer: {
     marginTop: 22,
     paddingTop: 13,

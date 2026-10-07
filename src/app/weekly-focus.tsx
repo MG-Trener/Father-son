@@ -1,3 +1,5 @@
+import { Chip, ui } from '../components/Everyday';
+import { AppScrollView as ScrollView } from '../components/AppScrollView';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -5,7 +7,6 @@ import {
   Image,
   type ImageSourcePropType,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -68,6 +69,7 @@ export default function WeeklyFocusScreen() {
   const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
   const childName = child?.display_name ?? 'Артур';
   const weekStart = useMemo(currentMonday, []);
+  const [scope, setScope] = useState<Slot>('child');
   const [rows, setRows] = useState<Focus[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -204,7 +206,7 @@ export default function WeeklyFocusScreen() {
           <>
             <Text style={styles.emptyTitle}>{slot === 'together' ? 'Что важно прожить вместе?' : `На чём ${childName} хочет сосредоточиться?`}</Text>
             <Text style={styles.copy}>Не задача и не обещание — просто ориентир, к которому можно возвращаться.</Text>
-            <Pressable style={[styles.primary, { backgroundColor: info.ink }]} onPress={() => openEditor(slot)}><Text style={styles.primaryText}>Задать фокус →</Text></Pressable>
+            <Pressable style={[styles.primary, { backgroundColor: info.ink }]} onPress={() => openEditor(slot)}><Text style={styles.primaryText}>{slot === 'child' ? 'Выбрать цель недели' : 'Выбрать общее дело'}</Text></Pressable>
           </>
         )}
       </View>
@@ -220,20 +222,11 @@ export default function WeeklyFocusScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.top}>
           <Pressable onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
-          <View><Text style={styles.topKicker}>РАЗВИТИЕ БЕЗ ГОНКИ</Text><Text style={styles.topTitle}>Фокус недели</Text></View>
+          <View><Text style={styles.topKicker}>РАЗВИТИЕ БЕЗ ГОНКИ</Text><Text style={styles.topTitle}>Цель недели</Text></View>
         </View>
 
-        <StoryHero
-          kicker={`НЕДЕЛЯ · ${weekLabel(weekStart).toUpperCase()}`}
-          title="Два ориентира вместо списка обязанностей"
-          subtitle={`Один для ${childName}, один для вас двоих. Пауза ничего не обнуляет.`}
-          emblemImage={require('../../assets/generated/utility-goal.png')}
-          variant="team"
-          footer={<Text style={styles.heroRule}>Без XP · без серии · без «провалено»</Text>}
-        />
-
-        {focusCard('child', childFocus)}
-        {focusCard('together', togetherFocus)}
+        <View style={ui.wrap}><Chip label={`Цель ${childName}`} selected={scope === 'child'} onPress={() => { setScope('child'); setEditing(null); }} /><Chip label="Наше общее дело" selected={scope === 'together'} onPress={() => { setScope('together'); setEditing(null); }} /></View>
+        {!editing ? focusCard(scope, currentFor(scope)) : null}
 
         {editing ? (
           <View style={[styles.editor, shadows.soft]}>
@@ -315,40 +308,40 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   back: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   backText: { fontSize: 31, color: colors.navyDeep },
-  topKicker: { color: colors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
+  topKicker: { color: colors.muted, fontSize: 14, fontWeight: '900', letterSpacing: 1.2 },
   topTitle: { color: colors.navyDeep, fontSize: 20, fontWeight: '900' },
-  heroRule: { color: '#DDEBEC', fontSize: 8, fontWeight: '900' },
+  heroRule: { color: '#DDEBEC', fontSize: 14, fontWeight: '900' },
   card: { borderRadius: radius.xl, padding: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconShell: { width: 58, height: 58, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.70)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   iconImage: { width: 54, height: 54 },
   cardHeadCopy: { flex: 1 },
-  kicker: { fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
-  category: { fontSize: 12, fontWeight: '900', marginTop: 2 },
+  kicker: { fontSize: 14, fontWeight: '900', letterSpacing: 1.1 },
+  category: { fontSize: 14, fontWeight: '900', marginTop: 2 },
   focusTitle: { color: colors.navyDeep, fontSize: 20, lineHeight: 25, fontWeight: '900', marginTop: 14 },
   emptyTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 14 },
-  copy: { color: colors.muted, fontSize: 10, lineHeight: 16, marginTop: 6 },
-  copyCard: { color: colors.muted, fontSize: 10, lineHeight: 16, backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.lineWarm, padding: 14 },
+  copy: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 6 },
+  copyCard: { color: colors.muted, fontSize: 14, lineHeight: 20, backgroundColor: colors.paper, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.lineWarm, padding: 14 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 14 },
   soft: { flex: 1, minHeight: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.66)', alignItems: 'center', justifyContent: 'center' },
-  softText: { color: colors.navyDeep, fontSize: 9, fontWeight: '900' },
+  softText: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
   primary: { minHeight: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
-  primaryText: { color: colors.white, fontSize: 10, fontWeight: '900' },
+  primaryText: { color: colors.white, fontSize: 14, fontWeight: '900' },
   editor: { backgroundColor: colors.paper, borderRadius: radius.xl, padding: 17, borderWidth: 1, borderColor: colors.lineWarm, gap: 11 },
   rowBetween: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  editorKicker: { color: colors.teal, fontSize: 7, fontWeight: '900', letterSpacing: 1.1 },
+  editorKicker: { color: colors.teal, fontSize: 14, fontWeight: '900', letterSpacing: 1.1 },
   editorTitle: { color: colors.navyDeep, fontSize: 18, fontWeight: '900', marginTop: 2 },
   close: { color: colors.muted, fontSize: 25, fontWeight: '700', paddingHorizontal: 4 },
   chips: { gap: 7, paddingVertical: 2 },
   chip: { minWidth: 82, minHeight: 78, borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: 8, paddingVertical: 7, alignItems: 'center', justifyContent: 'center' },
   chipImage: { width: 42, height: 42 },
-  chipText: { color: colors.muted, fontSize: 8, fontWeight: '900', marginTop: 4 },
-  input: { minHeight: 48, borderRadius: radius.md, backgroundColor: '#F7F4ED', borderWidth: 1, borderColor: colors.lineWarm, paddingHorizontal: 13, color: colors.text, fontSize: 13, fontWeight: '700' },
+  chipText: { color: colors.muted, fontSize: 14, fontWeight: '900', marginTop: 4 },
+  input: { minHeight: 48, borderRadius: radius.md, backgroundColor: '#F7F4ED', borderWidth: 1, borderColor: colors.lineWarm, paddingHorizontal: 13, color: colors.text, fontSize: 14, fontWeight: '700' },
   note: { minHeight: 90, paddingTop: 12 },
   remove: { flex: 1, minHeight: 46, borderRadius: 14, backgroundColor: '#F4E8E6', alignItems: 'center', justifyContent: 'center' },
-  removeText: { color: '#9A564F', fontSize: 10, fontWeight: '900' },
+  removeText: { color: '#9A564F', fontSize: 14, fontWeight: '900' },
   save: { flex: 1.5, minHeight: 46, borderRadius: 14, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
-  saveText: { color: colors.white, fontSize: 10, fontWeight: '900' },
+  saveText: { color: colors.white, fontSize: 14, fontWeight: '900' },
   disabled: { opacity: 0.5 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   sectionTitle: { color: colors.navyDeep, fontSize: 20, fontWeight: '900', marginTop: 2 },
@@ -359,6 +352,6 @@ const styles = StyleSheet.create({
   historyImageShell: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.sandWarm, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   historyImage: { width: 40, height: 40 },
   historyCopy: { flex: 1 },
-  historyTitle: { color: colors.navyDeep, fontSize: 11, fontWeight: '900' },
-  historyMeta: { color: colors.muted, fontSize: 8, marginTop: 3 },
+  historyTitle: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
+  historyMeta: { color: colors.muted, fontSize: 14, marginTop: 3 },
 });

@@ -1,4 +1,10 @@
 node_modules/
+supabase/.temp/
+.audit/
+.codex-remote-attachments/
+android/
+ios/
+*.log
 .expo/
 dist/
 web-build/

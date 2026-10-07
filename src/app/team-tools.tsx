@@ -27,7 +27,7 @@ const tools: HubTool[] = [
     route: '/(tabs)/history', base: '#EDE8F7', ink: '#66579C',
   },
   {
-    image: require('../../assets/generated/feature-path.png'), eyebrow: 'НА БУДУЩЕЕ', title: 'Письма и голос',
+    image: require('../../assets/generated/utility-letter.png'), eyebrow: 'НА БУДУЩЕЕ', title: 'Письма в будущее',
     text: 'Послания друг другу и будущему себе, которые можно сохранить надолго.',
     route: '/letters', base: '#DCEFFF', ink: '#2E6286',
   },

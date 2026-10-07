@@ -4,9 +4,9 @@ export const colors = {
   night: '#071F2A',
   teal: '#1B6774',
   tealBright: '#2C8B8C',
-  sand: '#F7F2E8',
+  sand: '#F4F6F3',
   sandWarm: '#F2E8D7',
-  paper: '#FFFDF8',
+  paper: '#FFFFFF',
   amber: '#F5AC3C',
   sun: '#FFD76A',
   orange: '#F28A4B',
@@ -20,7 +20,7 @@ export const colors = {
   red: '#C95851',
   rose: '#F2D4CF',
   text: '#17333C',
-  muted: '#6C7E84',
+  muted: '#52656C',
   mutedSoft: '#95A3A6',
   line: '#DDE5E2',
   lineWarm: '#E9DFCF',
@@ -50,8 +50,8 @@ export const moduleColors = {
 export const radius = {
   sm: 12,
   md: 18,
-  lg: 26,
-  xl: 34,
+  lg: 20,
+  xl: 24,
   pill: 999,
 };
 
@@ -59,15 +59,15 @@ export const shadows = {
   soft: {
     shadowColor: colors.night,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.04,
     shadowRadius: 18,
-    elevation: 3,
+    elevation: 1,
   },
   lift: {
     shadowColor: colors.night,
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.13,
+    shadowOpacity: 0.07,
     shadowRadius: 24,
-    elevation: 6,
+    elevation: 2,
   },
 };

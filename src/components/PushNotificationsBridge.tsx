@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +8,8 @@ import { notifyFamilyEvent, registerPushDevice } from '../lib/pushNotifications'
 import { supabase } from '../lib/supabase';
 
 const pushEventTypes = new Set([
+  'chat_message',
+  'chess_move',
   'five_minutes_ping',
   'advice_requested',
   'connection_response',
@@ -20,8 +23,10 @@ const openNotification = async (response: Notifications.NotificationResponse | n
   if (!response) return;
 
   const url = response.notification.request.content.data?.url;
-  if (url === '/together') {
-    router.push('/(tabs)/together');
+  if (url === '/chess') {
+    router.navigate('/chess');
+  } else if (url === '/chat' || url === '/together') {
+    router.navigate('/chat');
   } else if (url === '/voice-stories') {
     router.push('/voice-stories');
   } else if (url === '/recognitions') {
@@ -43,6 +48,9 @@ export function PushNotificationsBridge() {
   }, [family?.id, session?.user.id]);
 
   useEffect(() => {
+    // Expo's notification-response API only exists in native builds.
+    if (Platform.OS === 'web') return;
+
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       void openNotification(response);
     });

@@ -1,35 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppScrollView as ScrollView } from '../components/AppScrollView';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { brandAssets } from '../brandAssets';
+import { listFutureLetters, type FutureLetter } from '../data/memoryArchiveRepository';
+import {
+  daysUntilFutureLetterUnlock,
+  futureLetterAccess,
+  isFutureLetterUnlocked,
+} from '../domain/futureLetters';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
 
 const artwork = {
-  book: require('../../assets/generated/feature-book.png'),
-  path: require('../../assets/generated/feature-path.png'),
-  family: require('../../assets/generated/feature-family.png'),
-  goal: require('../../assets/generated/utility-goal.png'),
+  book: brandAssets.features.book,
+  letter: brandAssets.utility.letter,
 } as const;
 
-type FutureLetter = {
-  id: string;
-  family_id: string;
-  author_user_id: string;
-  recipient_user_id: string;
-  title: string;
-  unlock_at: string;
-  status: 'draft' | 'sealed';
-  created_at: string;
-  sealed_at: string | null;
-  opened_at: string | null;
-};
-
-const isUnlocked = (letter: FutureLetter) => letter.status === 'sealed' && new Date(letter.unlock_at).getTime() <= Date.now();
 const prettyDate = (value: string) => new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-const daysUntil = (value: string) => Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 86_400_000));
+
+const accessFor = (letter: FutureLetter, userId: string | null | undefined) => futureLetterAccess({
+  status: letter.status,
+  unlockAt: letter.unlock_at,
+  authorUserId: letter.author_user_id,
+  recipientUserId: letter.recipient_user_id,
+}, userId);
 
 export default function LettersScreen() {
   const { family, members, me } = useFamily();
@@ -38,25 +36,24 @@ export default function LettersScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const names = useMemo(() => new Map(members.map((member) => [member.user_id, member.display_name])), [members]);
-  const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
   const isChild = me?.role === 'child';
 
   const load = useCallback(async () => {
-    if (!supabase || !family) {
+    const client = supabase;
+    if (!client || !family) {
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase
-      .from('future_letters')
-      .select('id,family_id,author_user_id,recipient_user_id,title,unlock_at,status,created_at,sealed_at,opened_at')
-      .eq('family_id', family.id)
-      .order('unlock_at', { ascending: true });
-    if (error) Alert.alert('Не удалось загрузить письма', error.message);
-    else setLetters((data ?? []) as FutureLetter[]);
-    setLoading(false);
+    try {
+      setLetters(await listFutureLetters(client, family.id));
+    } catch (caught) {
+      Alert.alert('Не удалось загрузить письма', caught instanceof Error ? caught.message : 'Попробуй ещё раз.');
+    } finally {
+      setLoading(false);
+    }
   }, [family]);
 
-  useEffect(() => { void load(); }, [load]);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -68,16 +65,19 @@ export default function LettersScreen() {
   const sealed = letters.filter((letter) => letter.status === 'sealed');
 
   const openLetter = (letter: FutureLetter) => {
-    if (letter.status === 'draft') {
-      if (letter.author_user_id === me?.user_id) router.push({ pathname: '/future-letter-new', params: { id: letter.id } });
+    const access = accessFor(letter, me?.user_id);
+    if (access === 'draft-owner') {
+      router.push({ pathname: '/future-letter-new', params: { id: letter.id } });
       return;
     }
-    if (!isUnlocked(letter)) {
+    if (access === 'sealed-wait') {
       Alert.alert('Письмо ещё запечатано', `Оно откроется ${prettyDate(letter.unlock_at)}. До этого момента даже текст не загружается в приложение.`);
       return;
     }
-    if (me?.user_id !== letter.author_user_id && me?.user_id !== letter.recipient_user_id) {
-      Alert.alert('Это личное письмо', 'Прочитать его смогут только автор и адресат после даты открытия.');
+    if (access === 'forbidden') {
+      if (letter.status === 'sealed') {
+        Alert.alert('Это личное письмо', 'Прочитать его смогут только автор и адресат после даты открытия.');
+      }
       return;
     }
     router.push({ pathname: '/future-letter-view', params: { id: letter.id } });
@@ -92,17 +92,17 @@ export default function LettersScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.navy} />}>
         <View style={styles.topBar}>
           <Pressable style={styles.back} onPress={() => router.back()}><Text style={styles.backText}>‹</Text></Pressable>
-          <View style={styles.topCopy}><Text style={styles.topKicker}>ПАПА & Я · 11–18</Text><Text style={styles.topTitle}>Письма в будущее</Text></View>
+          <View style={styles.topCopy}><Text style={styles.topKicker}>СЕБЕ И ДРУГ ДРУГУ</Text><Text style={styles.topTitle}>Письма в будущее</Text></View>
           <Pressable style={styles.add} onPress={() => router.push('/future-letter-new')}><Text style={styles.addText}>＋</Text></Pressable>
         </View>
 
         <LinearGradient colors={['#183C55', '#315E71', '#D49A4B']} style={[styles.hero, shadows.lift]}>
           <View style={styles.heroGlow} />
-          <View style={styles.heroArtworkShell}><Image source={artwork.path} style={styles.heroArtwork} resizeMode="contain" /></View>
+          <View style={styles.heroArtworkShell}><Image source={artwork.letter} style={styles.heroArtwork} resizeMode="contain" /></View>
           <Text style={styles.heroTitle}>{isChild ? 'Некоторые слова лучше сохранить надолго' : 'Слова, которые дождутся своего времени'}</Text>
           <Text style={styles.heroText}>{isChild
             ? 'Напиши себе будущему или папе. После запечатывания письмо нельзя подсмотреть раньше даты открытия.'
-            : `Можно оставить ${child?.display_name ?? 'сыну'} письмо на следующий день рождения, 15-летие, 18-летие — или любую важную дату.`}</Text>
+            : 'Напиши себе будущему или сыну. Выбери день рождения или любую важную дату — письмо дождётся этого дня.'}</Text>
           <Pressable style={styles.heroButton} onPress={() => router.push('/future-letter-new')}><Text style={styles.heroButtonText}>Написать письмо →</Text></Pressable>
         </LinearGradient>
 
@@ -127,17 +127,18 @@ export default function LettersScreen() {
           <Text style={styles.sectionTitle}>Запечатанные письма</Text>
           <View style={styles.list}>
             {sealed.map((letter) => {
-              const unlocked = isUnlocked(letter);
-              const accessible = me?.user_id === letter.author_user_id || me?.user_id === letter.recipient_user_id;
+              const access = accessFor(letter, me?.user_id);
+              const unlocked = isFutureLetterUnlocked(letter.status, letter.unlock_at);
+              const accessible = access === 'sealed-open' || access === 'sealed-wait';
               return (
                 <Pressable key={letter.id} style={[styles.letterCard, unlocked && accessible && styles.letterReady, shadows.soft]} onPress={() => openLetter(letter)}>
                   <View style={[styles.seal, unlocked && accessible && styles.sealReady]}>
-                    <Image source={unlocked && accessible ? artwork.family : artwork.goal} style={styles.sealImage} resizeMode="contain" />
+                    <Image source={artwork.letter} style={styles.sealImage} resizeMode="contain" />
                   </View>
                   <View style={styles.cardCopy}>
                     <Text style={styles.cardEyebrow}>{names.get(letter.author_user_id) ?? 'Автор'} → {names.get(letter.recipient_user_id) ?? 'Адресат'}</Text>
                     <Text style={styles.cardTitle}>{letter.title}</Text>
-                    <Text style={styles.cardMeta}>{unlocked ? (accessible ? 'Можно открыть сейчас' : 'Личное письмо') : `${prettyDate(letter.unlock_at)} · ещё ${daysUntil(letter.unlock_at)} дн.`}</Text>
+                    <Text style={styles.cardMeta}>{unlocked ? (accessible ? 'Можно открыть сейчас' : 'Личное письмо') : `${prettyDate(letter.unlock_at)} · ещё ${daysUntilFutureLetterUnlock(letter.unlock_at)} дн.`}</Text>
                   </View>
                   <Text style={styles.chevron}>{unlocked && accessible ? '›' : ''}</Text>
                 </Pressable>
@@ -145,7 +146,7 @@ export default function LettersScreen() {
             })}
             {!sealed.length ? (
               <View style={styles.empty}>
-                <View style={styles.emptyIconShell}><Image source={artwork.book} style={styles.emptyIcon} resizeMode="contain" /></View>
+                <View style={styles.emptyIconShell}><Image source={artwork.letter} style={styles.emptyIcon} resizeMode="contain" /></View>
                 <Text style={styles.emptyTitle}>Первый конверт ещё впереди</Text>
                 <Text style={styles.emptyText}>Письмо можно запечатать на конкретную дату. После этого содержимое действительно закрывается до срока.</Text>
               </View>
@@ -154,7 +155,7 @@ export default function LettersScreen() {
         </View>
 
         <View style={[styles.ruleCard, shadows.soft]}>
-          <View style={styles.ruleIconShell}><Image source={artwork.family} style={styles.ruleIcon} resizeMode="contain" /></View>
+          <View style={styles.ruleIconShell}><Image source={artwork.letter} style={styles.ruleIcon} resizeMode="contain" /></View>
           <View style={styles.ruleCopy}><Text style={styles.ruleTitle}>Настоящая печать</Text><Text style={styles.ruleText}>После запечатывания текст письма недоступен через приложение до даты открытия. Конверт остаётся видимым, содержание — нет.</Text></View>
         </View>
       </ScrollView>
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
   back: { width: 42, height: 42, borderRadius: 15, backgroundColor: '#FFFDF8', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E8DFD1' },
   backText: { color: colors.navyDeep, fontSize: 28, lineHeight: 28, fontWeight: '700', marginTop: -3 },
   topCopy: { flex: 1 },
-  topKicker: { color: colors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  topKicker: { color: colors.muted, fontSize: 14, fontWeight: '900', letterSpacing: 1 },
   topTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 2 },
   add: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.navyDeep, alignItems: 'center', justifyContent: 'center' },
   addText: { color: colors.white, fontSize: 22, fontWeight: '800' },
@@ -179,10 +180,10 @@ const styles = StyleSheet.create({
   heroArtworkShell: { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', position: 'absolute', right: 18, top: 18 },
   heroArtwork: { width: 66, height: 66 },
   heroTitle: { color: colors.white, fontSize: 26, lineHeight: 29, fontWeight: '900', maxWidth: '88%' },
-  heroText: { color: '#E4ECEC', fontSize: 10, lineHeight: 15, marginTop: 8, maxWidth: '91%' },
+  heroText: { color: '#E4ECEC', fontSize: 14, lineHeight: 20, marginTop: 8, maxWidth: '91%' },
   heroButton: { alignSelf: 'flex-start', backgroundColor: colors.white, paddingHorizontal: 15, paddingVertical: 11, borderRadius: 15, marginTop: 16 },
-  heroButtonText: { color: colors.navyDeep, fontSize: 10, fontWeight: '900' },
-  sectionKicker: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  heroButtonText: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
+  sectionKicker: { color: colors.muted, fontSize: 14, fontWeight: '900', letterSpacing: 1.1 },
   sectionTitle: { color: colors.navyDeep, fontSize: 20, fontWeight: '900', marginTop: 2, marginBottom: 10 },
   list: { gap: 9 },
   draftCard: { minHeight: 76, borderRadius: 22, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: '#E8DFD1', padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
@@ -194,19 +195,19 @@ const styles = StyleSheet.create({
   sealReady: { backgroundColor: '#FFF2D6' },
   sealImage: { width: 42, height: 42 },
   cardCopy: { flex: 1 },
-  cardEyebrow: { color: colors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 0.6, textTransform: 'uppercase' },
-  cardTitle: { color: colors.navyDeep, fontSize: 13, lineHeight: 17, fontWeight: '900', marginTop: 2 },
-  cardMeta: { color: colors.muted, fontSize: 8, lineHeight: 12, marginTop: 4 },
+  cardEyebrow: { color: colors.muted, fontSize: 14, fontWeight: '900', letterSpacing: 0.6, textTransform: 'uppercase' },
+  cardTitle: { color: colors.navyDeep, fontSize: 14, lineHeight: 20, fontWeight: '900', marginTop: 2 },
+  cardMeta: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 4 },
   chevron: { color: colors.navy, fontSize: 24, fontWeight: '700' },
   empty: { alignItems: 'center', paddingVertical: 25, paddingHorizontal: 18, backgroundColor: '#FFFDF8', borderRadius: 24, borderWidth: 1, borderColor: '#E8DFD1' },
   emptyIconShell: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#F4EAD8', alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 62, height: 62 },
   emptyTitle: { color: colors.navyDeep, fontSize: 14, fontWeight: '900', marginTop: 7 },
-  emptyText: { color: colors.muted, fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 4 },
+  emptyText: { color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 4 },
   ruleCard: { backgroundColor: '#173C4A', borderRadius: radius.xl, padding: 17, flexDirection: 'row', gap: 12, alignItems: 'center' },
   ruleIconShell: { width: 50, height: 50, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
   ruleIcon: { width: 43, height: 43 },
   ruleCopy: { flex: 1 },
-  ruleTitle: { color: colors.white, fontSize: 13, fontWeight: '900' },
-  ruleText: { color: '#D5E2E3', fontSize: 9, lineHeight: 14, marginTop: 3 },
+  ruleTitle: { color: colors.white, fontSize: 14, fontWeight: '900' },
+  ruleText: { color: '#D5E2E3', fontSize: 14, lineHeight: 20, marginTop: 3 },
 });

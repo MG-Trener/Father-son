@@ -1,5 +1,10 @@
 project_id = "father-son"
 
+[auth]
+# Registration confirmations without an explicit redirect must return to the APK.
+site_url = "papaiya://auth-callback"
+additional_redirect_urls = ["papaiya://auth-callback"]
+
 [functions.send-family-push]
 verify_jwt = true
 
@@ -7,3 +12,12 @@ verify_jwt = true
 public = false
 file_size_limit = "25MiB"
 allowed_mime_types = ["audio/mp4", "audio/m4a", "audio/x-m4a", "audio/aac"]
+
+[functions.chess-game]
+# JWT is verified with Auth.getUser inside the handler, before RLS and any service operation.
+verify_jwt = false
+
+[storage.buckets.family-avatars]
+public = false
+file_size_limit = "100KiB"
+allowed_mime_types = ["image/jpeg"]

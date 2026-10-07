@@ -6,6 +6,8 @@ type DeliveryRow = { id: string; expo_push_token: string; status: string }
 type NotificationCopy = { title: string; body: string; type: string; url: string }
 
 const supportedEventTypes = new Set([
+  'chat_message',
+  'chess_move',
   'five_minutes_ping',
   'advice_requested',
   'connection_response',
@@ -20,25 +22,11 @@ const payloadText = (payload: Record<string, unknown> | null, key: string) => {
   return typeof value === 'string' ? value : null
 }
 
-const notificationCopy = (event: EventRow, actorName: string): NotificationCopy => {
-  if (event.event_type === 'five_minutes_ping') return { title: `${actorName}: есть 5 минут?`, body: 'Открой «Папа & Я» и ответь: «Я рядом» или «Чуть позже».', type: 'connection_signal', url: '/together' }
-  if (event.event_type === 'advice_requested') return { title: `${actorName}: мне нужен совет`, body: payloadText(event.payload, 'message') || 'Есть тема, которую хочется обсудить вместе.', type: 'connection_signal', url: '/together' }
-  if (event.event_type === 'voice_story_added') return { title: `${actorName} оставил голосовую историю`, body: payloadText(event.payload, 'title') || 'Новый голосовой момент появился в вашей общей истории.', type: 'voice_story', url: '/voice-stories' }
-  if (event.event_type === 'recognition_added') {
-    const title = payloadText(event.payload, 'title')
-    const quality = payloadText(event.payload, 'quality')
-    return { title: `${actorName}: я заметил ✦`, body: title || (quality ? `Отметил в тебе: ${quality}.` : 'Сохранил важный момент про тебя.'), type: 'recognition', url: '/recognitions' }
-  }
-  if (event.event_type === 'agreement_proposed') {
-    const title = payloadText(event.payload, 'title')
-    return { title: `${actorName} предложил договорённость 🤝`, body: title || 'Открой приложение и реши, согласен ли ты с ней.', type: 'agreement_proposed', url: '/agreements' }
-  }
-  if (event.event_type === 'agreement_activated') {
-    const title = payloadText(event.payload, 'title')
-    return { title: 'Мы договорились 🤝', body: title ? `Теперь действует: «${title}».` : `${actorName} подтвердил вашу договорённость.`, type: 'agreement_activated', url: '/agreements' }
-  }
-  const response = payloadText(event.payload, 'response')
-  return { title: `${actorName}: ${response === 'here' ? 'я рядом' : 'чуть позже'}`, body: response === 'here' ? 'Ответ на твой запрос: можно связаться сейчас.' : 'Ответ на твой запрос: вернётся к разговору немного позже.', type: 'connection_response', url: '/together' }
+// Push transport receives no names, message text, topics, family IDs or event IDs.
+// The private content is loaded by the app under RLS after the user opens it.
+const notificationCopy = (event: EventRow): NotificationCopy => {
+  const url = event.event_type === 'chess_move' ? '/chess' : event.event_type === 'voice_story_added' ? '/voice-stories' : event.event_type === 'recognition_added' ? '/recognitions' : event.event_type.startsWith('agreement_') ? '/agreements' : '/chat'
+  return { title: 'Папа & Я', body: 'Есть новое уведомление. Откройте приложение.', type: 'family_update', url }
 }
 
 export default {
@@ -63,27 +51,36 @@ export default {
       recipientUserId = payloadText(event.payload, 'requester_user_id')
     } else if (event.event_type === 'recognition_added') {
       recipientUserId = payloadText(event.payload, 'to_user_id')
-      if (recipientUserId) {
-        const { data: recipientMember } = await ctx.supabaseAdmin.from('family_members').select('user_id').eq('family_id', event.family_id).eq('user_id', recipientUserId).maybeSingle()
-        if (!recipientMember) recipientUserId = null
-      }
     } else {
-      const { data: recipient } = await ctx.supabaseAdmin.from('family_members').select('user_id').eq('family_id', event.family_id).neq('user_id', callerId).order('joined_at', { ascending: true }).limit(1).maybeSingle()
+      const { data: recipient, error: recipientLookupError } = await ctx.supabaseAdmin
+        .from('family_members')
+        .select('user_id')
+        .eq('family_id', event.family_id)
+        .neq('user_id', callerId)
+        .order('joined_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      if (recipientLookupError) return Response.json({ error: 'RECIPIENT_LOOKUP_FAILED' }, { status: 500 })
       recipientUserId = recipient?.user_id ?? null
     }
 
     if (!recipientUserId || recipientUserId === callerId) return Response.json({ ok: true, delivered: 0, reason: 'NO_RECIPIENT' })
 
-    const [{ data: actorMember }, { data: devices, error: devicesError }] = await Promise.all([
-      ctx.supabaseAdmin.from('family_members').select('display_name').eq('family_id', event.family_id).eq('user_id', callerId).maybeSingle(),
-      ctx.supabaseAdmin.from('push_devices').select('expo_push_token').eq('user_id', recipientUserId).eq('enabled', true),
-    ])
+    const { data: recipientMember, error: recipientMembershipError } = await ctx.supabaseAdmin
+      .from('family_members')
+      .select('user_id')
+      .eq('family_id', event.family_id)
+      .eq('user_id', recipientUserId)
+      .maybeSingle()
+    if (recipientMembershipError) return Response.json({ error: 'RECIPIENT_MEMBERSHIP_CHECK_FAILED' }, { status: 500 })
+    if (!recipientMember) return Response.json({ ok: true, delivered: 0, reason: 'RECIPIENT_NOT_IN_FAMILY' })
+
+    const { data: devices, error: devicesError } = await ctx.supabaseAdmin.from('push_devices').select('expo_push_token').eq('user_id', recipientUserId).eq('enabled', true)
     if (devicesError) return Response.json({ error: 'DEVICE_READ_FAILED' }, { status: 500 })
     const tokens = ((devices ?? []) as PushDevice[]).map((row) => row.expo_push_token).filter((token) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['))
     if (!tokens.length) return Response.json({ ok: true, delivered: 0, reason: 'NO_REGISTERED_DEVICE' })
 
-    const actorName = actorMember?.display_name ?? 'Участник команды'
-    const copy = notificationCopy(event, actorName)
+    const copy = notificationCopy(event)
     const messages: Array<Record<string, unknown>> = []
     const deliveryByToken = new Map<string, DeliveryRow>()
     for (const token of tokens) {
@@ -96,7 +93,7 @@ export default {
         delivery = inserted as DeliveryRow
       }
       deliveryByToken.set(token, delivery)
-      messages.push({ to: token, sound: 'default', channelId: 'connection', title: copy.title, body: copy.body, data: { url: copy.url, type: copy.type, event_id: event.id, family_id: event.family_id } })
+      messages.push({ to: token, sound: 'default', channelId: 'connection', title: copy.title, body: copy.body, data: { url: copy.url, type: copy.type } })
     }
     if (!messages.length) return Response.json({ ok: true, delivered: 0, reason: 'ALREADY_SENT' })
 

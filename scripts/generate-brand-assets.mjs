@@ -15,9 +15,9 @@ const sources = {
   hero: source('family-hero.png'),
   directionStrip: source('growth-directions.png'),
   navStrip: source('navigation-icons.png'),
-  utilityStrip: source('utility-icons.png'),
-  featureStrip: source('feature-icons.png'),
-  badgeSheet: source('achievement-badges.png'),
+  utilityStrip: source('utility-icons-v2.png'),
+  letter: source('letter-v1.png'),
+  badgeSheet: source('achievement-badges-v2.png'),
   decorSheet: source('decor-atlas.png'),
 };
 
@@ -26,28 +26,49 @@ await Promise.all(Object.values(sources).map((file) => fs.access(file)));
 
 const png = (file) => sharp(file, { failOn: 'none' });
 
+// Individually generated semantic icons. Keep alpha and normalize to 3x mobile size.
+for (const name of ['mood', 'news', 'memories', 'timeline', 'yearbook', 'rituals']) {
+  await png(source(`actions-v1/${name}.png`))
+    .trim({ threshold: 8 })
+    .resize(168, 168, { fit: 'contain', background: transparent })
+    .extend({ top: 12, bottom: 12, left: 12, right: 12, background: transparent })
+    .png({ compressionLevel: 9, palette: true, quality: 90, effort: 10 })
+    .toFile(path.join(outDir, `action-${name}.png`));
+}
+
 await png(sources.appIcon)
   .resize(1024, 1024, { fit: 'cover', position: 'centre' })
   .png({ compressionLevel: 9, quality: 94 })
   .toFile(path.join(outDir, 'app-icon.png'));
 
 await png(sources.hero)
-  .resize(1600, 900, { fit: 'cover', position: 'centre' })
-  .png({ compressionLevel: 9, quality: 92 })
-  .toFile(path.join(outDir, 'family-hero.png'));
+  .resize(1280, 720, { fit: 'cover', position: 'centre' })
+  .webp({ quality: 85, effort: 6 })
+  .toFile(path.join(outDir, 'family-hero.webp'));
 
 await png(sources.splash)
   .resize(1080, 1920, { fit: 'cover', position: 'centre' })
   .png({ compressionLevel: 9, quality: 92 })
   .toFile(path.join(outDir, 'splash-screen.png'));
 
-async function splitHorizontalStrip(file, names, prefix, targetSize) {
+await png(sources.letter)
+  .trim({ threshold: 8 })
+  .resize(196, 196, { fit: 'contain', background: transparent })
+  .extend({ top: 12, bottom: 12, left: 12, right: 12, background: transparent })
+  .png({ compressionLevel: 9, palette: true, quality: 90, effort: 10 })
+  .toFile(path.join(outDir, 'utility-letter.png'));
+
+// Boundaries are measured in the actual source, not assumed to be equal cells.
+// Keep transparent gutters: tiny accents belong to the icon beside them.
+async function splitHorizontalStrip(file, names, prefix, targetSize, boundaries, expectedSize) {
   const metadata = await png(file).metadata();
-  if (!metadata.width || !metadata.height) throw new Error(`Cannot read strip metadata: ${file}`);
+  if (metadata.width !== expectedSize[0] || metadata.height !== expectedSize[1]) {
+    throw new Error(`Source size changed; review crop boundaries: ${file}`);
+  }
 
   for (let index = 0; index < names.length; index += 1) {
-    const left = Math.floor((metadata.width * index) / names.length);
-    const right = Math.floor((metadata.width * (index + 1)) / names.length);
+    const left = boundaries[index];
+    const right = boundaries[index + 1];
     const width = Math.max(1, right - left);
 
     const crop = await png(file)
@@ -57,8 +78,9 @@ async function splitHorizontalStrip(file, names, prefix, targetSize) {
 
     await sharp(crop)
       .trim({ threshold: 8 })
-      .resize(targetSize, targetSize, { fit: 'contain', background: transparent })
-      .png({ compressionLevel: 9 })
+      .resize(targetSize - 24, targetSize - 24, { fit: 'contain', background: transparent })
+      .extend({ top: 12, bottom: 12, left: 12, right: 12, background: transparent })
+      .png({ compressionLevel: 9, palette: true, quality: 90, effort: 10 })
       .toFile(path.join(outDir, `${prefix}-${names[index]}.png`));
   }
 }
@@ -68,6 +90,8 @@ await splitHorizontalStrip(
   ['school', 'football', 'chess', 'english', 'leadership'],
   'direction',
   256,
+  [0, 449, 872, 1303, 1734, 2172],
+  [2172, 724],
 );
 
 // Source order: home, growth/path, book, heart/together, family/us.
@@ -76,6 +100,8 @@ await splitHorizontalStrip(
   ['home', 'growth', 'book', 'together', 'us'],
   'nav',
   196,
+  [0, 340, 601, 878, 1160, 1448],
+  [1448, 1086],
 );
 
 // Source order: calendar, microphone, checklist, mountain path, star in hands.
@@ -84,26 +110,33 @@ await splitHorizontalStrip(
   ['calendar', 'voice', 'agreements', 'goal', 'recognition'],
   'utility',
   220,
+  [0, 418, 800, 1170, 1570, 1983],
+  [1983, 793],
 );
 
-// Source order: home, shared path/star, book, heart/path, father-and-child.
+// The legacy feature-icons sheet depicts growth subjects in two rows. It is
+// NOT a home/path/book/together/family strip. Reuse the matching brand motifs.
 await splitHorizontalStrip(
-  sources.featureStrip,
+  sources.navStrip,
   ['home', 'path', 'book', 'together', 'family'],
   'feature',
   220,
+  [0, 340, 601, 878, 1160, 1448],
+  [1448, 1086],
 );
 
 async function splitGrid(file, names, columns, rows, prefix, targetSize) {
   const metadata = await png(file).metadata();
   if (!metadata.width || !metadata.height) throw new Error(`Cannot read grid metadata: ${file}`);
   if (names.length !== columns * rows) throw new Error('Grid names count must match columns × rows');
+  if (metadata.width !== 1448 || metadata.height !== 1086) throw new Error('Badge source changed; review crop boundaries');
+  const columnEdges = [0, 373, 718, 1067, 1448];
 
   for (let index = 0; index < names.length; index += 1) {
     const column = index % columns;
     const row = Math.floor(index / columns);
-    const left = Math.floor((metadata.width * column) / columns);
-    const right = Math.floor((metadata.width * (column + 1)) / columns);
+    const left = columnEdges[column];
+    const right = columnEdges[column + 1];
     const top = Math.floor((metadata.height * row) / rows);
     const bottom = Math.floor((metadata.height * (row + 1)) / rows);
 
@@ -114,8 +147,9 @@ async function splitGrid(file, names, columns, rows, prefix, targetSize) {
 
     await sharp(crop)
       .trim({ threshold: 8 })
-      .resize(targetSize, targetSize, { fit: 'contain', background: transparent })
-      .png({ compressionLevel: 9 })
+      .resize(targetSize - 32, targetSize - 32, { fit: 'contain', background: transparent })
+      .extend({ top: 16, bottom: 16, left: 16, right: 16, background: transparent })
+      .png({ compressionLevel: 9, palette: true, quality: 90, effort: 10 })
       .toFile(path.join(outDir, `${prefix}-${names[index]}.png`));
   }
 }
