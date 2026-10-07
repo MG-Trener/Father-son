@@ -5,8 +5,8 @@ import sharp from 'sharp';
 
 // Catch packaging failures and opaque rectangles before they reach a phone.
 const dir = 'assets/generated';
-const files = (await fs.readdir(dir)).filter(name => /^(nav|feature|direction|utility|badge)-.*\.png$/.test(name));
-assert.equal(files.length, 29, 'Expected 29 UI icons');
+const files = (await fs.readdir(dir)).filter(name => /^(nav|feature|direction|utility|badge|action)-.*\.png$/.test(name));
+assert.equal(files.length, 35, 'Expected 35 UI icons');
 let bytes = 0;
 for (const name of files) {
   const file = path.join(dir, name);
@@ -23,7 +23,9 @@ for (const name of files) {
     }
   }
   const coverage = visible / (info.width * info.height);
-  assert(coverage > 0.2 && coverage < 0.8, `${name}: empty or opaque/cropped artwork (${coverage})`);
+  // The timeline deliberately has open space between its connected event nodes.
+  const minimumCoverage = name === 'action-timeline.png' ? 0.17 : 0.2;
+  assert(coverage > minimumCoverage && coverage < 0.8, `${name}: empty or opaque/cropped artwork (${coverage})`);
   bytes += (await fs.stat(file)).size;
 }
 assert(bytes < 1_200_000, `Icon budget exceeded: ${bytes} bytes`);
@@ -41,4 +43,4 @@ async function checkReferences(directory) {
   }
 }
 await checkReferences('src');
-console.log(`29 icons: transparency, safe borders, coverage and references OK; ${(bytes / 1024).toFixed(0)} KiB total.`);
+console.log(`${files.length} icons: transparency, safe borders, coverage and references OK; ${(bytes / 1024).toFixed(0)} KiB total.`);

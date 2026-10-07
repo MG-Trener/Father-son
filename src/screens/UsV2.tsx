@@ -72,7 +72,7 @@ export default function UsV2() {
   };
 
   return <Page>
-    <Heading title="Семья и настройки" subtitle="Два телефона — одно общее пространство." back familyLink={false} />
+    <Heading title="Настройки" subtitle="Семья, подключение телефона и приложение." back familyLink={false} />
     <Card>
       <Text style={ui.sectionTitle}>{teamName}</Text>
       <Text style={ui.rowTitle}>Папа · {parentName}{me?.role === 'parent' ? ' (вы)' : ''}</Text><Text style={ui.body}>{parent ? 'Аккаунт подключён' : 'Ожидаем подключения'}</Text>

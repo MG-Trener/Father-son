@@ -53,7 +53,6 @@ export default function TodayScreen() {
   return <Page refreshing={loading} onRefresh={() => void load()}>
     <Heading title={`Привет, ${myName}`} subtitle={date} />
     {error ? <LoadError message={error} retry={() => void load()} /> : null}
-    {!other ? <ActionRow title={isChild ? 'Семья и подключение' : 'Подключить сына'} description={isChild ? 'Проверь подключение к семье папы' : 'Приглашение для второго телефона'} image={brandAssets.features.family} to="/(tabs)/us" /> : null}
     <Section title="Что хочется сегодня?">
       <Card tone="warm">
         <View style={ui.row}><Image source={brandAssets.features.together} style={ui.icon} accessible={false} /><View style={ui.flex}><Text style={ui.rowTitle}>{isChild ? 'Мы с папой' : 'Мы с сыном'}</Text><Text style={ui.description}>{otherMood ? `${other?.display_name}: сегодня ${moodLabels[otherMood.mood] ?? 'поделился настроением'}` : 'Поговорить, спросить совет или просто побыть рядом.'}</Text></View></View>
@@ -68,8 +67,8 @@ export default function TodayScreen() {
       <ActionRow image={brandAssets.utility.calendar} title={meeting?.title ?? 'Запланировать время вместе'} description={meeting ? new Date(`${meeting.meeting_date}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'Выберите день и придумайте, чем заняться'} to="/meeting-plan" />
     </Section>
     <Section title="Как ты сегодня?">
-      <ActionRow image={brandAssets.features.family} title={myMood ? `Сегодня ${moodLabels[myMood.mood] ?? 'есть отметка'}` : 'Поделиться настроением'} description={myMood ? 'Можно изменить отметку или добавить пару слов' : 'Одним нажатием или парой слов — как захочется'} to="/mood-check-in" />
+      <ActionRow image={brandAssets.actions.mood} title={myMood ? `Сегодня ${moodLabels[myMood.mood] ?? 'есть отметка'}` : 'Поделиться настроением'} description={myMood ? 'Можно изменить отметку или добавить пару слов' : 'Одним нажатием или парой слов — как захочется'} to="/mood-check-in" />
     </Section>
-    <ActionRow title="Что нового у нас" description="События, ответы и новые записи" image={brandAssets.utility.recognition} to="/notifications" />
+    <ActionRow title="Что нового у нас" description="События, ответы и новые записи" image={brandAssets.actions.news} to="/notifications" />
   </Page>;
 }

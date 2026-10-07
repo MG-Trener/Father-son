@@ -93,7 +93,7 @@ export default function TeamSetupScreen() {
       <Text style={ui.sectionTitle}>{mode === 'create' ? 'Создать семью' : 'Присоединиться к папе'}</Text>
       <Text style={ui.rowTitle}>{mode === 'create' ? 'Как вас зовут?' : 'Как тебя зовут?'}</Text>
       <TextInput accessibilityLabel="Имя" style={ui.input} value={mode === 'create' ? parentName : childName} onChangeText={mode === 'create' ? setParentName : setChildName} placeholder="Имя" autoComplete="name" />
-      {mode === 'join' ? <><Text style={ui.rowTitle}>Код от папы</Text><TextInput accessibilityLabel="Код приглашения от папы" style={ui.input} value={inviteCode} onChangeText={setInviteCode} placeholder="12 символов" autoCapitalize="characters" autoCorrect={false} maxLength={12} /><Text style={ui.body}>Код можно найти на телефоне папы: «Семья» → «Получить код приглашения».</Text></> : <Text style={ui.body}>После создания вы получите код для телефона сына.</Text>}
+      {mode === 'join' ? <><Text style={ui.rowTitle}>Код от папы</Text><TextInput accessibilityLabel="Код приглашения от папы" style={ui.input} value={inviteCode} onChangeText={setInviteCode} placeholder="12 символов" autoCapitalize="characters" autoCorrect={false} maxLength={12} /><Text style={ui.body}>Код можно найти на телефоне папы: «Настройки» → «Получить код приглашения».</Text></> : <Text style={ui.body}>После создания вы получите код для телефона сына.</Text>}
       <Button label={mode === 'create' ? 'Создать семью и получить код' : 'Подключиться к семье'} busy={busy} onPress={() => void (mode === 'create' ? createTeam() : joinTeam())} />
     </Card>
     <Button label="Войти в другой аккаунт" secondary onPress={() => void exit()} />

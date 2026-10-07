@@ -12,6 +12,7 @@ import {
   updateFutureLetterDraft,
 } from '../data/memoryArchiveRepository';
 import { useFamily } from '../context/FamilyContext';
+import { futureLetterRecipients } from '../domain/futureLetters';
 import { supabase } from '../lib/supabase';
 import { colors, radius, shadows } from '../theme';
 
@@ -59,8 +60,7 @@ const birthdayAtAge = (birthDate: string | null, age: number) => {
 export default function FutureLetterComposer() {
   const params = useLocalSearchParams<{ id?: string }>();
   const { family, members, me } = useFamily();
-  const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
-  const other = useMemo(() => members.find((member) => member.user_id !== me?.user_id) ?? null, [members, me]);
+  const recipients = useMemo(() => futureLetterRecipients(members, me), [members, me]);
   const names = useMemo(() => new Map(members.map((member) => [member.user_id, member.display_name])), [members]);
   const letterId = typeof params.id === 'string' ? params.id : null;
   const [title, setTitle] = useState('');
@@ -71,17 +71,18 @@ export default function FutureLetterComposer() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!recipientId && me) setRecipientId(me.role === 'child' ? me.user_id : (child?.user_id ?? other?.user_id ?? me.user_id));
-  }, [recipientId, me, child, other]);
+    if (!recipientId && me) setRecipientId(me.user_id);
+  }, [recipientId, me]);
+
+  const recipient = recipients.find(option => option.id === recipientId);
 
   useEffect(() => {
     if (!unlockDay) {
-      const birthday = nextBirthday(child?.birth_date ?? null);
       const fallback = new Date();
       fallback.setFullYear(fallback.getFullYear() + 1);
-      setUnlockDay(toIsoDay(birthday ?? fallback));
+      setUnlockDay(toIsoDay(fallback));
     }
-  }, [unlockDay, child?.birth_date]);
+  }, [unlockDay]);
 
   const loadDraft = useCallback(async () => {
     const client = supabase;
@@ -109,25 +110,25 @@ export default function FutureLetterComposer() {
 
   const presets = useMemo(() => {
     const result: { label: string; date: Date }[] = [];
-    const next = nextBirthday(child?.birth_date ?? null);
+    const next = nextBirthday(recipient?.birthDate ?? null);
     if (next) result.push({ label: 'Следующий день рождения', date: next });
-    const fifteen = birthdayAtAge(child?.birth_date ?? null, 15);
+    const fifteen = recipient?.role === 'child' ? birthdayAtAge(recipient.birthDate, 15) : null;
     if (fifteen) result.push({ label: 'В 15 лет', date: fifteen });
-    const eighteen = birthdayAtAge(child?.birth_date ?? null, 18);
+    const eighteen = recipient?.role === 'child' ? birthdayAtAge(recipient.birthDate, 18) : null;
     if (eighteen) result.push({ label: 'В 18 лет', date: eighteen });
     const year = new Date();
     year.setFullYear(year.getFullYear() + 1);
     result.push({ label: 'Через год', date: year });
     return result;
-  }, [child?.birth_date]);
+  }, [recipient?.birthDate, recipient?.role]);
 
   const validate = () => {
     const cleanTitle = title.trim();
     const cleanBody = body.trim();
     const date = parseDay(unlockDay);
-    if (!cleanTitle) { Alert.alert('Добавь заголовок', 'Например: «Артуру в 15 лет».'); return null; }
+    if (!cleanTitle) { Alert.alert('Добавь заголовок', 'Например: «Тебе через год».'); return null; }
     if (!cleanBody) { Alert.alert('Письмо пустое', 'Напиши хотя бы несколько слов.'); return null; }
-    if (!recipientId) { Alert.alert('Выбери адресата'); return null; }
+    if (!recipientId || !recipient) { Alert.alert('Выбери адресата', 'Получатель должен быть участником вашей семьи.'); return null; }
     if (!date || date.getTime() <= Date.now()) { Alert.alert('Проверь дату', 'Нужна будущая дата в формате ГГГГ-ММ-ДД.'); return null; }
     return { cleanTitle, cleanBody, date };
   };
@@ -175,7 +176,7 @@ export default function FutureLetterComposer() {
     if (!valid) return;
     Alert.alert(
       'Запечатать письмо?',
-      `После этого текст нельзя будет открыть или изменить до ${valid.date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
+      `Кому: ${recipient?.label} · ${recipient?.name}. После запечатывания текст нельзя будет открыть или изменить до ${valid.date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
       [
         { text: 'Пока нет', style: 'cancel' },
         {
@@ -234,30 +235,30 @@ export default function FutureLetterComposer() {
 
         <LinearGradient colors={['#173C54', '#355F70', '#D49B4B']} style={[styles.intro, shadows.lift]}>
           <View style={styles.introArtworkShell}><Image source={artwork.letter} style={styles.introArtwork} resizeMode="contain" /></View>
-          <Text style={styles.introTitle}>Пиши так, как будто время действительно пройдёт</Text>
-          <Text style={styles.introText}>Не обязательно давать советы. Можно рассказать, каким был сегодняшний день, чего боишься, чем гордишься или что очень не хочется забыть.</Text>
+          <Text style={styles.introTitle}>Слова для будущего</Text>
+          <Text style={styles.introText}>{me?.role === 'child' ? 'Напиши себе или папе. Выбери, когда письмо можно будет открыть.' : 'Напиши себе или сыну. Выбери, когда письмо можно будет открыть.'}</Text>
         </LinearGradient>
 
         <View style={[styles.formCard, shadows.soft]}>
-          <Text style={styles.label}>КОМУ</Text>
+          <Text style={styles.label}>КОМУ ПИШЕМ?</Text>
           <View style={styles.recipientRow}>
-            {members.map((member) => {
-              const active = recipientId === member.user_id;
+            {recipients.map((option) => {
+              const active = Boolean(option.id && recipientId === option.id);
               return (
-                <Pressable key={member.user_id} onPress={() => setRecipientId(member.user_id)} style={[styles.recipient, active && styles.recipientActive]}>
-                  <View style={[styles.avatar, active && styles.avatarActive]}><Text style={[styles.avatarText, active && styles.avatarTextActive]}>{member.display_name.slice(0, 1).toUpperCase()}</Text></View>
-                  <Text style={[styles.recipientName, active && styles.recipientNameActive]}>{member.display_name}</Text>
-                  <Text style={[styles.recipientRole, active && styles.recipientRoleActive]}>{member.user_id === me?.user_id ? 'себе' : member.role === 'parent' ? 'папе' : 'сыну'}</Text>
+                <Pressable key={option.label} accessibilityRole="radio" accessibilityLabel={`${option.label}. ${option.name}`} accessibilityState={{ selected: active, disabled: !option.id }} disabled={!option.id || busy} onPress={() => option.id && setRecipientId(option.id)} style={[styles.recipient, active && styles.recipientActive, !option.id && styles.disabled]}>
+                  <Text style={[styles.recipientName, active && styles.recipientNameActive]}>{option.label}{active ? ' ✓' : ''}</Text>
+                  <Text style={[styles.recipientRole, active && styles.recipientRoleActive]}>{option.name}</Text>
                 </Pressable>
               );
             })}
           </View>
+          {!recipients[1].id ? <Text style={styles.dateHint}>Письма друг другу доступны после подключения второго аккаунта. Это можно сделать в разделе «Настройки».</Text> : <Text style={styles.dateHint}>Письмо себе читаешь только ты. Письмо другому участнику после выбранной даты могут прочитать автор и адресат.</Text>}
 
           <Text style={styles.label}>ЗАГОЛОВОК</Text>
-          <TextInput value={title} onChangeText={setTitle} maxLength={120} placeholder={`Например: «${names.get(recipientId) ?? 'Тебе'} в важный день»`} placeholderTextColor="#A1AAA9" style={styles.input} />
+          <TextInput accessibilityLabel="Заголовок письма" value={title} onChangeText={setTitle} maxLength={120} placeholder={`Например: «${names.get(recipientId) ?? 'Тебе'} в важный день»`} placeholderTextColor="#A1AAA9" style={styles.input} />
 
           <Text style={styles.label}>ТЕКСТ ПИСЬМА</Text>
-          <TextInput value={body} onChangeText={setBody} maxLength={8000} placeholder="Что ты хочешь сказать человеку, который откроет это позже?" placeholderTextColor="#A1AAA9" multiline style={styles.bodyInput} />
+          <TextInput accessibilityLabel="Текст письма" value={body} onChangeText={setBody} maxLength={8000} placeholder="Что ты хочешь сказать человеку, который откроет это позже?" placeholderTextColor="#A1AAA9" multiline style={styles.bodyInput} />
           <Text style={styles.counter}>{body.length}/8000</Text>
 
           <Text style={styles.label}>КОГДА ОТКРЫТЬ</Text>
@@ -268,7 +269,7 @@ export default function FutureLetterComposer() {
               return <Pressable key={`${preset.label}-${day}`} onPress={() => setUnlockDay(day)} style={[styles.preset, active && styles.presetActive]}><Text style={[styles.presetText, active && styles.presetTextActive]}>{preset.label}</Text></Pressable>;
             })}
           </ScrollView>
-          <TextInput value={unlockDay} onChangeText={setUnlockDay} keyboardType="numbers-and-punctuation" maxLength={10} placeholder="ГГГГ-ММ-ДД" placeholderTextColor="#A1AAA9" style={styles.dateInput} />
+          <TextInput accessibilityLabel="Дата открытия письма" value={unlockDay} onChangeText={setUnlockDay} keyboardType="numbers-and-punctuation" maxLength={10} placeholder="ГГГГ-ММ-ДД" placeholderTextColor="#A1AAA9" style={styles.dateInput} />
           <Text style={styles.dateHint}>Можно выбрать готовую дату выше или ввести свою.</Text>
         </View>
 
@@ -296,11 +297,11 @@ const styles = StyleSheet.create({
   backText: { color: colors.navyDeep, fontSize: 28, lineHeight: 28, fontWeight: '700', marginTop: -3 },
   kicker: { color: colors.muted, fontSize: 14, fontWeight: '900', letterSpacing: 1 },
   topTitle: { color: colors.navyDeep, fontSize: 21, fontWeight: '900', marginTop: 2 },
-  intro: { minHeight: 185, borderRadius: radius.xl, padding: 19, justifyContent: 'flex-end', overflow: 'hidden' },
+  intro: { minHeight: 130, borderRadius: radius.xl, padding: 19, justifyContent: 'center', overflow: 'hidden' },
   introArtworkShell: { position: 'absolute', right: 15, top: 13, width: 72, height: 72, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   introArtwork: { width: 63, height: 63 },
-  introTitle: { color: colors.white, fontSize: 22, lineHeight: 25, fontWeight: '900', maxWidth: '86%' },
-  introText: { color: '#DFE9E9', fontSize: 14, lineHeight: 20, marginTop: 7, maxWidth: '91%' },
+  introTitle: { color: colors.white, fontSize: 22, lineHeight: 27, fontWeight: '900', maxWidth: '70%' },
+  introText: { color: '#DFE9E9', fontSize: 15, lineHeight: 22, marginTop: 7, maxWidth: '70%' },
   formCard: { backgroundColor: '#FFFDF8', borderRadius: radius.xl, padding: 17, borderWidth: 1, borderColor: '#E8DFD1' },
   label: { color: colors.muted, fontSize: 14, fontWeight: '900', letterSpacing: 1, marginTop: 14, marginBottom: 7 },
   recipientRow: { flexDirection: 'row', gap: 8 },
@@ -310,7 +311,7 @@ const styles = StyleSheet.create({
   avatarActive: { backgroundColor: colors.teal },
   avatarText: { color: colors.navyDeep, fontSize: 14, fontWeight: '900' },
   avatarTextActive: { color: colors.white },
-  recipientName: { color: colors.navyDeep, fontSize: 14, fontWeight: '900', marginTop: 6 },
+  recipientName: { color: colors.navyDeep, fontSize: 17, fontWeight: '700', marginTop: 6 },
   recipientNameActive: { color: colors.teal },
   recipientRole: { color: colors.muted, fontSize: 14, fontWeight: '800', marginTop: 1 },
   recipientRoleActive: { color: colors.teal },

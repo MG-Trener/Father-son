@@ -1,4 +1,12 @@
 export const brandAssets = {
+  actions: {
+    mood: require('../assets/generated/action-mood.png'),
+    news: require('../assets/generated/action-news.png'),
+    memories: require('../assets/generated/action-memories.png'),
+    timeline: require('../assets/generated/action-timeline.png'),
+    yearbook: require('../assets/generated/action-yearbook.png'),
+    rituals: require('../assets/generated/action-rituals.png'),
+  },
   app: {
     icon: require('../assets/generated/app-icon.png'),
     monochromeIcon: require('../assets/generated/app-icon-monochrome.png'),

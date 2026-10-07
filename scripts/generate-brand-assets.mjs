@@ -26,6 +26,16 @@ await Promise.all(Object.values(sources).map((file) => fs.access(file)));
 
 const png = (file) => sharp(file, { failOn: 'none' });
 
+// Individually generated semantic icons. Keep alpha and normalize to 3x mobile size.
+for (const name of ['mood', 'news', 'memories', 'timeline', 'yearbook', 'rituals']) {
+  await png(source(`actions-v1/${name}.png`))
+    .trim({ threshold: 8 })
+    .resize(168, 168, { fit: 'contain', background: transparent })
+    .extend({ top: 12, bottom: 12, left: 12, right: 12, background: transparent })
+    .png({ compressionLevel: 9, palette: true, quality: 90, effort: 10 })
+    .toFile(path.join(outDir, `action-${name}.png`));
+}
+
 await png(sources.appIcon)
   .resize(1024, 1024, { fit: 'cover', position: 'centre' })
   .png({ compressionLevel: 9, quality: 94 })

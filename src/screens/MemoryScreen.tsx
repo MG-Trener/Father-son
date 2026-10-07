@@ -13,11 +13,11 @@ export default function MemoryScreen() {
       <Button label="Рассказать голосом" secondary onPress={() => router.push('/voice-story-new')} />
     </Card>
     <Section title="Наша история">
-      <ActionRow title="Текстовые воспоминания" description="Прочитать ваши истории и ответы целиком" image={brandAssets.navigation.book} to="/memories" />
-      <ActionRow title="Все события и записи" description="Лента общих дел, мыслей и успехов" image={brandAssets.navigation.book} to="/(tabs)/history" />
+      <ActionRow title="Текстовые воспоминания" description="Прочитать ваши истории и ответы целиком" image={brandAssets.actions.memories} to="/memories" />
+      <ActionRow title="Все события и записи" description="Лента общих дел, мыслей и успехов" image={brandAssets.actions.timeline} to="/(tabs)/history" />
       <ActionRow title="Голосовые истории" description="Послушать друг друга снова" image={brandAssets.utility.voice} to="/voice-stories" />
-      <ActionRow title="Письма в будущее" description="Написать сейчас, открыть в выбранный день" image={brandAssets.utility.letter} to="/letters" />
-      <ActionRow title="Книга года" description="Собрать важные моменты взросления" image={brandAssets.features.book} to="/year-review" />
+      <ActionRow title="Письма в будущее" description="Себе или друг другу — на выбранную дату" image={brandAssets.utility.letter} to="/letters" />
+      <ActionRow title="Книга года" description="Собрать важные моменты взросления" image={brandAssets.actions.yearbook} to="/year-review" />
     </Section>
   </Page>;
 }

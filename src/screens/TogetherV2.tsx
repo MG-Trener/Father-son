@@ -7,6 +7,7 @@ import { useFamily } from '../context/FamilyContext';
 import { useFamilyPresentation } from '../hooks/useFamilyPresentation';
 import { notifyFamilyEvent } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
+import { brandAssets } from '../brandAssets';
 
 type TogetherMission = {
   id: string;
@@ -218,10 +219,10 @@ export default function TogetherV2() {
       <Button label="Я рядом, можем поговорить" busy={busy} onPress={() => void respond('here')} />
       <Button label="Смогу чуть позже" secondary disabled={busy} onPress={() => void respond('later')} />
     </Card> : null}
-    {!other ? <ActionRow title="Подключить второй телефон" description="Приглашение и участники семьи" to="/(tabs)/us" /> : null}
     <Card tone="warm">
       <Text style={ui.sectionTitle}>{isChild ? 'Папа, есть минутка?' : 'Найдём время поговорить?'}</Text>
       <Text style={ui.body}>Отправь приглашение. Когда второй участник откроет приложение, он сможет ответить: «Я рядом» или «Чуть позже».</Text>
+      {!other ? <Text style={ui.caption}>Разговоры станут доступны после подключения второго участника в настройках.</Text> : null}
       <Button label={isChild ? 'Позвать папу на разговор' : 'Позвать сына на разговор'} disabled={!other} busy={busy} onPress={() => void sendSignal('five_minutes')} />
       <Button label={adviceOpen ? 'Закрыть тему разговора' : 'Хочу обсудить кое-что'} secondary onPress={() => setAdviceOpen(!adviceOpen)} />
       {adviceOpen ? <View style={ui.stack}>
@@ -233,8 +234,8 @@ export default function TogetherV2() {
     </Card>
     <Section title="Наше время">
       <ActionRow title="Встречи и планы" description="Выбрать день и придумать, что сделаем" image={artwork.calendar} to="/meeting-plan" />
-      <ActionRow title="Общие привычки" description="Маленькие дела, которые нас сближают" image={artwork.team} to="/rituals" />
-      <ActionRow title="Наши договорённости" description="Обсудить правила, удобные обоим" image={artwork.goal} to="/agreements" />
+      <ActionRow title="Общие привычки" description="Маленькие дела, которые нас сближают" image={brandAssets.actions.rituals} to="/rituals" />
+      <ActionRow title="Наши договорённости" description="Обсудить правила, удобные обоим" image={brandAssets.utility.agreements} to="/agreements" />
       <ActionRow title="Сказать спасибо" description="Замечать заботу, смелость и старание" image={artwork.recognition} to="/recognitions" />
       <ActionRow title="Идеи для разговоров" description="Выбрать тему и узнать друг друга лучше" to="/conversation-cards" />
       <ActionRow title="Наш месяц" description="Встречи и общие дела за месяц" to="/month-together" />

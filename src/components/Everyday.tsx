@@ -12,7 +12,7 @@ export function Page({ children, refreshing = false, onRefresh }: PropsWithChild
 export function Heading({ title, subtitle, back = false, familyLink = true }: { title: string; subtitle?: string; back?: boolean; familyLink?: boolean }) {
   return <View style={ui.heading}>
     <View style={ui.between}>{back ? <Pressable accessibilityRole="button" accessibilityLabel="Назад" style={ui.smallButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}><Text style={ui.link}>‹ Назад</Text></Pressable> : <Text style={ui.brand}>Папа & Я</Text>}
-      {familyLink ? <Pressable accessibilityRole="button" accessibilityLabel="Семья и настройки" style={ui.smallButton} onPress={() => router.navigate('/(tabs)/us')}><Text style={ui.link}>Семья</Text></Pressable> : null}
+      {familyLink ? <Pressable accessibilityRole="button" accessibilityLabel="Настройки" style={ui.smallButton} onPress={() => router.navigate('/settings')}><Text style={ui.link}>Настройки</Text></Pressable> : null}
     </View>
     <Text accessibilityRole="header" style={ui.title}>{title}</Text>
     {subtitle ? <Text style={ui.body}>{subtitle}</Text> : null}

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { brandAssets } from '../brandAssets';
 import { listFutureLetters, type FutureLetter } from '../data/memoryArchiveRepository';
 import {
@@ -35,7 +35,6 @@ export default function LettersScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const names = useMemo(() => new Map(members.map((member) => [member.user_id, member.display_name])), [members]);
-  const child = useMemo(() => members.find((member) => member.role === 'child') ?? null, [members]);
   const isChild = me?.role === 'child';
 
   const load = useCallback(async () => {
@@ -53,7 +52,7 @@ export default function LettersScreen() {
     }
   }, [family]);
 
-  useEffect(() => { void load(); }, [load]);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -92,7 +91,7 @@ export default function LettersScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.navy} />}>
         <View style={styles.topBar}>
           <Pressable style={styles.back} onPress={() => router.back()}><Text style={styles.backText}>‹</Text></Pressable>
-          <View style={styles.topCopy}><Text style={styles.topKicker}>ПАПА & Я · 11–18</Text><Text style={styles.topTitle}>Письма в будущее</Text></View>
+          <View style={styles.topCopy}><Text style={styles.topKicker}>СЕБЕ И ДРУГ ДРУГУ</Text><Text style={styles.topTitle}>Письма в будущее</Text></View>
           <Pressable style={styles.add} onPress={() => router.push('/future-letter-new')}><Text style={styles.addText}>＋</Text></Pressable>
         </View>
 
@@ -102,7 +101,7 @@ export default function LettersScreen() {
           <Text style={styles.heroTitle}>{isChild ? 'Некоторые слова лучше сохранить надолго' : 'Слова, которые дождутся своего времени'}</Text>
           <Text style={styles.heroText}>{isChild
             ? 'Напиши себе будущему или папе. После запечатывания письмо нельзя подсмотреть раньше даты открытия.'
-            : `Можно оставить ${child?.display_name ?? 'сыну'} письмо на следующий день рождения, 15-летие, 18-летие — или любую важную дату.`}</Text>
+            : 'Напиши себе будущему или сыну. Выбери день рождения или любую важную дату — письмо дождётся этого дня.'}</Text>
           <Pressable style={styles.heroButton} onPress={() => router.push('/future-letter-new')}><Text style={styles.heroButtonText}>Написать письмо →</Text></Pressable>
         </LinearGradient>
 
