@@ -16,9 +16,7 @@ import { colors, radius, shadows } from '../theme';
 
 const artwork = {
   book: brandAssets.features.book,
-  path: brandAssets.features.path,
-  family: brandAssets.features.family,
-  goal: brandAssets.utility.goal,
+  letter: brandAssets.utility.letter,
 } as const;
 
 const prettyDate = (value: string) => new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -100,7 +98,7 @@ export default function LettersScreen() {
 
         <LinearGradient colors={['#183C55', '#315E71', '#D49A4B']} style={[styles.hero, shadows.lift]}>
           <View style={styles.heroGlow} />
-          <View style={styles.heroArtworkShell}><Image source={artwork.path} style={styles.heroArtwork} resizeMode="contain" /></View>
+          <View style={styles.heroArtworkShell}><Image source={artwork.letter} style={styles.heroArtwork} resizeMode="contain" /></View>
           <Text style={styles.heroTitle}>{isChild ? 'Некоторые слова лучше сохранить надолго' : 'Слова, которые дождутся своего времени'}</Text>
           <Text style={styles.heroText}>{isChild
             ? 'Напиши себе будущему или папе. После запечатывания письмо нельзя подсмотреть раньше даты открытия.'
@@ -135,7 +133,7 @@ export default function LettersScreen() {
               return (
                 <Pressable key={letter.id} style={[styles.letterCard, unlocked && accessible && styles.letterReady, shadows.soft]} onPress={() => openLetter(letter)}>
                   <View style={[styles.seal, unlocked && accessible && styles.sealReady]}>
-                    <Image source={unlocked && accessible ? artwork.family : artwork.goal} style={styles.sealImage} resizeMode="contain" />
+                    <Image source={artwork.letter} style={styles.sealImage} resizeMode="contain" />
                   </View>
                   <View style={styles.cardCopy}>
                     <Text style={styles.cardEyebrow}>{names.get(letter.author_user_id) ?? 'Автор'} → {names.get(letter.recipient_user_id) ?? 'Адресат'}</Text>
@@ -148,7 +146,7 @@ export default function LettersScreen() {
             })}
             {!sealed.length ? (
               <View style={styles.empty}>
-                <View style={styles.emptyIconShell}><Image source={artwork.book} style={styles.emptyIcon} resizeMode="contain" /></View>
+                <View style={styles.emptyIconShell}><Image source={artwork.letter} style={styles.emptyIcon} resizeMode="contain" /></View>
                 <Text style={styles.emptyTitle}>Первый конверт ещё впереди</Text>
                 <Text style={styles.emptyText}>Письмо можно запечатать на конкретную дату. После этого содержимое действительно закрывается до срока.</Text>
               </View>
@@ -157,7 +155,7 @@ export default function LettersScreen() {
         </View>
 
         <View style={[styles.ruleCard, shadows.soft]}>
-          <View style={styles.ruleIconShell}><Image source={artwork.family} style={styles.ruleIcon} resizeMode="contain" /></View>
+          <View style={styles.ruleIconShell}><Image source={artwork.letter} style={styles.ruleIcon} resizeMode="contain" /></View>
           <View style={styles.ruleCopy}><Text style={styles.ruleTitle}>Настоящая печать</Text><Text style={styles.ruleText}>После запечатывания текст письма недоступен через приложение до даты открытия. Конверт остаётся видимым, содержание — нет.</Text></View>
         </View>
       </ScrollView>

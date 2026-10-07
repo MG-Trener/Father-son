@@ -6,7 +6,7 @@ import sharp from 'sharp';
 // Catch packaging failures and opaque rectangles before they reach a phone.
 const dir = 'assets/generated';
 const files = (await fs.readdir(dir)).filter(name => /^(nav|feature|direction|utility|badge)-.*\.png$/.test(name));
-assert.equal(files.length, 28, 'Expected 28 UI icons');
+assert.equal(files.length, 29, 'Expected 29 UI icons');
 let bytes = 0;
 for (const name of files) {
   const file = path.join(dir, name);
@@ -41,4 +41,4 @@ async function checkReferences(directory) {
   }
 }
 await checkReferences('src');
-console.log(`28 icons: transparency, safe borders, coverage and references OK; ${(bytes / 1024).toFixed(0)} KiB total.`);
+console.log(`29 icons: transparency, safe borders, coverage and references OK; ${(bytes / 1024).toFixed(0)} KiB total.`);

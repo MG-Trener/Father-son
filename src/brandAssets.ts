@@ -27,6 +27,7 @@ export const brandAssets = {
     family: require('../assets/generated/feature-family.png'),
   },
   utility: {
+    letter: require('../assets/generated/utility-letter.png'),
     calendar: require('../assets/generated/utility-calendar.png'),
     voice: require('../assets/generated/utility-voice.png'),
     agreements: require('../assets/generated/utility-agreements.png'),

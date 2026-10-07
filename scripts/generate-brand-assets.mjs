@@ -16,6 +16,7 @@ const sources = {
   directionStrip: source('growth-directions.png'),
   navStrip: source('navigation-icons.png'),
   utilityStrip: source('utility-icons-v2.png'),
+  letter: source('letter-v1.png'),
   badgeSheet: source('achievement-badges-v2.png'),
   decorSheet: source('decor-atlas.png'),
 };
@@ -39,6 +40,13 @@ await png(sources.splash)
   .resize(1080, 1920, { fit: 'cover', position: 'centre' })
   .png({ compressionLevel: 9, quality: 92 })
   .toFile(path.join(outDir, 'splash-screen.png'));
+
+await png(sources.letter)
+  .trim({ threshold: 8 })
+  .resize(196, 196, { fit: 'contain', background: transparent })
+  .extend({ top: 12, bottom: 12, left: 12, right: 12, background: transparent })
+  .png({ compressionLevel: 9, palette: true, quality: 90, effort: 10 })
+  .toFile(path.join(outDir, 'utility-letter.png'));
 
 // Boundaries are measured in the actual source, not assumed to be equal cells.
 // Keep transparent gutters: tiny accents belong to the icon beside them.

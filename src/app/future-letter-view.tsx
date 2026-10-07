@@ -11,7 +11,7 @@ import { colors, radius, shadows } from '../theme';
 
 const artwork = {
   book: brandAssets.features.book,
-  path: brandAssets.features.path,
+  letter: brandAssets.utility.letter,
   family: brandAssets.features.family,
 } as const;
 
@@ -61,7 +61,7 @@ export default function FutureLetterView() {
 
         <LinearGradient colors={['#173C54', '#365F70', '#D49B4B']} style={[styles.hero, shadows.lift]}>
           <View style={styles.glow} />
-          <View style={styles.heroArtworkShell}><Image source={artwork.path} style={styles.heroArtwork} resizeMode="contain" /></View>
+          <View style={styles.heroArtworkShell}><Image source={artwork.letter} style={styles.heroArtwork} resizeMode="contain" /></View>
           <Text style={styles.heroMeta}>{nameFor(letter.authorUserId)} → {nameFor(letter.recipientUserId)}</Text>
           <Text style={styles.heroTitle}>{letter.title}</Text>
           <Text style={styles.heroDate}>Ждало до {new Date(letter.unlockAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>

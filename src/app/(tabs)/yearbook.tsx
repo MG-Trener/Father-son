@@ -20,7 +20,7 @@ export default function YearBookTab() {
         </Pressable>
         <Pressable style={[styles.archiveButton, styles.lettersButton, shadows.lift]} onPress={() => router.push('/letters')}>
           <View style={styles.iconShellDark}>
-            <Image source={brandAssets.utility.voice} style={styles.archiveImage} resizeMode="contain" />
+            <Image source={brandAssets.utility.letter} style={styles.archiveImage} resizeMode="contain" />
           </View>
           <View>
             <Text style={styles.lettersKicker}>КАПСУЛА</Text>

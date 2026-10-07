@@ -17,9 +17,8 @@ import { colors, radius, shadows } from '../theme';
 
 const artwork = {
   book: brandAssets.features.book,
-  path: brandAssets.features.path,
+  letter: brandAssets.utility.letter,
   family: brandAssets.features.family,
-  goal: brandAssets.utility.goal,
 } as const;
 
 const toIsoDay = (date: Date) => {
@@ -234,7 +233,7 @@ export default function FutureLetterComposer() {
         </View>
 
         <LinearGradient colors={['#173C54', '#355F70', '#D49B4B']} style={[styles.intro, shadows.lift]}>
-          <View style={styles.introArtworkShell}><Image source={artwork.path} style={styles.introArtwork} resizeMode="contain" /></View>
+          <View style={styles.introArtworkShell}><Image source={artwork.letter} style={styles.introArtwork} resizeMode="contain" /></View>
           <Text style={styles.introTitle}>Пиши так, как будто время действительно пройдёт</Text>
           <Text style={styles.introText}>Не обязательно давать советы. Можно рассказать, каким был сегодняшний день, чего боишься, чем гордишься или что очень не хочется забыть.</Text>
         </LinearGradient>
@@ -274,12 +273,12 @@ export default function FutureLetterComposer() {
         </View>
 
         <View style={[styles.sealInfo, shadows.soft]}>
-          <View style={styles.lockCircle}><Image source={artwork.goal} style={styles.lockImage} resizeMode="contain" /></View>
+          <View style={styles.lockCircle}><Image source={artwork.letter} style={styles.lockImage} resizeMode="contain" /></View>
           <View style={styles.sealCopy}><Text style={styles.sealTitle}>Что значит «запечатать»</Text><Text style={styles.sealText}>После запечатывания нельзя исправить дату, адресата или текст. Содержание снова станет доступно только после выбранной даты.</Text></View>
         </View>
 
         <Pressable disabled={busy} onPress={seal} style={[styles.sealButton, busy && styles.disabled]}>
-          {busy ? <ActivityIndicator color={colors.white} /> : <><Image source={artwork.book} style={styles.sealButtonImage} resizeMode="contain" /><Text style={styles.sealButtonText}>Сохранить и запечатать</Text></>}
+          {busy ? <ActivityIndicator color={colors.white} /> : <><Image source={artwork.letter} style={styles.sealButtonImage} resizeMode="contain" /><Text style={styles.sealButtonText}>Сохранить и запечатать</Text></>}
         </Pressable>
         <Pressable disabled={busy} onPress={() => void saveDraft()} style={[styles.draftButton, busy && styles.disabled]}><Text style={styles.draftButtonText}>Сохранить как черновик</Text></Pressable>
         {letterId ? <Pressable disabled={busy} onPress={removeDraft} style={styles.deleteButton}><Text style={styles.deleteText}>Удалить черновик</Text></Pressable> : null}
