@@ -1,6 +1,6 @@
 {
   "name": "papa-i-ya",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -9,8 +9,9 @@
     "android": "expo start --android",
     "web": "expo start --web",
     "check:assets": "node scripts/check-brand-assets.mjs",
-    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts tests/futureLetters.test.ts tests/rituals.test.ts tests/presentation.test.ts tests/reflections.test.ts tests/calendarDate.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "node --experimental-strip-types --test tests/updateIntegrity.test.ts tests/updateRelease.test.ts tests/updateInstallError.test.ts tests/rpcResult.test.ts tests/futureLetters.test.ts tests/rituals.test.ts tests/presentation.test.ts tests/reflections.test.ts tests/calendarDate.test.ts tests/ownerAccess.test.ts && npm run test:owner-access",
+    "typecheck": "tsc --noEmit",
+    "test:owner-access": "node scripts/test-owner-access.mjs"
   },
   "engines": {
     "node": ">=22.13 <23 || >=24.3 <25"
@@ -45,6 +46,7 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
     "@types/react": "19.2.4",
     "sharp": "0.35.5",
     "typescript": "6.0.3"

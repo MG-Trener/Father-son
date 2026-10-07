@@ -54,6 +54,10 @@ type NullableRpcOverrides = {
 };
 
 type AppRpcAdditions = {
+  get_account_access: {
+    Args: Record<PropertyKey, never>;
+    Returns: Json;
+  };
   record_ritual_moment: {
     Args: { p_ritual_id: string; p_happened_on?: string };
     Returns: Json;

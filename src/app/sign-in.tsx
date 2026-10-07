@@ -1,11 +1,13 @@
-import { router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Image, Text, TextInput, View } from 'react-native';
 import { brandAssets } from '../brandAssets';
 import { Button, Card, Chip, Page, ui } from '../components/Everyday';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 export default function SignInScreen() {
+  const { session } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,7 +29,6 @@ export default function SignInScreen() {
       if (mode === 'signin') {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
-        router.replace('/');
         return;
       }
 
@@ -38,8 +39,7 @@ export default function SignInScreen() {
       });
       if (error) throw error;
 
-      if (data.session) router.replace('/');
-      else {
+      if (!data.session) {
         Alert.alert('Почти готово', 'Проверьте почту и подтвердите регистрацию, затем войдите.');
         setMode('signin');
       }
@@ -50,6 +50,7 @@ export default function SignInScreen() {
     }
   };
 
+  if (session) return <Redirect href="/" />;
   return <Page>
     <View style={ui.row}><Image source={brandAssets.app.icon} style={{ width: 52, height: 52, borderRadius: 14 }} /><View style={ui.flex}><Text style={ui.title}>Папа & Я</Text><Text style={ui.body}>Общаться. Пробовать. Расти вместе.</Text></View></View>
     <Image source={brandAssets.app.familyHero} style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 22 }} resizeMode="cover" accessible={false} />
@@ -63,6 +64,6 @@ export default function SignInScreen() {
       <TextInput accessibilityLabel="Пароль" value={password} onChangeText={setPassword} style={ui.input} placeholder="Не меньше 6 символов" secureTextEntry autoCapitalize="none" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} onSubmitEditing={() => { if (!busy) void submit(); }} />
       <Button label={mode === 'signin' ? 'Войти' : 'Создать аккаунт'} busy={busy} onPress={() => void submit()} />
     </Card>
-    <Text style={ui.body}>У папы и сына отдельные аккаунты. После регистрации папа создаёт семью, а сын подключается по его коду.</Text>
+    <Text style={ui.body}>У папы и сына отдельные аккаунты. Сын создаёт аккаунт и подключается по коду папы. Папа входит в свой существующий аккаунт; новый вход подтверждается через его почту.</Text>
   </Page>;
 }

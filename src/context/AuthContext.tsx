@@ -1,4 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
+import { parseOwnerCallback } from '../domain/ownerAccess';
 import {
   createContext,
   type PropsWithChildren,
@@ -13,6 +15,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 type AuthContextValue = {
   session: Session | null;
   loading: boolean;
+  linkError: string | null;
   signOut: () => Promise<void>;
 };
 
@@ -21,6 +24,34 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const client = supabase;
+    if (!client) return;
+    let processing = false;
+    const acceptLink = async (url: string | null) => {
+      if (!url || processing) return;
+      try {
+        const tokens = parseOwnerCallback(url);
+        if (!tokens) return;
+        processing = true;
+        setLinkError(null);
+        const { data: current } = await client.auth.getSession();
+        const { data: verified, error } = await client.auth.getUser(tokens.access_token);
+        if (error || !verified.user) throw new Error('Ссылка недействительна. Запросите новое письмо.');
+        if (current.session && current.session.user.id !== verified.user.id) {
+          throw new Error('Это письмо для другого аккаунта. Сначала выйдите из текущего аккаунта.');
+        }
+        const { error: sessionError } = await client.auth.setSession(tokens);
+        if (sessionError) throw new Error('Ссылка устарела. Запросите новое письмо.');
+      } catch (error) { setLinkError(error instanceof Error ? error.message : 'Не удалось подтвердить вход.'); }
+      finally { processing = false; }
+    };
+    void Linking.getInitialURL().then(acceptLink);
+    const listener = Linking.addEventListener('url', ({ url }) => { void acceptLink(url); });
+    return () => listener.remove();
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -59,6 +90,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       session,
       loading,
+      linkError,
       signOut: async () => {
         if (!supabase) return;
 
@@ -67,11 +99,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
             await unregisterAllPushDevices();
           }
         } finally {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
+          setLinkError(null);
         }
       },
     }),
-    [session, loading],
+    [session, loading, linkError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
